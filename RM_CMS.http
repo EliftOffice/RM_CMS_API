@@ -1,0 +1,6 @@
+@RM_CMS_HostAddress = http://localhost:5043
+
+GET {{RM_CMS_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
