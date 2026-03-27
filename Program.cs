@@ -1,4 +1,3 @@
-
 namespace RM_CMS
 {
     public class Program
@@ -13,6 +12,17 @@ namespace RM_CMS
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+
+            // Register Dapper and Data Access Services
+            builder.Services.AddScoped<RM_CMS.Data.IDbConnectionFactory, RM_CMS.Data.DbConnectionFactory>();
+            
+            // Register Peoples Module
+            builder.Services.AddScoped<RM_CMS.DAL.Visitors.IPeopleRepository, RM_CMS.DAL.Visitors.PeopleRepository>();
+            builder.Services.AddScoped<RM_CMS.BLL.Visitors.IPeopleService, RM_CMS.BLL.Visitors.PeopleService>();
+
+            // Register Volunteers Module
+            builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteerRepository, RM_CMS.DAL.Volunteers.VolunteerRepository>();
+            builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteerService, RM_CMS.BLL.Volunteers.VolunteerService>();
 
             var app = builder.Build();
 
