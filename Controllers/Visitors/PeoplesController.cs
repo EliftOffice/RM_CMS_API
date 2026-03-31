@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RM_CMS.BLL.Visitors;
-using RM_CMS.Data.DTO;
+using RM_CMS.Data.DTO.Visitors;
 
 namespace RM_CMS.Controllers.visitors
 {
@@ -30,7 +30,11 @@ namespace RM_CMS.Controllers.visitors
             {
                 _logger.LogInformation("Getting all people");
                 var result = await _peopleService.GetAllAsync();
-                return Ok(result);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -52,13 +56,11 @@ namespace RM_CMS.Controllers.visitors
             {
                 _logger.LogInformation($"Getting person with ID: {personId}");
                 var result = await _peopleService.GetByIdAsync(personId);
-                
-                if (result == null)
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Person with ID {personId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
-                
-                return Ok(result);
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -79,7 +81,11 @@ namespace RM_CMS.Controllers.visitors
             {
                 _logger.LogInformation($"Getting people with status: {followUpStatus}");
                 var result = await _peopleService.GetByStatusAsync(followUpStatus);
-                return Ok(result);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -100,7 +106,11 @@ namespace RM_CMS.Controllers.visitors
             {
                 _logger.LogInformation($"Getting people assigned to volunteer: {volunteerId}");
                 var result = await _peopleService.GetByAssignedVolunteerAsync(volunteerId);
-                return Ok(result);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -121,7 +131,11 @@ namespace RM_CMS.Controllers.visitors
             {
                 _logger.LogInformation($"Getting people with priority: {priority}");
                 var result = await _peopleService.GetByPriorityAsync(priority);
-                return Ok(result);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -141,15 +155,20 @@ namespace RM_CMS.Controllers.visitors
             try
             {
                 _logger.LogInformation($"Getting paginated people - Page: {pageNumber}, Size: {pageSize}");
-                var (data, totalCount) = await _peopleService.GetPaginatedAsync(pageNumber, pageSize);
-                
+                var result = await _peopleService.GetPaginatedAsync(pageNumber, pageSize);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+
+                var paged = result.Data!;
                 return Ok(new
                 {
                     pageNumber,
                     pageSize,
-                    totalCount,
-                    totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
-                    data
+                    totalCount = paged.TotalCount,
+                    totalPages = (int)Math.Ceiling(paged.TotalCount / (double)pageSize),
+                    data = paged.Data
                 });
             }
             catch (Exception ex)
@@ -177,13 +196,12 @@ namespace RM_CMS.Controllers.visitors
 
                 _logger.LogInformation($"Creating new person: {dto.FirstName} {dto.LastName}");
                 var result = await _peopleService.CreateAsync(dto);
-
-                if (result == null)
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return BadRequest(new { message = "Failed to create person" });
+                    return StatusCode(result.StatusCode == 0 ? 400 : result.StatusCode, result);
                 }
 
-                return CreatedAtAction(nameof(GetById), new { personId = result.PersonId }, result);
+                return CreatedAtAction(nameof(GetById), new { personId = result.Data?.PersonId }, result);
             }
             catch (Exception ex)
             {
@@ -210,15 +228,14 @@ namespace RM_CMS.Controllers.visitors
                 }
 
                 _logger.LogInformation($"Updating person: {personId}");
-                var success = await _peopleService.UpdateAsync(personId, dto);
-
-                if (!success)
+                var result = await _peopleService.UpdateAsync(personId, dto);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Person with ID {personId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
                 var updated = await _peopleService.GetByIdAsync(personId);
-                return Ok(new { message = "Person updated successfully", data = updated });
+                return Ok(new { message = "Person updated successfully", data = updated.Data });
             }
             catch (Exception ex)
             {
@@ -239,14 +256,13 @@ namespace RM_CMS.Controllers.visitors
             try
             {
                 _logger.LogInformation($"Deleting person: {personId}");
-                var success = await _peopleService.DeleteAsync(personId);
-
-                if (!success)
+                var result = await _peopleService.DeleteAsync(personId);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Person with ID {personId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
-                return Ok(new { message = "Person deleted successfully" });
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -353,8 +369,13 @@ namespace RM_CMS.Controllers.visitors
             try
             {
                 _logger.LogInformation("Getting total count of people");
-                var count = await _peopleService.GetTotalCountAsync();
-                return Ok(new { totalCount = count });
+                var result = await _peopleService.GetTotalCountAsync();
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+
+                return Ok(new { totalCount = result.Data });
             }
             catch (Exception ex)
             {

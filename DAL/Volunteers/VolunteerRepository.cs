@@ -12,6 +12,7 @@ namespace RM_CMS.DAL.Volunteers
         Task<IEnumerable<Volunteer>> GetByStatusAsync(string status);
         Task<IEnumerable<Volunteer>> GetByTeamLeadAsync(string teamLeadId);
         Task<IEnumerable<Volunteer>> GetByCapacityBandAsync(string capacityBand);
+        Task<IEnumerable<Volunteer>> GetAvailableVolunteersAsync(string? campus);
         Task<bool> CreateAsync(Volunteer volunteer);
         Task<bool> UpdateAsync(Volunteer volunteer);
         Task<bool> DeleteAsync(string volunteerId);
@@ -23,6 +24,7 @@ namespace RM_CMS.DAL.Volunteers
         Task<bool> UpdateCheckInAsync(string volunteerId, DateTime? lastCheckIn, DateTime? nextCheckIn);
         Task<int> GetActiveVolunteerCountAsync();
         Task<IEnumerable<Volunteer>> GetWithLowCompletionRateAsync(decimal threshold);
+        Task<bool> IncrementCurrentAssignmentsAsync(string volunteerId);
     }
 
     public class VolunteerRepository : IVolunteerRepository
@@ -294,6 +296,46 @@ namespace RM_CMS.DAL.Volunteers
                 connection.Open();
                 var query = "SELECT * FROM volunteers WHERE completion_rate < @Threshold AND status = 'Active' ORDER BY completion_rate ASC";
                 return await connection.QueryAsync<Volunteer>(query, new { Threshold = threshold });
+            }
+        }
+
+        public async Task<IEnumerable<Volunteer>> GetAvailableVolunteersAsync(string? campus)
+        {
+            using (var connection = _dbConnectionFactory.GetConnection())
+            {
+                connection.Open();
+                var query = @"SELECT 
+                            v.volunteer_id, 
+                            v.first_name, 
+                            v.last_name, 
+                            v.email, 
+                            v.capacity_max, 
+                            v.current_assignments,
+                            (v.capacity_max - v.current_assignments) AS available_capacity
+                        FROM volunteers v
+                        WHERE tolower(v.status) = 'active'
+                          AND v.current_assignments < v.capacity_max
+                          AND  (@Campus IS NULL OR v.campus = @Campus)
+                        ORDER BY v.current_assignments ASC, RAND()
+                        LIMIT 1;";
+
+                return await connection.QueryAsync<Volunteer>(query, new { Campus = campus });
+            }
+        }
+
+        public async Task<bool> IncrementCurrentAssignmentsAsync(string volunteerId)
+        {
+            using (var connection = _dbConnectionFactory.GetConnection())
+            {
+                connection.Open();
+                var query = @"
+                    UPDATE volunteers
+                    SET current_assignments = current_assignments + 1,
+                        updated_at = @UpdatedAt
+                    WHERE volunteer_id = @VolunteerId";
+
+                var result = await connection.ExecuteAsync(query, new { VolunteerId = volunteerId, UpdatedAt = DateTime.UtcNow });
+                return result > 0;
             }
         }
     }

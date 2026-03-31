@@ -1,4 +1,4 @@
-namespace RM_CMS.Data.DTO
+namespace RM_CMS.Data.DTO.Volunteers
 {
     public class UpdateVolunteerDto
     {

@@ -1,4 +1,4 @@
-namespace RM_CMS.Data.DTO
+namespace RM_CMS.Data.DTO.Volunteers
 {
     public class CreateVolunteerDto
     {
@@ -8,13 +8,12 @@ namespace RM_CMS.Data.DTO
         public string? Phone { get; set; }
         public string Status { get; set; } = string.Empty;
         public string Level { get; set; } = string.Empty;
-        public DateTime StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
+        public DateTime StartDate { get; set; }       
         public string CapacityBand { get; set; } = string.Empty;
         public int CapacityMin { get; set; }
         public int CapacityMax { get; set; }
         public string? TeamLead { get; set; }
-        public string? Campus { get; set; }
+        public string? Campus { get; set; } = "Ongole";
         public DateTime? Level0Complete { get; set; }
         public DateTime? CrisisTrained { get; set; }
         public DateTime? ConfidentialitySigned { get; set; }

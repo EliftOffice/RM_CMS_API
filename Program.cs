@@ -24,6 +24,10 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteerRepository, RM_CMS.DAL.Volunteers.VolunteerRepository>();
             builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteerService, RM_CMS.BLL.Volunteers.VolunteerService>();
 
+            // Register Followups Module
+            builder.Services.AddScoped<RM_CMS.DAL.Followups.IFollowUpRepository, RM_CMS.DAL.Followups.FollowUpRepository>();
+            builder.Services.AddScoped<RM_CMS.BLL.Followups.IFollowUpService, RM_CMS.BLL.Followups.FollowUpService>();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

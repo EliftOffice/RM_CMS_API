@@ -36,7 +36,36 @@ namespace RM_CMS.DAL.Visitors
             using (var connection = _dbConnectionFactory.GetConnection())
             {
                 connection.Open();
-                var query = "SELECT * FROM people ORDER BY created_at DESC";
+                var query = @"
+                                SELECT 
+                                    person_id AS PersonId,
+                                    first_name AS FirstName,
+                                    last_name AS LastName,
+                                    email,
+                                    phone,
+                                    age_range AS AgeRange,
+                                    household_type AS HouseholdType,
+                                    zip_code AS ZipCode,
+                                    visit_type AS VisitType,
+                                    first_visit_date AS FirstVisitDate,
+                                    last_visit_date AS LastVisitDate,
+                                    visit_count AS VisitCount,
+                                    connection_source AS ConnectionSource,
+                                    campus,
+                                    follow_up_status AS FollowUpStatus,
+                                    follow_up_priority AS FollowUpPriority,
+                                    assigned_volunteer AS AssignedVolunteer,
+                                    assigned_date AS AssignedDate,
+                                    last_contact_date AS LastContactDate,
+                                    next_action_date AS NextActionDate,
+                                    interested_in AS InterestedIn,
+                                    prayer_requests AS PrayerRequests,
+                                    specific_needs AS SpecificNeeds,
+                                    created_at AS CreatedAt,
+                                    updated_at AS UpdatedAt,
+                                    created_by AS CreatedBy
+                                FROM people
+                                ORDER BY created_at DESC";
                 return await connection.QueryAsync<People>(query);
             }
         }

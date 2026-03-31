@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RM_CMS.BLL.Volunteers;
 using RM_CMS.Data.DTO;
+using RM_CMS.Data.DTO.Volunteers;
 
 namespace RM_CMS.Controllers.Volunteers
 {
@@ -30,7 +31,12 @@ namespace RM_CMS.Controllers.Volunteers
             {
                 _logger.LogInformation("Getting all volunteers");
                 var result = await _volunteerService.GetAllAsync();
-                return Ok(result);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -52,13 +58,12 @@ namespace RM_CMS.Controllers.Volunteers
             {
                 _logger.LogInformation($"Getting volunteer with ID: {volunteerId}");
                 var result = await _volunteerService.GetByIdAsync(volunteerId);
-                
-                if (result == null)
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Volunteer with ID {volunteerId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
-                
-                return Ok(result);
+
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -79,7 +84,12 @@ namespace RM_CMS.Controllers.Volunteers
             {
                 _logger.LogInformation($"Getting volunteers with status: {status}");
                 var result = await _volunteerService.GetByStatusAsync(status);
-                return Ok(result);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -100,7 +110,12 @@ namespace RM_CMS.Controllers.Volunteers
             {
                 _logger.LogInformation($"Getting volunteers for team lead: {teamLeadId}");
                 var result = await _volunteerService.GetByTeamLeadAsync(teamLeadId);
-                return Ok(result);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -121,7 +136,12 @@ namespace RM_CMS.Controllers.Volunteers
             {
                 _logger.LogInformation($"Getting volunteers with capacity band: {capacityBand}");
                 var result = await _volunteerService.GetByCapacityBandAsync(capacityBand);
-                return Ok(result);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -141,15 +161,20 @@ namespace RM_CMS.Controllers.Volunteers
             try
             {
                 _logger.LogInformation($"Getting paginated volunteers - Page: {pageNumber}, Size: {pageSize}");
-                var (data, totalCount) = await _volunteerService.GetPaginatedAsync(pageNumber, pageSize);
-                
+                var result = await _volunteerService.GetPaginatedAsync(pageNumber, pageSize);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+
+                var paged = result.Data!;
                 return Ok(new
                 {
                     pageNumber,
                     pageSize,
-                    totalCount,
-                    totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
-                    data
+                    totalCount = paged.TotalCount,
+                    totalPages = (int)Math.Ceiling(paged.TotalCount / (double)pageSize),
+                    data = paged.Data
                 });
             }
             catch (Exception ex)
@@ -177,13 +202,12 @@ namespace RM_CMS.Controllers.Volunteers
 
                 _logger.LogInformation($"Creating new volunteer: {dto.FirstName} {dto.LastName}");
                 var result = await _volunteerService.CreateAsync(dto);
-
-                if (result == null)
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return BadRequest(new { message = "Failed to create volunteer" });
+                    return StatusCode(result.StatusCode == 0 ? 400 : result.StatusCode, result);
                 }
 
-                return CreatedAtAction(nameof(GetById), new { volunteerId = result.VolunteerId }, result);
+                return CreatedAtAction(nameof(GetById), new { volunteerId = result.Data?.VolunteerId }, result);
             }
             catch (Exception ex)
             {
@@ -210,15 +234,14 @@ namespace RM_CMS.Controllers.Volunteers
                 }
 
                 _logger.LogInformation($"Updating volunteer: {volunteerId}");
-                var success = await _volunteerService.UpdateAsync(volunteerId, dto);
-
-                if (!success)
+                var result = await _volunteerService.UpdateAsync(volunteerId, dto);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Volunteer with ID {volunteerId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
                 var updated = await _volunteerService.GetByIdAsync(volunteerId);
-                return Ok(new { message = "Volunteer updated successfully", data = updated });
+                return Ok(new { message = "Volunteer updated successfully", data = updated.Data });
             }
             catch (Exception ex)
             {
@@ -239,14 +262,13 @@ namespace RM_CMS.Controllers.Volunteers
             try
             {
                 _logger.LogInformation($"Deleting volunteer: {volunteerId}");
-                var success = await _volunteerService.DeleteAsync(volunteerId);
-
-                if (!success)
+                var result = await _volunteerService.DeleteAsync(volunteerId);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Volunteer with ID {volunteerId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
-                return Ok(new { message = "Volunteer deleted successfully" });
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -267,15 +289,14 @@ namespace RM_CMS.Controllers.Volunteers
             try
             {
                 _logger.LogInformation($"Updating status for volunteer {volunteerId} to {status}");
-                var success = await _volunteerService.UpdateStatusAsync(volunteerId, status);
-
-                if (!success)
+                var result = await _volunteerService.UpdateStatusAsync(volunteerId, status);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Volunteer with ID {volunteerId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
                 var updated = await _volunteerService.GetByIdAsync(volunteerId);
-                return Ok(new { message = "Volunteer status updated successfully", data = updated });
+                return Ok(new { message = "Volunteer status updated successfully", data = updated.Data });
             }
             catch (Exception ex)
             {
@@ -296,15 +317,14 @@ namespace RM_CMS.Controllers.Volunteers
             try
             {
                 _logger.LogInformation($"Updating capacity for volunteer {volunteerId}");
-                var success = await _volunteerService.UpdateCapacityAsync(volunteerId, dto.CapacityBand, dto.CapacityMin, dto.CapacityMax);
-
-                if (!success)
+                var result = await _volunteerService.UpdateCapacityAsync(volunteerId, dto.CapacityBand, dto.CapacityMin, dto.CapacityMax);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Volunteer with ID {volunteerId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
                 var updated = await _volunteerService.GetByIdAsync(volunteerId);
-                return Ok(new { message = "Volunteer capacity updated successfully", data = updated });
+                return Ok(new { message = "Volunteer capacity updated successfully", data = updated.Data });
             }
             catch (Exception ex)
             {
@@ -325,15 +345,14 @@ namespace RM_CMS.Controllers.Volunteers
             try
             {
                 _logger.LogInformation($"Updating performance for volunteer {volunteerId}");
-                var success = await _volunteerService.UpdatePerformanceAsync(volunteerId, dto.TotalCompleted, dto.TotalAssigned);
-
-                if (!success)
+                var result = await _volunteerService.UpdatePerformanceAsync(volunteerId, dto.TotalCompleted, dto.TotalAssigned);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Volunteer with ID {volunteerId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
                 var updated = await _volunteerService.GetByIdAsync(volunteerId);
-                return Ok(new { message = "Volunteer performance updated successfully", data = updated });
+                return Ok(new { message = "Volunteer performance updated successfully", data = updated.Data });
             }
             catch (Exception ex)
             {
@@ -354,15 +373,14 @@ namespace RM_CMS.Controllers.Volunteers
             try
             {
                 _logger.LogInformation($"Updating check-in for volunteer {volunteerId}");
-                var success = await _volunteerService.UpdateCheckInAsync(volunteerId, dto.LastCheckIn, dto.NextCheckIn);
-
-                if (!success)
+                var result = await _volunteerService.UpdateCheckInAsync(volunteerId, dto.LastCheckIn, dto.NextCheckIn);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Volunteer with ID {volunteerId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
                 var updated = await _volunteerService.GetByIdAsync(volunteerId);
-                return Ok(new { message = "Volunteer check-in updated successfully", data = updated });
+                return Ok(new { message = "Volunteer check-in updated successfully", data = updated.Data });
             }
             catch (Exception ex)
             {
@@ -382,8 +400,13 @@ namespace RM_CMS.Controllers.Volunteers
             try
             {
                 _logger.LogInformation("Getting active volunteers count");
-                var count = await _volunteerService.GetActiveVolunteerCountAsync();
-                return Ok(new { activeCount = count });
+                var result = await _volunteerService.GetActiveVolunteerCountAsync();
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+
+                return Ok(new { activeCount = result.Data });
             }
             catch (Exception ex)
             {
@@ -404,7 +427,12 @@ namespace RM_CMS.Controllers.Volunteers
             {
                 _logger.LogInformation($"Getting volunteers with completion rate below {threshold}");
                 var result = await _volunteerService.GetWithLowCompletionRateAsync(threshold);
-                return Ok(result);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -424,8 +452,13 @@ namespace RM_CMS.Controllers.Volunteers
             try
             {
                 _logger.LogInformation("Getting total volunteers count");
-                var count = await _volunteerService.GetTotalCountAsync();
-                return Ok(new { totalCount = count });
+                var result = await _volunteerService.GetTotalCountAsync();
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
+                {
+                    return StatusCode(result.StatusCode == 0 ? 500 : result.StatusCode, result);
+                }
+
+                return Ok(new { totalCount = result.Data });
             }
             catch (Exception ex)
             {
@@ -433,6 +466,10 @@ namespace RM_CMS.Controllers.Volunteers
                 return StatusCode(500, new { message = "An error occurred while getting the total count", error = ex.Message });
             }
         }
+
+
+
+       
     }
 
     // Helper DTOs for PATCH endpoints

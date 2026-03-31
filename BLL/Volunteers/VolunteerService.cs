@@ -1,28 +1,29 @@
 using RM_CMS.Data.Models;
 using RM_CMS.Data.DTO;
 using RM_CMS.DAL.Volunteers;
+using RM_CMS.Data.DTO.Volunteers;
 
 namespace RM_CMS.BLL.Volunteers
 {
     public interface IVolunteerService
     {
-        Task<IEnumerable<VolunteerResponseDto>> GetAllAsync();
-        Task<VolunteerResponseDto?> GetByIdAsync(string volunteerId);
-        Task<IEnumerable<VolunteerResponseDto>> GetByStatusAsync(string status);
-        Task<IEnumerable<VolunteerResponseDto>> GetByTeamLeadAsync(string teamLeadId);
-        Task<IEnumerable<VolunteerResponseDto>> GetByCapacityBandAsync(string capacityBand);
-        Task<VolunteerResponseDto?> CreateAsync(CreateVolunteerDto dto);
-        Task<bool> UpdateAsync(string volunteerId, UpdateVolunteerDto dto);
-        Task<bool> DeleteAsync(string volunteerId);
-        Task<int> GetTotalCountAsync();
-        Task<(IEnumerable<VolunteerResponseDto> Data, int TotalCount)> GetPaginatedAsync(int pageNumber, int pageSize);
-        Task<bool> UpdateStatusAsync(string volunteerId, string status);
-        Task<bool> UpdateCapacityAsync(string volunteerId, string capacityBand, int min, int max);
-        Task<bool> UpdatePerformanceAsync(string volunteerId, int completed, int assigned);
-        Task<bool> UpdateCheckInAsync(string volunteerId, DateTime? lastCheckIn, DateTime? nextCheckIn);
-        Task<int> GetActiveVolunteerCountAsync();
-        Task<IEnumerable<VolunteerResponseDto>> GetWithLowCompletionRateAsync(decimal threshold);
-        string GenerateVolunteerId();
+        Task<RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>> GetAllAsync();
+        Task<RM_CMS.Data.ApiResponse<VolunteerResponseDto>> GetByIdAsync(string volunteerId);
+        Task<RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>> GetByStatusAsync(string status);
+        Task<RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>> GetByTeamLeadAsync(string teamLeadId);
+        Task<RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>> GetByCapacityBandAsync(string capacityBand);
+        Task<RM_CMS.Data.ApiResponse<VolunteerResponseDto>> CreateAsync(CreateVolunteerDto dto);
+        Task<RM_CMS.Data.ApiResponse<bool>> UpdateAsync(string volunteerId, UpdateVolunteerDto dto);
+        Task<RM_CMS.Data.ApiResponse<bool>> DeleteAsync(string volunteerId);
+        Task<RM_CMS.Data.ApiResponse<int>> GetTotalCountAsync();
+        Task<RM_CMS.Data.ApiResponse<RM_CMS.Data.PaginatedResult<VolunteerResponseDto>>> GetPaginatedAsync(int pageNumber, int pageSize);
+        Task<RM_CMS.Data.ApiResponse<bool>> UpdateStatusAsync(string volunteerId, string status);
+        Task<RM_CMS.Data.ApiResponse<bool>> UpdateCapacityAsync(string volunteerId, string capacityBand, int min, int max);
+        Task<RM_CMS.Data.ApiResponse<bool>> UpdatePerformanceAsync(string volunteerId, int completed, int assigned);
+        Task<RM_CMS.Data.ApiResponse<bool>> UpdateCheckInAsync(string volunteerId, DateTime? lastCheckIn, DateTime? nextCheckIn);
+        Task<RM_CMS.Data.ApiResponse<int>> GetActiveVolunteerCountAsync();
+        Task<RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>> GetWithLowCompletionRateAsync(decimal threshold);
+        Task<RM_CMS.Data.ApiResponse<string>> GenerateVolunteerId();
     }
 
     public class VolunteerService : IVolunteerService
@@ -34,157 +35,292 @@ namespace RM_CMS.BLL.Volunteers
             _repository = repository;
         }
 
-        public async Task<IEnumerable<VolunteerResponseDto>> GetAllAsync()
+        public async Task<RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>> GetAllAsync()
         {
-            var volunteers = await _repository.GetAllAsync();
-            return MapToResponseDtos(volunteers);
-        }
-
-        public async Task<VolunteerResponseDto?> GetByIdAsync(string volunteerId)
-        {
-            var volunteer = await _repository.GetByIdAsync(volunteerId);
-            return volunteer == null ? null : MapToResponseDto(volunteer);
-        }
-
-        public async Task<IEnumerable<VolunteerResponseDto>> GetByStatusAsync(string status)
-        {
-            var volunteers = await _repository.GetByStatusAsync(status);
-            return MapToResponseDtos(volunteers);
-        }
-
-        public async Task<IEnumerable<VolunteerResponseDto>> GetByTeamLeadAsync(string teamLeadId)
-        {
-            var volunteers = await _repository.GetByTeamLeadAsync(teamLeadId);
-            return MapToResponseDtos(volunteers);
-        }
-
-        public async Task<IEnumerable<VolunteerResponseDto>> GetByCapacityBandAsync(string capacityBand)
-        {
-            var volunteers = await _repository.GetByCapacityBandAsync(capacityBand);
-            return MapToResponseDtos(volunteers);
-        }
-
-        public async Task<VolunteerResponseDto?> CreateAsync(CreateVolunteerDto dto)
-        {
-            var volunteerId = GenerateVolunteerId();
-            var now = DateTime.UtcNow;
-
-            var volunteer = new Volunteer
+            try
             {
-                VolunteerId = volunteerId,
-                FirstName = dto.FirstName,
-                LastName = dto.LastName,
-                Email = dto.Email,
-                Phone = dto.Phone,
-                Status = dto.Status ?? "Active",
-                Level = dto.Level ?? "Level 0",
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                CapacityBand = dto.CapacityBand ?? "Balanced",
-                CapacityMin = dto.CapacityMin,
-                CapacityMax = dto.CapacityMax,
-                CurrentAssignments = 0,
-                TotalCompleted = 0,
-                TotalAssigned = 0,
-                CompletionRate = 0,
-                AvgResponseTime = 0,
-                TeamLead = dto.TeamLead,
-                Campus = null,
-                Level0Complete = dto.Level0Complete,
-                CrisisTrained = dto.CrisisTrained,
-                ConfidentialitySigned = dto.ConfidentialitySigned,
-                BackgroundCheck = dto.BackgroundCheck,
-                BoundaryViolations = 0,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-
-            var success = await _repository.CreateAsync(volunteer);
-            return success ? MapToResponseDto(volunteer) : null;
+                var volunteers = await _repository.GetAllAsync();
+                return RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>.Success(MapToResponseDtos(volunteers));
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>.Error("Failed to get volunteers", ex.Message);
+            }
         }
 
-        public async Task<bool> UpdateAsync(string volunteerId, UpdateVolunteerDto dto)
+        public async Task<RM_CMS.Data.ApiResponse<VolunteerResponseDto>> GetByIdAsync(string volunteerId)
         {
-            var existing = await _repository.GetByIdAsync(volunteerId);
-            if (existing == null) return false;
-
-            existing.FirstName = dto.FirstName ?? existing.FirstName;
-            existing.LastName = dto.LastName ?? existing.LastName;
-            existing.Email = dto.Email ?? existing.Email;
-            existing.Phone = dto.Phone ?? existing.Phone;
-            existing.Status = dto.Status ?? existing.Status;
-            existing.Level = dto.Level ?? existing.Level;
-            existing.EndDate = dto.EndDate ?? existing.EndDate;
-            existing.CapacityBand = dto.CapacityBand ?? existing.CapacityBand;
-            if (dto.CapacityMin.HasValue) existing.CapacityMin = dto.CapacityMin.Value;
-            if (dto.CapacityMax.HasValue) existing.CapacityMax = dto.CapacityMax.Value;
-            if (dto.CurrentAssignments.HasValue) existing.CurrentAssignments = dto.CurrentAssignments.Value;
-            if (dto.CompletionRate.HasValue) existing.CompletionRate = dto.CompletionRate.Value;
-            existing.EmotionalTone = dto.EmotionalTone ?? existing.EmotionalTone;
-            if (dto.VnpsScore.HasValue) existing.VnpsScore = dto.VnpsScore.Value;
-            existing.BurnoutRisk = dto.BurnoutRisk ?? existing.BurnoutRisk;
-            existing.NextCheckIn = dto.NextCheckIn ?? existing.NextCheckIn;
-            existing.Campus = dto.Campus ?? existing.Campus;
-            existing.UpdatedAt = DateTime.UtcNow;
-
-            return await _repository.UpdateAsync(existing);
+            try
+            {
+                var volunteer = await _repository.GetByIdAsync(volunteerId);
+                if (volunteer == null) return RM_CMS.Data.ApiResponse<VolunteerResponseDto>.Error("Volunteer not found", null, 404);
+                return RM_CMS.Data.ApiResponse<VolunteerResponseDto>.Success(MapToResponseDto(volunteer));
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<VolunteerResponseDto>.Error("Failed to get volunteer", ex.Message);
+            }
         }
 
-        public async Task<bool> DeleteAsync(string volunteerId)
+        public async Task<RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>> GetByStatusAsync(string status)
         {
-            return await _repository.DeleteAsync(volunteerId);
+            try
+            {
+                var volunteers = await _repository.GetByStatusAsync(status);
+                return RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>.Success(MapToResponseDtos(volunteers));
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>.Error("Failed to get volunteers by status", ex.Message);
+            }
         }
 
-        public async Task<int> GetTotalCountAsync()
+        public async Task<RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>> GetByTeamLeadAsync(string teamLeadId)
         {
-            return await _repository.GetTotalCountAsync();
+            try
+            {
+                var volunteers = await _repository.GetByTeamLeadAsync(teamLeadId);
+                return RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>.Success(MapToResponseDtos(volunteers));
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>.Error("Failed to get volunteers by team lead", ex.Message);
+            }
         }
 
-        public async Task<(IEnumerable<VolunteerResponseDto> Data, int TotalCount)> GetPaginatedAsync(int pageNumber, int pageSize)
+        public async Task<RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>> GetByCapacityBandAsync(string capacityBand)
         {
-            if (pageNumber < 1) pageNumber = 1;
-            if (pageSize < 1 || pageSize > 100) pageSize = 10;
-
-            var data = await _repository.GetPaginatedAsync(pageNumber, pageSize);
-            var totalCount = await _repository.GetTotalCountAsync();
-
-            return (MapToResponseDtos(data), totalCount);
+            try
+            {
+                var volunteers = await _repository.GetByCapacityBandAsync(capacityBand);
+                return RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>.Success(MapToResponseDtos(volunteers));
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>.Error("Failed to get volunteers by capacity band", ex.Message);
+            }
         }
 
-        public async Task<bool> UpdateStatusAsync(string volunteerId, string status)
+        public async Task<RM_CMS.Data.ApiResponse<VolunteerResponseDto>> CreateAsync(CreateVolunteerDto dto)
         {
-            return await _repository.UpdateStatusAsync(volunteerId, status);
+            try
+            {
+                var volunteerId = (await GenerateVolunteerId()).Data!;
+                var now = DateTime.UtcNow;
+
+                var volunteer = new Volunteer
+                {
+                    VolunteerId = volunteerId,
+                    FirstName = dto.FirstName,
+                    LastName = dto.LastName,
+                    Email = dto.Email,
+                    Phone = dto.Phone,
+                    Status = dto.Status ?? "Active",
+                    Level = dto.Level ?? "Level 0",
+                    StartDate = dto.StartDate,
+                    CapacityBand = dto.CapacityBand ?? "Balanced",
+                    CapacityMin = dto.CapacityMin,
+                    CapacityMax = dto.CapacityMax,
+                    CurrentAssignments = 0,
+                    TotalCompleted = 0,
+                    TotalAssigned = 0,
+                    CompletionRate = 0,
+                    AvgResponseTime = 0,
+                    TeamLead = dto.TeamLead,
+                    Campus = null,
+                    Level0Complete = dto.Level0Complete,
+                    CrisisTrained = dto.CrisisTrained,
+                    ConfidentialitySigned = dto.ConfidentialitySigned,
+                    BackgroundCheck = dto.BackgroundCheck,
+                    BoundaryViolations = 0,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                var success = await _repository.CreateAsync(volunteer);
+                if (!success) return RM_CMS.Data.ApiResponse<VolunteerResponseDto>.Error("Failed to create volunteer");
+                return RM_CMS.Data.ApiResponse<VolunteerResponseDto>.Success(MapToResponseDto(volunteer), "Volunteer created", 201);
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<VolunteerResponseDto>.Error("Failed to create volunteer", ex.Message);
+            }
         }
 
-        public async Task<bool> UpdateCapacityAsync(string volunteerId, string capacityBand, int min, int max)
+        public async Task<RM_CMS.Data.ApiResponse<bool>> UpdateAsync(string volunteerId, UpdateVolunteerDto dto)
         {
-            return await _repository.UpdateCapacityAsync(volunteerId, capacityBand, min, max);
+            try
+            {
+                var existing = await _repository.GetByIdAsync(volunteerId);
+                if (existing == null) return RM_CMS.Data.ApiResponse<bool>.Error("Volunteer not found", null, 404);
+
+                existing.FirstName = dto.FirstName ?? existing.FirstName;
+                existing.LastName = dto.LastName ?? existing.LastName;
+                existing.Email = dto.Email ?? existing.Email;
+                existing.Phone = dto.Phone ?? existing.Phone;
+                existing.Status = dto.Status ?? existing.Status;
+                existing.Level = dto.Level ?? existing.Level;
+                existing.EndDate = dto.EndDate ?? existing.EndDate;
+                existing.CapacityBand = dto.CapacityBand ?? existing.CapacityBand;
+                if (dto.CapacityMin.HasValue) existing.CapacityMin = dto.CapacityMin.Value;
+                if (dto.CapacityMax.HasValue) existing.CapacityMax = dto.CapacityMax.Value;
+                if (dto.CurrentAssignments.HasValue) existing.CurrentAssignments = dto.CurrentAssignments.Value;
+                if (dto.CompletionRate.HasValue) existing.CompletionRate = dto.CompletionRate.Value;
+                existing.EmotionalTone = dto.EmotionalTone ?? existing.EmotionalTone;
+                if (dto.VnpsScore.HasValue) existing.VnpsScore = dto.VnpsScore.Value;
+                existing.BurnoutRisk = dto.BurnoutRisk ?? existing.BurnoutRisk;
+                existing.NextCheckIn = dto.NextCheckIn ?? existing.NextCheckIn;
+                existing.Campus = dto.Campus ?? existing.Campus;
+                existing.UpdatedAt = DateTime.UtcNow;
+
+                var updated = await _repository.UpdateAsync(existing);
+                return updated ? RM_CMS.Data.ApiResponse<bool>.Success(true, "Volunteer updated") : RM_CMS.Data.ApiResponse<bool>.Error("Failed to update volunteer");
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<bool>.Error("Failed to update volunteer", ex.Message);
+            }
         }
 
-        public async Task<bool> UpdatePerformanceAsync(string volunteerId, int completed, int assigned)
+        public async Task<RM_CMS.Data.ApiResponse<bool>> DeleteAsync(string volunteerId)
         {
-            return await _repository.UpdatePerformanceAsync(volunteerId, completed, assigned);
+            try
+            {
+                var deleted = await _repository.DeleteAsync(volunteerId);
+                return deleted ? RM_CMS.Data.ApiResponse<bool>.Success(true, "Volunteer deleted") : RM_CMS.Data.ApiResponse<bool>.Error("Volunteer not found", null, 404);
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<bool>.Error("Failed to delete volunteer", ex.Message);
+            }
         }
 
-        public async Task<bool> UpdateCheckInAsync(string volunteerId, DateTime? lastCheckIn, DateTime? nextCheckIn)
+        public async Task<RM_CMS.Data.ApiResponse<int>> GetTotalCountAsync()
         {
-            return await _repository.UpdateCheckInAsync(volunteerId, lastCheckIn, nextCheckIn);
+            try
+            {
+                var count = await _repository.GetTotalCountAsync();
+                return RM_CMS.Data.ApiResponse<int>.Success(count);
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<int>.Error("Failed to get total count", ex.Message);
+            }
         }
 
-        public async Task<int> GetActiveVolunteerCountAsync()
+        public async Task<RM_CMS.Data.ApiResponse<RM_CMS.Data.PaginatedResult<VolunteerResponseDto>>> GetPaginatedAsync(int pageNumber, int pageSize)
         {
-            return await _repository.GetActiveVolunteerCountAsync();
+            try
+            {
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+                var data = await _repository.GetPaginatedAsync(pageNumber, pageSize);
+                var totalCount = await _repository.GetTotalCountAsync();
+
+                var result = new RM_CMS.Data.PaginatedResult<VolunteerResponseDto>
+                {
+                    Data = MapToResponseDtos(data),
+                    TotalCount = totalCount
+                };
+
+                return RM_CMS.Data.ApiResponse<RM_CMS.Data.PaginatedResult<VolunteerResponseDto>>.Success(result);
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<RM_CMS.Data.PaginatedResult<VolunteerResponseDto>>.Error("Failed to get paginated volunteers", ex.Message);
+            }
         }
 
-        public async Task<IEnumerable<VolunteerResponseDto>> GetWithLowCompletionRateAsync(decimal threshold)
+        public async Task<RM_CMS.Data.ApiResponse<bool>> UpdateStatusAsync(string volunteerId, string status)
         {
-            var volunteers = await _repository.GetWithLowCompletionRateAsync(threshold);
-            return MapToResponseDtos(volunteers);
+            try
+            {
+                var updated = await _repository.UpdateStatusAsync(volunteerId, status);
+                return updated ? RM_CMS.Data.ApiResponse<bool>.Success(true, "Status updated") : RM_CMS.Data.ApiResponse<bool>.Error("Volunteer not found", null, 404);
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<bool>.Error("Failed to update status", ex.Message);
+            }
         }
 
-        public string GenerateVolunteerId()
+        public async Task<RM_CMS.Data.ApiResponse<bool>> UpdateCapacityAsync(string volunteerId, string capacityBand, int min, int max)
         {
-            return $"V{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
+            try
+            {
+                var updated = await _repository.UpdateCapacityAsync(volunteerId, capacityBand, min, max);
+                return updated ? RM_CMS.Data.ApiResponse<bool>.Success(true, "Capacity updated") : RM_CMS.Data.ApiResponse<bool>.Error("Volunteer not found", null, 404);
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<bool>.Error("Failed to update capacity", ex.Message);
+            }
+        }
+
+        public async Task<RM_CMS.Data.ApiResponse<bool>> UpdatePerformanceAsync(string volunteerId, int completed, int assigned)
+        {
+            try
+            {
+                var updated = await _repository.UpdatePerformanceAsync(volunteerId, completed, assigned);
+                return updated ? RM_CMS.Data.ApiResponse<bool>.Success(true, "Performance updated") : RM_CMS.Data.ApiResponse<bool>.Error("Volunteer not found", null, 404);
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<bool>.Error("Failed to update performance", ex.Message);
+            }
+        }
+
+        public async Task<RM_CMS.Data.ApiResponse<bool>> UpdateCheckInAsync(string volunteerId, DateTime? lastCheckIn, DateTime? nextCheckIn)
+        {
+            try
+            {
+                var updated = await _repository.UpdateCheckInAsync(volunteerId, lastCheckIn, nextCheckIn);
+                return updated ? RM_CMS.Data.ApiResponse<bool>.Success(true, "Check-in updated") : RM_CMS.Data.ApiResponse<bool>.Error("Volunteer not found", null, 404);
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<bool>.Error("Failed to update check-in", ex.Message);
+            }
+        }
+
+        public async Task<RM_CMS.Data.ApiResponse<int>> GetActiveVolunteerCountAsync()
+        {
+            try
+            {
+                var count = await _repository.GetActiveVolunteerCountAsync();
+                return RM_CMS.Data.ApiResponse<int>.Success(count);
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<int>.Error("Failed to get active volunteer count", ex.Message);
+            }
+        }
+
+        public async Task<RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>> GetWithLowCompletionRateAsync(decimal threshold)
+        {
+            try
+            {
+                var volunteers = await _repository.GetWithLowCompletionRateAsync(threshold);
+                return RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>.Success(MapToResponseDtos(volunteers));
+            }
+            catch (Exception ex)
+            {
+                return RM_CMS.Data.ApiResponse<IEnumerable<VolunteerResponseDto>>.Error("Failed to get volunteers with low completion rate", ex.Message);
+            }
+        }
+
+        public Task<RM_CMS.Data.ApiResponse<string>> GenerateVolunteerId()
+        {
+            try
+            {
+                var id = $"V{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
+                return Task.FromResult(RM_CMS.Data.ApiResponse<string>.Success(id));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(RM_CMS.Data.ApiResponse<string>.Error("Failed to generate volunteer id", ex.Message));
+            }
         }
 
         private VolunteerResponseDto MapToResponseDto(Volunteer volunteer)
