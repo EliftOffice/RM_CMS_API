@@ -283,15 +283,14 @@ namespace RM_CMS.Controllers.visitors
             try
             {
                 _logger.LogInformation($"Updating follow-up status for person {personId} to {status}");
-                var success = await _peopleService.UpdateFollowUpStatusAsync(personId, status);
-
-                if (!success)
+                var result = await _peopleService.UpdateFollowUpStatusAsync(personId, status);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Person with ID {personId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
                 var updated = await _peopleService.GetByIdAsync(personId);
-                return Ok(new { message = "Follow-up status updated successfully", data = updated });
+                return Ok(new { message = "Follow-up status updated successfully", data = updated.Data });
             }
             catch (Exception ex)
             {
@@ -312,15 +311,14 @@ namespace RM_CMS.Controllers.visitors
             try
             {
                 _logger.LogInformation($"Assigning volunteer {volunteerId} to person {personId}");
-                var success = await _peopleService.AssignVolunteerAsync(personId, volunteerId);
-
-                if (!success)
+                var result = await _peopleService.AssignVolunteerAsync(personId, volunteerId);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Person with ID {personId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
                 var updated = await _peopleService.GetByIdAsync(personId);
-                return Ok(new { message = "Volunteer assigned successfully", data = updated });
+                return Ok(new { message = "Volunteer assigned successfully", data = updated.Data });
             }
             catch (Exception ex)
             {
@@ -341,15 +339,14 @@ namespace RM_CMS.Controllers.visitors
             try
             {
                 _logger.LogInformation($"Updating contact information for person {personId}");
-                var success = await _peopleService.UpdateContactAsync(personId, dto.LastContactDate, dto.NextActionDate);
-
-                if (!success)
+                var result = await _peopleService.UpdateContactAsync(personId, dto.LastContactDate, dto.NextActionDate);
+                if (result.Type != RM_CMS.Data.ResponseType.Success)
                 {
-                    return NotFound(new { message = $"Person with ID {personId} not found" });
+                    return StatusCode(result.StatusCode == 0 ? 404 : result.StatusCode, result);
                 }
 
                 var updated = await _peopleService.GetByIdAsync(personId);
-                return Ok(new { message = "Contact information updated successfully", data = updated });
+                return Ok(new { message = "Contact information updated successfully", data = updated.Data });
             }
             catch (Exception ex)
             {
