@@ -17,16 +17,16 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.Data.IDbConnectionFactory, RM_CMS.Data.DbConnectionFactory>();
             
             // Register Peoples Module
-            builder.Services.AddScoped<RM_CMS.DAL.Visitors.IPeopleRepository, RM_CMS.DAL.Visitors.PeopleRepository>();
-            builder.Services.AddScoped<RM_CMS.BLL.Visitors.IPeopleService, RM_CMS.BLL.Visitors.PeopleService>();
+            builder.Services.AddScoped<RM_CMS.DAL.Visitors.IPeopleRepository, RM_CMS.DAL.Visitors.PeoplesDAL>();
+            builder.Services.AddScoped<RM_CMS.BLL.Visitors.IPeopleService, RM_CMS.BLL.Visitors.PeoplesBLL>();
 
             // Register Volunteers Module
-            builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteerRepository, RM_CMS.DAL.Volunteers.VolunteerRepository>();
-            builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteerService, RM_CMS.BLL.Volunteers.VolunteerService>();
+            builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteerRepository, RM_CMS.DAL.Volunteers.VolunteersDAL>();
+            builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteerService, RM_CMS.BLL.Volunteers.VolunteersBLL>();
 
             // Register Followups Module
-            builder.Services.AddScoped<RM_CMS.DAL.Followups.IFollowUpRepository, RM_CMS.DAL.Followups.FollowUpRepository>();
-            builder.Services.AddScoped<RM_CMS.BLL.Followups.IFollowUpService, RM_CMS.BLL.Followups.FollowUpService>();
+            builder.Services.AddScoped<RM_CMS.DAL.Followups.IFollowUpRepository, RM_CMS.DAL.Followups.FollowUpsDAL>();
+            builder.Services.AddScoped<RM_CMS.BLL.Followups.IFollowUpService, RM_CMS.BLL.Followups.FollowUpsBLL>();
 
             var app = builder.Build();
 

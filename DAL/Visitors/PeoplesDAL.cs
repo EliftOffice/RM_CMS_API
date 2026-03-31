@@ -22,11 +22,11 @@ namespace RM_CMS.DAL.Visitors
         Task<bool> UpdateLastContactAsync(string personId, DateTime lastContactDate, DateTime? nextActionDate);
     }
 
-    public class PeopleRepository : IPeopleRepository
+    public class PeoplesDAL : IPeopleRepository
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
 
-        public PeopleRepository(IDbConnectionFactory dbConnectionFactory)
+        public PeoplesDAL(IDbConnectionFactory dbConnectionFactory)
         {
             _dbConnectionFactory = dbConnectionFactory;
         }

@@ -16,14 +16,14 @@ namespace RM_CMS.BLL.Followups
         Task<RM_CMS.Data.ApiResponse<bool>> AssignVolunteerAsync(string personId);
     }
 
-    public class FollowUpService : IFollowUpService
+    public class FollowUpsBLL : IFollowUpService
     {
         private readonly IFollowUpRepository _followUpRepository;
         private readonly IPeopleRepository _peopleRepository;
         private readonly IVolunteerRepository _volunteerRepository;
-        private readonly ILogger<FollowUpService> _logger;
+        private readonly ILogger<FollowUpsBLL> _logger;
 
-        public FollowUpService(IFollowUpRepository followUpRepository, IPeopleRepository peopleRepository, IVolunteerRepository volunteerRepository, ILogger<FollowUpService> logger)
+        public FollowUpsBLL(IFollowUpRepository followUpRepository, IPeopleRepository peopleRepository, IVolunteerRepository volunteerRepository, ILogger<FollowUpsBLL> logger)
         {
             _followUpRepository = followUpRepository;
             _peopleRepository = peopleRepository;

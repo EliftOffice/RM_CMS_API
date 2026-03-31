@@ -22,11 +22,11 @@ namespace RM_CMS.BLL.Visitors
         Task<RM_CMS.Data.ApiResponse<string>> GeneratePersonId();
     }
 
-    public class PeopleService : IPeopleService
+    public class PeoplesBLL : IPeopleService
     {
         private readonly IPeopleRepository _repository;
 
-        public PeopleService(IPeopleRepository repository)
+        public PeoplesBLL(IPeopleRepository repository)
         {
             _repository = repository;
         }

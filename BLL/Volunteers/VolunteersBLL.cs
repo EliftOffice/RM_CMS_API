@@ -26,11 +26,11 @@ namespace RM_CMS.BLL.Volunteers
         Task<RM_CMS.Data.ApiResponse<string>> GenerateVolunteerId();
     }
 
-    public class VolunteerService : IVolunteerService
+    public class VolunteersBLL : IVolunteerService
     {
         private readonly IVolunteerRepository _repository;
 
-        public VolunteerService(IVolunteerRepository repository)
+        public VolunteersBLL(IVolunteerRepository repository)
         {
             _repository = repository;
         }

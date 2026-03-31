@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using RM_CMS.BLL.Followups;
+using RM_CMS.Data;
 using RM_CMS.Data.DTO.Followups;
 
 namespace RM_CMS.Controllers.Followups
@@ -34,6 +35,7 @@ namespace RM_CMS.Controllers.Followups
             {
                 _logger.LogError(ex, "Error assigning volunteer to person {PersonId}", personId);
                 return StatusCode(500, new { message = "An error occurred while assigning volunteer", error = ex.Message });
+                
             }
         }
 

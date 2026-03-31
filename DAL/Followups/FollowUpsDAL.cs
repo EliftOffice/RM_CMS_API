@@ -15,11 +15,11 @@ namespace RM_CMS.DAL.Followups
         Task<int> GetMaxSequenceForYearAsync(int year);
     }
 
-    public class FollowUpRepository : IFollowUpRepository
+    public class FollowUpsDAL : IFollowUpRepository
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
 
-        public FollowUpRepository(IDbConnectionFactory dbConnectionFactory)
+        public FollowUpsDAL(IDbConnectionFactory dbConnectionFactory)
         {
             _dbConnectionFactory = dbConnectionFactory;
         }

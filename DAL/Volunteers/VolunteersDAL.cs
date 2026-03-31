@@ -27,11 +27,11 @@ namespace RM_CMS.DAL.Volunteers
         Task<bool> IncrementCurrentAssignmentsAsync(string volunteerId);
     }
 
-    public class VolunteerRepository : IVolunteerRepository
+    public class VolunteersDAL : IVolunteerRepository
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
 
-        public VolunteerRepository(IDbConnectionFactory dbConnectionFactory)
+        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory)
         {
             _dbConnectionFactory = dbConnectionFactory;
         }
