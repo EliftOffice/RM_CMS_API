@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RM CMS - Diagnostics</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .container {
+            margin-top: 40px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: #fff;
+        }
+        .status-check {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .status-check.success {
+            background: rgba(46, 213, 115, 0.2);
+            border-left: 4px solid #2ed573;
+        }
+        .status-check.error {
+            background: rgba(255, 71, 87, 0.2);
+            border-left: 4px solid #ff4757;
+        }
+        .status-check.warning {
+            background: rgba(255, 193, 7, 0.2);
+            border-left: 4px solid #ffc107;
+        }
+        .status-check.loading {
+            background: rgba(52, 152, 219, 0.2);
+            border-left: 4px solid #3498db;
+        }
+        .spinner-border {
+            width: 20px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4"><i class="fas fa-heartbeat"></i> RM CMS API Diagnostics</h1>
+        
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card p-4">
+                    <h5 class="mb-3"><i class="fas fa-clipboard-list"></i> System Health Check</h5>
+                    
+                    <div id="diagnosticsContainer">
+                        <div class="status-check loading">
+                            <span><i class="fas fa-spinner fa-spin"></i> Running diagnostics...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-4 mt-4">
+                    <h5 class="mb-3"><i class="fas fa-plug"></i> API Connection Test</h5>
+                    
+                    <div class="form-group">
+                        <label>API Base URL</label>
+                        <input type="text" class="form-control" id="apiUrl" value="https://localhost:7096/api" placeholder="Enter API URL">
+                    </div>
+
+                    <button class="btn btn-primary" onclick="testApiConnection()">
+                        <i class="fas fa-paper-plane"></i> Test Connection
+                    </button>
+
+                    <div id="apiTestResult" class="mt-3"></div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card p-4">
+                    <h5 class="mb-3"><i class="fas fa-info-circle"></i> Information</h5>
+                    
+                    <div class="mb-3">
+                        <p><strong>Browser:</strong> <span id="browserInfo">Loading...</span></p>
+                        <p><strong>Current URL:</strong> <span id="currentUrl">Loading...</span></p>
+                        <p><strong>Timestamp:</strong> <span id="timestamp">Loading...</span></p>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <h6>Quick Links</h6>
+                        <ul>
+                            <li><a href="/" target="_blank" class="text-info">Home Page</a></li>
+                            <li><a href="/templates/index.html" target="_blank" class="text-info">Web Interface</a></li>
+                            <li><a href="/swagger" target="_blank" class="text-info">Swagger UI</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        function runDiagnostics() {
+            let checks = [];
+
+            // Check 1: Browser Support
+            checks.push({
+                name: 'Browser Support',
+                status: 'success',
+                message: `${navigator.userAgent.split('/')[0]} (${navigator.language})`
+            });
+
+            // Check 2: HTTPS Support
+            checks.push({
+                name: 'HTTPS Support',
+                status: window.location.protocol === 'https:' ? 'success' : 'warning',
+                message: window.location.protocol === 'https:' ? 'Running on HTTPS ✓' : 'Running on HTTP (Consider using HTTPS for production)'
+            });
+
+            // Check 3: jQuery
+            checks.push({
+                name: 'jQuery Library',
+                status: typeof jQuery !== 'undefined' ? 'success' : 'error',
+                message: typeof jQuery !== 'undefined' ? `jQuery ${jQuery.fn.jquery}` : 'jQuery not loaded'
+            });
+
+            // Check 4: Bootstrap
+            checks.push({
+                name: 'Bootstrap Framework',
+                status: typeof bootstrap !== 'undefined' ? 'success' : 'error',
+                message: typeof bootstrap !== 'undefined' ? 'Bootstrap 5 Loaded ✓' : 'Bootstrap not loaded'
+            });
+
+            // Check 5: LocalStorage
+            checks.push({
+                name: 'LocalStorage',
+                status: (function() {
+                    try {
+                        localStorage.setItem('test', 'test');
+                        localStorage.removeItem('test');
+                        return 'success';
+                    } catch(e) {
+                        return 'error';
+                    }
+                })(),
+                message: 'Local storage is available'
+            });
+
+            // Display results
+            let html = '';
+            checks.forEach(check => {
+                let icon = check.status === 'success' ? '<i class="fas fa-check-circle"></i>' :
+                           check.status === 'error' ? '<i class="fas fa-times-circle"></i>' :
+                           '<i class="fas fa-exclamation-circle"></i>';
+                
+                html += `
+                    <div class="status-check ${check.status}">
+                        <div>
+                            <strong>${check.name}</strong><br>
+                            <small>${check.message}</small>
+                        </div>
+                        <div>${icon}</div>
+                    </div>
+                `;
+            });
+
+            // Check API connectivity
+            $.ajax({
+                type: 'GET',
+                url: 'https://localhost:7096/api/peoples/test',
+                timeout: 5000,
+                success: function() {
+                    html += `
+                        <div class="status-check success">
+                            <div>
+                                <strong>API Connectivity</strong><br>
+                                <small>Connected to API server ✓</small>
+                            </div>
+                            <div><i class="fas fa-check-circle"></i></div>
+                        </div>
+                    `;
+                    $('#diagnosticsContainer').html(html);
+                },
+                error: function() {
+                    html += `
+                        <div class="status-check warning">
+                            <div>
+                                <strong>API Connectivity</strong><br>
+                                <small>Cannot connect to API (This is normal if API is offline)</small>
+                            </div>
+                            <div><i class="fas fa-exclamation-circle"></i></div>
+                        </div>
+                    `;
+                    $('#diagnosticsContainer').html(html);
+                }
+            });
+        }
+
+        function testApiConnection() {
+            const apiUrl = $('#apiUrl').val();
+            const resultDiv = $('#apiTestResult');
+
+            resultDiv.html(`
+                <div class="status-check loading">
+                    <span><i class="fas fa-spinner fa-spin"></i> Testing connection...</span>
+                </div>
+            `);
+
+            $.ajax({
+                type: 'GET',
+                url: apiUrl + '/peoples/test',
+                timeout: 5000,
+                success: function(data) {
+                    resultDiv.html(`
+                        <div class="status-check success">
+                            <div>
+                                <strong>Connection Successful! ✓</strong><br>
+                                <small>API is reachable and responsive</small>
+                            </div>
+                            <div><i class="fas fa-check-circle"></i></div>
+                        </div>
+                    `);
+                },
+                error: function(xhr) {
+                    const statusCode = xhr.status || 'Unknown';
+                    const statusText = xhr.statusText || 'Error';
+                    
+                    resultDiv.html(`
+                        <div class="status-check error">
+                            <div>
+                                <strong>Connection Failed</strong><br>
+                                <small>Status: ${statusCode} ${statusText}<br>
+                                URL: ${apiUrl}<br>
+                                Make sure the API is running on the correct port</small>
+                            </div>
+                            <div><i class="fas fa-times-circle"></i></div>
+                        </div>
+                    `);
+                }
+            });
+        }
+
+        function updateInfo() {
+            $('#browserInfo').text(navigator.userAgent.substring(0, 50) + '...');
+            $('#currentUrl').text(window.location.href);
+            $('#timestamp').text(new Date().toLocaleString());
+        }
+
+        // Run diagnostics on page load
+        $(document).ready(function() {
+            updateInfo();
+            runDiagnostics();
+        });
+    </script>
+</body>
+</html>

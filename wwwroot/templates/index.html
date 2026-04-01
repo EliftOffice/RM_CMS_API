@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RM CMS - API Integration</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="assets/css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header-section">
+            <h1><i class="fas fa-church"></i> RM CMS API Integration</h1>
+            <p>Manage People, Volunteers, and Follow-ups</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs mb-4" role="tablist" style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 0; border: none;">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="people-tab" data-bs-toggle="tab" data-bs-target="#people-section" type="button" role="tab">
+                    <i class="fas fa-users"></i> People Management
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="volunteers-tab" data-bs-toggle="tab" data-bs-target="#volunteers-section" type="button" role="tab">
+                    <i class="fas fa-hands-helping"></i> Volunteers Management
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="followups-tab" data-bs-toggle="tab" data-bs-target="#followups-section" type="button" role="tab">
+                    <i class="fas fa-tasks"></i> Follow-ups Management
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- People Section -->
+            <div class="tab-pane fade show active" id="people-section" role="tabpanel">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-user-plus"></i> Assign Person to Volunteer</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="assignPersonForm">
+                                    <div class="form-group">
+                                        <label for="personId" class="form-label">Person ID</label>
+                                        <input type="text" class="form-control" id="personId" placeholder="Enter Person ID (e.g., P001)" required>
+                                        <small class="text-muted">Enter the unique identifier of the person</small>
+                                    </div>
+
+                                    <div class="loader" id="assignLoader">
+                                        <div class="spinner-border spinner-border-sm" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-2 loading-text">Processing assignment...</p>
+                                    </div>
+
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-primary" id="assignBtn">
+                                            <i class="fas fa-paper-plane"></i> Assign Person
+                                        </button>
+                                        <button type="reset" class="btn btn-secondary">
+                                            <i class="fas fa-redo"></i> Clear
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-list"></i> Response</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="assignmentResponse"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Volunteers Section -->
+            <div class="tab-pane fade" id="volunteers-section" role="tabpanel">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-user-tie"></i> Create Volunteer</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="createVolunteerForm">
+                                    <div class="form-group">
+                                        <label for="volFirstName" class="form-label">First Name</label>
+                                        <input type="text" class="form-control" id="volFirstName" placeholder="Enter first name" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="volLastName" class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" id="volLastName" placeholder="Enter last name" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="volEmail" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="volEmail" placeholder="Enter email" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="volStatus" class="form-label">Status</label>
+                                        <select class="form-control" id="volStatus" required>
+                                            <option value="">Select Status</option>
+                                            <option value="Active">Active</option>
+                                            <option value="Paused">Paused</option>
+                                            <option value="Exited">Exited</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="loader" id="volLoader">
+                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        <p class="mt-2 loading-text">Creating volunteer...</p>
+                                    </div>
+
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i> Create Volunteer
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-info-circle"></i> Response</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="volunteerResponse"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Follow-ups Section -->
+            <div class="tab-pane fade" id="followups-section" role="tabpanel">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-phone"></i> Create Follow-up</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="createFollowUpForm">
+                                    <div class="form-group">
+                                        <label for="fuPersonId" class="form-label">Person ID</label>
+                                        <input type="text" class="form-control" id="fuPersonId" placeholder="Enter Person ID" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="fuVolunteerId" class="form-label">Volunteer ID</label>
+                                        <input type="text" class="form-control" id="fuVolunteerId" placeholder="Enter Volunteer ID" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="fuContactMethod" class="form-label">Contact Method</label>
+                                        <select class="form-control" id="fuContactMethod" required>
+                                            <option value="">Select Contact Method</option>
+                                            <option value="Phone Call">Phone Call</option>
+                                            <option value="Text Message">Text Message</option>
+                                            <option value="Email">Email</option>
+                                            <option value="In-Person">In-Person</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="fuContactStatus" class="form-label">Contact Status</label>
+                                        <select class="form-control" id="fuContactStatus" required>
+                                            <option value="">Select Status</option>
+                                            <option value="Contacted">Contacted</option>
+                                            <option value="Not Contacted">Not Contacted</option>
+                                            <option value="Unresponsive">Unresponsive</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="loader" id="fuLoader">
+                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        <p class="mt-2 loading-text">Creating follow-up...</p>
+                                    </div>
+
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i> Create Follow-up
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-info-circle"></i> Response</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="followUpResponse"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery and Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <!-- API Configuration -->
+    <script src="assets/js/api-config.js"></script>
+
+    <!-- Utilities -->
+    <script src="assets/js/utils.js"></script>
+
+    <!-- Feature Modules -->
+    <script src="assets/js/people-module.js"></script>
+    <script src="assets/js/volunteers-module.js"></script>
+    <script src="assets/js/followups-module.js"></script>
+
+    <!-- Application Initialization -->
+    <script src="assets/js/main.js"></script>
+</body>
+</html>

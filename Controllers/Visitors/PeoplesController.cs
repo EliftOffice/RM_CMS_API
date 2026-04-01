@@ -34,30 +34,15 @@ namespace RM_CMS.Controllers.visitors
             {
                 _logger.LogInformation($"Attempting to assign person {personId} to a volunteer");
 
-                if (string.IsNullOrWhiteSpace(personId))
-                {
-                    return BadRequest(new ApiResponse<object>(
-                        ResponseType.Error,
-                        "Person ID cannot be empty",
-                        null
-                    ));
-                }
-
                 var result = await _peopleService.AssignPersonToVolunteerAsync(personId);
 
-                if (result.ResponseType == ResponseType.Error)
-                {
-                    _logger.LogWarning($"Assignment failed for person {personId}: {result.Message}");
-                    return BadRequest(result);
-                }
-
-                _logger.LogInformation($"Successfully assigned person {personId}");
-                return Ok(result);
+                _logger.LogInformation($"Processed assignment request for person {personId}");
+                return HttpResponseHelper.CreateHttpResponse(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error assigning person {personId}");
-                return StatusCode(500, new ApiResponse<object>(
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<object>(
                     ResponseType.Error,
                     "An error occurred during assignment process",
                     null

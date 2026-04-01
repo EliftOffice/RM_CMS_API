@@ -13,6 +13,17 @@ namespace RM_CMS
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            // Add CORS support
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                });
+            });
+
             // Register Dapper and Data Access Services
             builder.Services.AddScoped<RM_CMS.Data.IDbConnectionFactory, RM_CMS.Data.DbConnectionFactory>();
             
@@ -39,10 +50,43 @@ namespace RM_CMS
 
             app.UseHttpsRedirection();
 
+            // Enable static file serving for templates
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                ServeUnknownFileTypes = true
+            });
+
+            // Use CORS
+            app.UseCors("AllowAll");
+
             app.UseAuthorization();
 
-
             app.MapControllers();
+
+            // Map default document
+            app.MapGet("/", async context =>
+            {
+                context.Response.ContentType = "text/html";
+                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates", "index.html"));
+            });
+
+            app.MapGet("/templates/index.html", async context =>
+            {
+                context.Response.ContentType = "text/html";
+                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates", "index.html"));
+            });
+
+            app.MapGet("/diagnostics", async context =>
+            {
+                context.Response.ContentType = "text/html";
+                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates", "diagnostics.html"));
+            });
+
+            app.MapGet("/templates/diagnostics.html", async context =>
+            {
+                context.Response.ContentType = "text/html";
+                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates", "diagnostics.html"));
+            });
 
             app.Run();
         }
