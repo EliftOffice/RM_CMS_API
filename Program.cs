@@ -26,18 +26,38 @@ namespace RM_CMS
 
             // Register Dapper and Data Access Services
             builder.Services.AddScoped<RM_CMS.Data.IDbConnectionFactory, RM_CMS.Data.DbConnectionFactory>();
-            
-            // Register Peoples Module
-            builder.Services.AddScoped<RM_CMS.DAL.Visitors.IPeopleRepository, RM_CMS.DAL.Visitors.PeopleRepository>();
-            builder.Services.AddScoped<RM_CMS.BLL.Visitors.IPeopleService, RM_CMS.BLL.Visitors.PeopleService>();
 
-            // Register Volunteers Module
-            builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteerRepository, RM_CMS.DAL.Volunteers.VolunteerRepository>();
-            builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteerService, RM_CMS.BLL.Volunteers.VolunteerService>();
+            // Register Peoples Module
+            builder.Services.AddScoped<RM_CMS.BLL.Peoples.IPeoplesBLL, RM_CMS.BLL.Peoples.PeoplesBLL>();
+            builder.Services.AddScoped<RM_CMS.DAL.Peoples.IPeoplesDAL, RM_CMS.DAL.Peoples.PeoplesDAL>();
 
             // Register Followups Module
-            builder.Services.AddScoped<RM_CMS.DAL.Followups.IFollowUpRepository, RM_CMS.DAL.Followups.FollowUpRepository>();
-            builder.Services.AddScoped<RM_CMS.BLL.Followups.IFollowUpService, RM_CMS.BLL.Followups.FollowUpService>();
+            builder.Services.AddScoped<RM_CMS.BLL.Followups.IFollowupsBLL, RM_CMS.BLL.Followups.FollowupsBLL>();
+            builder.Services.AddScoped<RM_CMS.DAL.Followups.IFollowupsDAL, RM_CMS.DAL.Followups.FollowupsDAL>();
+
+            // Register Escalations Module
+            builder.Services.AddScoped<RM_CMS.BLL.Followups.IEscalationsBLL, RM_CMS.BLL.Followups.EscalationsBLL>();
+            builder.Services.AddScoped<RM_CMS.DAL.Followups.IEscalationsDAL, RM_CMS.DAL.Followups.EscalationsDAL>();    
+
+            // Register Volunteers Module
+            builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteersBLL, RM_CMS.BLL.Volunteers.VolunteersBLL>();
+            builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteersDAL, RM_CMS.DAL.Volunteers.VolunteersDAL>();
+
+
+            // Register Team Leads Module
+            builder.Services.AddScoped<RM_CMS.DAL.TeamLeads.ITeamLeadDashBoardDAL, RM_CMS.DAL.TeamLeads.TeamLeadDashBoardDAL>();
+            builder.Services.AddScoped<RM_CMS.BLL.TeamLeads.ITeamLeadDashBoardBLL, RM_CMS.BLL.TeamLeads.TeamLeadDashBoardBLL>();
+
+            //register check-in  module
+            builder.Services.AddScoped<RM_CMS.DAL.TeamLeads.ICheckInDAL, RM_CMS.DAL.TeamLeads.CheckInDAL>();
+            builder.Services.AddScoped<RM_CMS.BLL.TeamLeads.ICheckInBLL, RM_CMS.BLL.TeamLeads.CheckInBLL>();           
+           
+
+            // Register Pastors Module
+            builder.Services.AddScoped<RM_CMS.DAL.Pastors.IPastorDashboardDAL, RM_CMS.DAL.Pastors.PastorDashboardDAL>();
+            builder.Services.AddScoped<RM_CMS.BLL.Pastors.IPastorDashboardBLL, RM_CMS.BLL.Pastors.PastorDashBoardBLL>();
+
+            
 
             var app = builder.Build();
 
@@ -50,7 +70,7 @@ namespace RM_CMS
 
             app.UseHttpsRedirection();
 
-            // Enable static file serving for templates
+            // Enable static file serving for wwwroot
             app.UseStaticFiles(new StaticFileOptions
             {
                 ServeUnknownFileTypes = true

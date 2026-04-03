@@ -5,13 +5,13 @@ namespace RM_CMS.Data.DTO
 {
     public class SystemHealthDTO
     {
-       public int ActiveTeamLeads { get; set; }       
-       public int ActiveVolunteers { get; set; }
-       public int FirstTimeVisitorsMTD { get; set; }
-       public int FollowUpsCompletedMTD { get; set; }
-       public int SystemvNPS { get; set; }
-       public int VolunteerRetention { get; set; }
-       public double CompletionRateMTD { get; set; }
-
+       public int active_volunteers { get; set; }  =0;     
+       public int active_team_leads { get; set; }=0;
+        public int first_time_visitors_mtd { get; set; } = 0;          
+       public int follow_ups_completed_mtd { get; set; } = 0;
+       public int? system_vnps { get; set; }= 0;
+       public double? volunteer_retention { get; set; } = 0;
+       public double? completion_rate_mtd { get; set; } = 0;
+       public string OverallHealthStatus { get; set; }= string.Empty;
     }
 }

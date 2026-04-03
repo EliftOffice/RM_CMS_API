@@ -1,0 +1,217 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitor Entry - RM_CMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- API Configuration -->
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/utils.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .card {
+            margin-top: 50px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            background-color: #007bff;
+            color: white;
+            border-top-left-radius: 15px !important;
+            border-top-right-radius: 15px !important;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            border: none;
+        }
+
+            .btn-primary:hover {
+                background-color: #0056b3;
+            }
+
+        .no_display{
+            display:none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h3>Visitor Connection Card</h3>
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="visitorForm">
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <label for="first_name" class="form-label">First Name *</label>
+                                    <input type="text" class="form-control" id="first_name" required>
+                                </div>
+                                <div class="col">
+                                    <label for="last_name" class="form-label">Last Name *</label>
+                                    <input type="text" class="form-control" id="last_name" required>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col no_display" >
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email">
+                                </div>
+                                <div class="col">
+                                    <label for="phone" class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" id="phone">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col no_display">
+                                    <label for="age_range" class="form-label">Age Range</label>
+                                    <select class="form-select" id="age_range">
+                                        <option value="">Select...</option>
+                                        <option value="18-25">18-25</option>
+                                        <option value="26-35">26-35</option>
+                                        <option value="36-45">36-45</option>
+                                        <option value="46-55">46-55</option>
+                                        <option value="56+">56+</option>
+                                    </select>
+                                </div>
+                                <div class="col no_display">
+                                    <label for="household_type" class="form-label">Household Type</label>
+                                    <select class="form-select" id="household_type">
+                                        <option value="">Select...</option>
+                                        <option value="Single">Single</option>
+                                        <option value="Married">Married</option>
+                                        <option value="Family">Family with Children</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col no_display">
+                                    <label for="zip_code" class="form-label">Zip Code</label>
+                                    <input type="text" class="form-control" id="zip_code">
+                                </div>
+                                <div class="col no_display">
+                                    <label for="campus" class="form-label">Campus</label>
+                                    <input type="text" class="form-control" id="campus">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col no_display">
+                                    <label for="visit_type" class="form-label">Visit Type</label>
+                                    <select class="form-select" id="visit_type">
+                                        <option value="First-Time Visitor">First-Time Visitor</option>
+                                        <option value="Returning Visitor">Returning Visitor</option>
+                                    </select>
+                                </div>
+                                <div class="col no_display">
+                                    <label for="connection_source" class="form-label">How did you hear about us?</label>
+                                    <input type="text" class="form-control" id="connection_source">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Interested In</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Membership" id="interest_membership">
+                                    <label class="form-check-label" for="interest_membership">Membership</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Volunteering" id="interest_volunteering">
+                                    <label class="form-check-label" for="interest_volunteering">Volunteering</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Small Groups" id="interest_groups">
+                                    <label class="form-check-label" for="interest_groups">Small Groups</label>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="prayer_requests" class="form-label">Prayer Requests</label>
+                                <textarea class="form-control" id="prayer_requests" rows="2"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="specific_needs" class="form-label">Specific Needs</label>
+                                <textarea class="form-control" id="specific_needs" rows="2"></textarea>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg">Submit Connection Card</button>
+                            </div>
+                        </form>
+                        <div id="responseMessage" class="mt-3 text-center" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $('#visitorForm').on('submit', function (e) {
+                e.preventDefault();
+
+                // Collect "Interested In" values
+                let interests = [];
+                if ($('#interest_membership').is(':checked')) interests.push('Membership');
+                if ($('#interest_volunteering').is(':checked')) interests.push('Volunteering');
+                if ($('#interest_groups').is(':checked')) interests.push('Small Groups');
+
+                const formData = {
+                    first_name: $('#first_name').val(),
+                    last_name: $('#last_name').val(),
+                    email: $('#email').val(),
+                    phone: $('#phone').val(),
+                    age_range: $('#age_range').val(),
+                    household_type: $('#household_type').val(),
+                    zip_code: $('#zip_code').val(),
+                    campus: $('#campus').val(),
+                    visit_type: $('#visit_type').val(),
+                    connection_source: $('#connection_source').val(),
+                    interested_in: interests.join(', '),
+                    prayer_requests: $('#prayer_requests').val(),
+                    specific_needs: $('#specific_needs').val(),
+                    follow_up_status: 'NEW',
+                    follow_up_priority: determinePriority()
+                };
+
+                function determinePriority() {
+                    if ($('#specific_needs').val() || $('#prayer_requests').val()) return 'High';
+                    if (interests.includes('Counseling')) return 'Urgent';
+                    return 'Normal';
+                }
+
+                $.ajax({
+                    url: API_BASE_URL + "/people",
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function (response) {
+                        $('#responseMessage').removeClass('text-danger').addClass('text-success')
+                            .text('Success! Welcome to our community.').show();
+                        $('#visitorForm')[0].reset();
+                    },
+                    error: function (xhr) {
+                        $('#responseMessage').removeClass('text-success').addClass('text-danger')
+                            .text('Error: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Something went wrong')).show();
+                    }
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>

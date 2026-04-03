@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.BLL.Peoples;
 using RM_CMS.BLL.Volunteers;
 using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Volunteers;
+using RM_CMS.Data.Models;
+using RM_CMS.Utilities;
 
 namespace RM_CMS.Controllers.Volunteers
 {
@@ -10,33 +13,76 @@ namespace RM_CMS.Controllers.Volunteers
     [ApiController]
     public class VolunteersController : ControllerBase
     {
-        private readonly IVolunteerService _volunteerService;
+        private readonly IVolunteersBLL _VolunteersBLL;
         private readonly ILogger<VolunteersController> _logger;
-
-        public VolunteersController(IVolunteerService volunteerService, ILogger<VolunteersController> logger)
+        public VolunteersController(IVolunteersBLL volunteersBLL, ILogger<VolunteersController> logger)
         {
-            _volunteerService = volunteerService;
+            _VolunteersBLL = volunteersBLL;
             _logger = logger;
         }
-    }
 
-    // Helper DTOs for PATCH endpoints
-    public class UpdateCapacityDto
-    {
-        public string CapacityBand { get; set; } = string.Empty;
-        public int CapacityMin { get; set; }
-        public int CapacityMax { get; set; }
-    }
+        [HttpPost("assign-volunteer")]
+        public async Task<ActionResult<ApiResponse<AssignedVolunteerDTO>>> AssignToVolunteer([FromQuery] string personId)
+        {
+            try
+            {
+                _logger.LogInformation("Assigning volunteer for PersonId: {PersonId}", personId);
 
-    public class UpdatePerformanceDto
-    {
-        public int TotalCompleted { get; set; }
-        public int TotalAssigned { get; set; }
-    }
+                var result = await _VolunteersBLL.AssignToVolunteerAsync(personId);
 
-    public class UpdateCheckInDto
-    {
-        public DateTime? LastCheckIn { get; set; }
-        public DateTime? NextCheckIn { get; set; }
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error assigning volunteer");
+
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<AssignedVolunteerDTO>(
+                    ResponseType.Error,
+                    "An error occurred while assigning volunteer",
+                    new AssignedVolunteerDTO()
+                ));
+            }
+        }
+
+        [HttpGet("/api/volunteers/{id}")]
+        public async Task<ActionResult<ApiResponse<Volunteer>>> GetVolunteerByIdAsync(string id)
+        {
+            try
+            {
+                var result = await _VolunteersBLL.GetVolunteerByIdAsync(id);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving volunteer by ID");
+
+                return StatusCode(500, new ApiResponse<Volunteer>(
+                    ResponseType.Error,
+                    "An error occurred while retrieving volunteer",
+                    new Volunteer()
+                ));
+            }
+        }
+        [HttpGet("/api/volunteers/{id}/assignments")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<People>>>> GetVolunteerAssignmentsAsync(string id)
+        {
+            try
+            {
+                var result = await _VolunteersBLL.GetVolunteerAssignmentsAsync(id);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving volunteer assignments");
+
+                return StatusCode(500, new ApiResponse<IEnumerable<People>>(
+                    ResponseType.Error,
+                    "An error occurred while retrieving assignments",
+                    new List<People>()
+                ));
+            }
+        }
+
     }
+   
 }
