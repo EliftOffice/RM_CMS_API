@@ -21,10 +21,7 @@ namespace RM_CMS.Controllers.Peoples
             _logger = logger;
         }
 
-        [HttpPost("/api/people")]
-        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
+        [HttpPost("/api/people")]        
         public async Task<ActionResult<ApiResponse<AssignedVolunteerDTO>>> SaveNewVisitor([FromBody] CreatePeopleDto createPeopleDto)
         {
             try

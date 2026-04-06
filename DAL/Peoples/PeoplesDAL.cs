@@ -1,8 +1,10 @@
 ﻿using Dapper;
+using Microsoft.AspNetCore.Http.HttpResults;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO.Peoples;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
+using System.Reflection.Emit;
 using System.Text;
 
 namespace RM_CMS.DAL.Peoples
@@ -122,17 +124,18 @@ namespace RM_CMS.DAL.Peoples
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
                     var year = DateTime.UtcNow.Year;
+                    person.PersonId = Guid.NewGuid().ToString();
 
                     // 1. Insert the record WITHOUT person_id to get the auto-increment id
                     const string insertWithoutPersonId = @"
-                INSERT INTO people (
+                INSERT INTO people (person_id,
                     first_name, last_name, email, phone,
                     visit_type, first_visit_date, last_visit_date, visit_count,
                     follow_up_status, follow_up_priority, campus, connection_source,
                     interested_in, prayer_requests, specific_needs,
                     created_at, created_by, age_range, zip_code, household_type
                 ) VALUES (
-                    @FirstName, @LastName, @Email, @Phone,
+                    @PersonId,@FirstName, @LastName, @Email, @Phone,
                     @VisitType, @FirstVisitDate, @LastVisitDate, @VisitCount,
                     @FollowUpStatus, @FollowUpPriority, @Campus, @ConnectionSource,
                     @InterestedIn, @PrayerRequests, @SpecificNeeds,
@@ -142,6 +145,7 @@ namespace RM_CMS.DAL.Peoples
 
                     var parameters = new
                     {
+                        person.PersonId, // This will be updated later
                         person.FirstName,
                         person.LastName,
                         person.Email,
@@ -210,37 +214,41 @@ namespace RM_CMS.DAL.Peoples
                                 first_name AS FirstName,
                                 last_name AS LastName,
                                 email AS Email,
-                                phone AS Phone,
-                                age_range AS AgeRange,
-                                household_type AS HouseholdType,
-                                zip_code AS ZipCode,
-                                visit_type AS VisitType,
-                                first_visit_date AS FirstVisitDate,
-                                last_visit_date AS LastVisitDate,
-                                visit_count AS VisitCount,
-                                connection_source AS ConnectionSource,
-                                campus AS Campus,
-                                follow_up_status AS FollowUpStatus,
-                                follow_up_priority AS FollowUpPriority,
-                                assigned_volunteer AS AssignedVolunteer,
-                                assigned_date AS AssignedDate,
-                                last_contact_date AS LastContactDate,
-                                next_action_date AS NextActionDate,
-                                interested_in AS InterestedIn,
-                                prayer_requests AS PrayerRequests,
-                                specific_needs AS SpecificNeeds,
-                                created_at AS CreatedAt,
-                                updated_at AS UpdatedAt,
-                                created_by AS CreatedBy
+                                phone AS Phone
                             FROM people
-                            WHERE (@Email IS NOT NULL AND email = @Email)
-                               OR (@Phone IS NOT NULL AND phone = @Phone)
+                            WHERE (@Phone IS NOT NULL AND phone = @Phone)
                             LIMIT 1;
                         ";
+                    //(@Email IS NOT NULL AND email = @Email)
+                    //           OR
 
+
+                    
+                                //age_range AS AgeRange,
+                                //household_type AS HouseholdType,
+                                //zip_code AS ZipCode,
+                                //visit_type AS VisitType,
+                                //first_visit_date AS FirstVisitDate,
+                                //last_visit_date AS LastVisitDate,
+                                //visit_count AS VisitCount,
+                                //connection_source AS ConnectionSource,
+                                //campus AS Campus,
+                                //follow_up_status AS FollowUpStatus,
+                                //follow_up_priority AS FollowUpPriority,
+                                //assigned_volunteer AS AssignedVolunteer,
+                                //assigned_date AS AssignedDate,
+                                //last_contact_date AS LastContactDate,
+                                //next_action_date AS NextActionDate,
+                                //interested_in AS InterestedIn,
+                                //prayer_requests AS PrayerRequests,
+                                //specific_needs AS SpecificNeeds,
+                                //created_at AS CreatedAt,
+                                //updated_at AS UpdatedAt,
+                                //created_by AS CreatedBy
                     var person = await connection.QueryFirstOrDefaultAsync<People>(
                         query,
-                        new { Email = email, Phone = phone }
+                        //new { Email = email, Phone = phone }
+                        new {  Phone = phone }
                     );
 
                     if (person == null)
@@ -309,7 +317,7 @@ namespace RM_CMS.DAL.Peoples
 
                     const string query = @"
                 UPDATE people
-                SET visit_count = IFNULL(visit_count, 0) + 1,
+                SET visit_count = IFNULL(visit_count, 0) + 1,visit_type='Returning Visitor',
                     updated_at = NOW()
                 WHERE person_id = @PersonId;
             ";

@@ -64,7 +64,7 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
         [HttpGet("/api/volunteers/{id}/assignments")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<People>>>> GetVolunteerAssignmentsAsync(string id)
+        public async Task<ActionResult<ApiResponse<List<People>>>> GetVolunteerAssignmentsAsync(string id)
         {
             try
             {
@@ -75,7 +75,7 @@ namespace RM_CMS.Controllers.Volunteers
             {
                 _logger.LogError(ex, "Error retrieving volunteer assignments");
 
-                return StatusCode(500, new ApiResponse<IEnumerable<People>>(
+                return StatusCode(500, new ApiResponse<List<People>>(
                     ResponseType.Error,
                     "An error occurred while retrieving assignments",
                     new List<People>()

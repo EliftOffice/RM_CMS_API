@@ -11,7 +11,7 @@ namespace RM_CMS.DAL.Volunteers
         Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId);
         Task<ApiResponse<Volunteer>> GetAvailableVolunteerAsync(string campus);
         Task<ApiResponse<Volunteer>> GetVolunteerByIdAsync(string volunteerId);
-        Task<ApiResponse<IEnumerable<People>>> GetVolunteerAssignmentsAsync(string volunteerId);
+        Task<ApiResponse<List<People>>> GetVolunteerAssignmentsAsync(string volunteerId);
     }
 
     public class VolunteersDAL : IVolunteersDAL
@@ -230,33 +230,61 @@ namespace RM_CMS.DAL.Volunteers
             }
         }
 
-        public async Task<ApiResponse<IEnumerable<People>>> GetVolunteerAssignmentsAsync(string volunteerId)
+        public async Task<ApiResponse<List<People>>> GetVolunteerAssignmentsAsync(string volunteerId)
         {
             try
             {
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
-                    const string query = @"
-                SELECT p.* FROM people p
-                WHERE p.assigned_volunteer = @VolunteerId
-                  AND p.follow_up_status IN ('ASSIGNED', 'RETRY PENDING')
-                ORDER BY p.next_action_date";
+                    const string query = @"SELECT 
+                                            p.person_id            AS PersonId,
+                                            p.first_name           AS FirstName,
+                                            p.last_name            AS LastName,
+                                            p.email                AS Email,
+                                            p.phone                AS Phone,
+                                            p.age_range            AS AgeRange,
+                                            p.household_type       AS HouseholdType,
+                                            p.zip_code             AS ZipCode,
+                                            p.visit_type           AS VisitType,
+                                            p.first_visit_date     AS FirstVisitDate,
+                                            p.last_visit_date      AS LastVisitDate,
+                                            p.visit_count          AS VisitCount,
+                                            p.connection_source    AS ConnectionSource,
+                                            p.campus               AS Campus,
+                                            p.follow_up_status     AS FollowUpStatus,
+                                            p.follow_up_priority   AS FollowUpPriority,
+                                            p.assigned_volunteer   AS AssignedVolunteer,
+                                            p.assigned_date        AS AssignedDate,
+                                            p.last_contact_date    AS LastContactDate,
+                                            p.next_action_date     AS NextActionDate,
+                                            p.interested_in        AS InterestedIn,
+                                            p.prayer_requests      AS PrayerRequests,
+                                            p.specific_needs       AS SpecificNeeds,
+                                            p.created_at           AS CreatedAt,
+                                            p.updated_at           AS UpdatedAt,
+                                            p.created_by           AS CreatedBy
+                                        FROM people p
+                                        WHERE p.assigned_volunteer = @VolunteerId
+                                          AND p.follow_up_status IN ('ASSIGNED', 'RETRY PENDING')
+                                        ORDER BY p.next_action_date;";
 
                     var assignments = await connection.QueryAsync<People>(
                         query,
                         new { VolunteerId = volunteerId }
                     );
 
-                    return new ApiResponse<IEnumerable<People>>(
+                    var list = assignments?.ToList() ?? new List<People>();
+
+                    return new ApiResponse<List<People>>(
                         ResponseType.Success,
                         "Volunteer assignments retrieved successfully",
-                        assignments
+                        list
                     );
                 }
             }
             catch (Exception ex)
             {
-                return new ApiResponse<IEnumerable<People>>(
+                return new ApiResponse<List<People>>(
                     ResponseType.Error,
                     $"Error retrieving assignments: {ex.Message}",
                     null

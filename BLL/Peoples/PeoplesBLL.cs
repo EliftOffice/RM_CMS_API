@@ -32,6 +32,22 @@ namespace RM_CMS.BLL.Peoples
         {
             try
             {
+                //default Values                
+                if (string.IsNullOrWhiteSpace(createDto.campus))
+                    createDto.campus = "Ongole";
+                if (string.IsNullOrWhiteSpace(createDto.age_range))
+                    createDto.age_range = "18-25";
+                if (string.IsNullOrWhiteSpace(createDto.household_type))
+                    createDto.household_type = "Single";
+                if (string.IsNullOrWhiteSpace(createDto.zip_code))
+                    createDto.zip_code = "";
+                if (string.IsNullOrWhiteSpace(createDto.visit_type))
+                    createDto.visit_type = "First-Time Visitor";
+                if (string.IsNullOrWhiteSpace(createDto.connection_source))
+                    createDto.connection_source = "Other";
+                if (string.IsNullOrWhiteSpace(createDto.email))
+                    createDto.email = null;
+
                 var result = await SaveNewVisitorAsync(createDto);
                 if (result.ResponseType != ResponseType.Success)
                     return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"Error saving visitor: {result.Message}", new AssignedVolunteerDTO());

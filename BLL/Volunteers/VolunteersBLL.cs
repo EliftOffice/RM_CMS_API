@@ -10,7 +10,7 @@ namespace RM_CMS.BLL.Volunteers
     {
         Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId);
         Task<ApiResponse<Volunteer>> GetVolunteerByIdAsync(string volunteerId);
-        Task<ApiResponse<IEnumerable<People>>> GetVolunteerAssignmentsAsync(string volunteerId);
+        Task<ApiResponse<List<People>>> GetVolunteerAssignmentsAsync(string volunteerId);
     }
     public class VolunteersBLL : IVolunteersBLL
     {
@@ -52,7 +52,7 @@ namespace RM_CMS.BLL.Volunteers
                 );
             }
         }
-        public async Task<ApiResponse<IEnumerable<People>>> GetVolunteerAssignmentsAsync(string volunteerId)
+        public async Task<ApiResponse<List<People>>> GetVolunteerAssignmentsAsync(string volunteerId)
         {
             try
             {
@@ -60,7 +60,7 @@ namespace RM_CMS.BLL.Volunteers
             }
             catch (Exception ex)
             {
-                return new ApiResponse<IEnumerable<People>>(
+                return new ApiResponse<List<People>>(
                     ResponseType.Error,
                     $"Error retrieving assignments: {ex.Message}",
                     null
