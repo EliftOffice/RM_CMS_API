@@ -27,13 +27,39 @@ namespace RM_CMS.DAL.TeamLeads
                 {
                     var metrics = new TeamLeadMetricsDTO();
 
+                    //Get Threshold Values
+                    const string thresholdQuery = @"
+                                                        SELECT config_key, config_value 
+                                                        FROM cms_db.system_config 
+                                                        WHERE config_key IN ('green_threshold','red_threshold','yellow_threshold');";
+
+                    var thresholdData = await connection.QueryAsync<(string Key, int Value)>(thresholdQuery);
+
+                    var green_threshold = thresholdData.FirstOrDefault(x => x.Key == "green_threshold").Value;
+                    var yellow_threshold = thresholdData.FirstOrDefault(x => x.Key == "yellow_threshold").Value;
+                    var red_threshold = thresholdData.FirstOrDefault(x => x.Key == "red_threshold").Value;
+
                     // Current & Last Week
+                    var today = DateTime.Now.Date;
+                    var dayOfWeek = (int)today.DayOfWeek;
+                    // Calculate Monday of current week (assuming Monday start)
+                    var monday = today.AddDays(-(dayOfWeek == 0 ? 6 : dayOfWeek - 1));
+
+                    // Week string like "Week of January 27, 2025"
+                    metrics.WeekOf = "Week of " + monday.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
+
+                    // Get team lead name
+                    const string teamLeadQuery = @"SELECT CONCAT(first_name, ' ', last_name) FROM team_leads WHERE team_lead_id = @TeamLeadId";
+                    var teamLeadName = await connection.QueryFirstOrDefaultAsync<string>(teamLeadQuery, new { TeamLeadId = teamLeadId });
+                    metrics.TeamLeadName = teamLeadName ?? "";
+
+                    // Current & Last Week numbers for DB queries
                     var currentWeek = ISOWeek.GetWeekOfYear(DateTime.Now);
                     var lastWeek = currentWeek - 1;
 
                     // 1. Get volunteers
                     const string volunteersQuery = @"
-                SELECT volunteer_id, first_name, last_name, capacity_band, capacity_min, capacity_max
+                SELECT volunteer_id, first_name, last_name,concat(capacity_band,' | ',capacity_min,'-',capacity_max,'/week') capacity_band, capacity_min, capacity_max
                 FROM volunteers
                 WHERE team_lead = @TeamLeadId AND status = 'Active';
             ";
@@ -43,21 +69,33 @@ namespace RM_CMS.DAL.TeamLeads
                         new { TeamLeadId = teamLeadId }
                     )).ToList();
 
+
                     var volunteerMetrics = new List<VolunteerMetricsDTO>();
 
                     foreach (var v in volunteers)
                     {
                         // This week
-                        const string thisWeekQuery = @"
-                    SELECT COUNT(*) FROM follow_ups
-                    WHERE volunteer_id = @VolunteerId
-                      AND week_number = @Week
-                      AND contact_status = 'Contacted';
-                ";
+                        //    const string thisWeekQuery = @"
+                        //SELECT COUNT(*) FROM follow_ups
+                        //WHERE volunteer_id = @VolunteerId
+                        //  AND week_number = @Week
+                        //  AND contact_status = 'Contacted';";
+
+                       
+
+                        const string thisWeekQuery = @"SELECT COUNT(DISTINCT person_id)
+                                                            FROM follow_ups
+                                                            WHERE volunteer_id =@VolunteerId
+                                                              AND week_number = @Week
+                                                              AND contact_status = 'Contacted'
+                                                              AND (
+                                                                    response_type != 'No Response'
+                                                                    OR next_action = 'Mark Unresponsive'
+                                                                  );";
 
                         var thisWeekCompleted = await connection.ExecuteScalarAsync<int>(
                             thisWeekQuery,
-                            new { VolunteerId = v.volunteer_id, Week = currentWeek }
+                            new { VolunteerId = v.volunteer_id, Week = currentWeek  }
                         );
 
                         // Last week
@@ -75,9 +113,14 @@ namespace RM_CMS.DAL.TeamLeads
                         var completionRate = v.capacity_max == 0 ? 0 :
                             (thisWeekCompleted * 100.0 / v.capacity_max);
 
+                        
+
                         var flag = "🔴";
-                        if (completionRate >= 90) flag = "🟢";
-                        else if (completionRate >= 75) flag = "🟡";
+
+                        if (completionRate >= green_threshold)
+                            flag = "🟢";
+                        else if (completionRate >= yellow_threshold)
+                            flag = "🟡";
 
                         volunteerMetrics.Add(new VolunteerMetricsDTO
                         {
@@ -153,7 +196,35 @@ namespace RM_CMS.DAL.TeamLeads
                                 Priority = "IMPORTANT"
                             });
                         }
+
                     }
+
+                    // 5. Escalations Pending
+                    // 5. Escalations Pending
+                    const string EscalationsPendingQuery = @"
+SELECT 
+    e.escalation_id AS EscalationId,
+    e.escalation_date AS EscalationDate,
+    e.escalation_tier AS EscalationTier,
+    e.escalation_reason AS EscalationReason,
+    CONCAT(p.first_name, ' ', p.last_name) AS PersonName,
+    CONCAT(v.first_name, ' ', v.last_name) AS VolunteerName,
+    e.status AS Status,
+    e.assigned_to AS AssignedTo,
+    DATEDIFF(CURRENT_DATE, e.escalation_date) AS DaysPending
+FROM escalations e
+JOIN people p ON e.person_id = p.person_id
+JOIN volunteers v ON e.volunteer_id = v.volunteer_id
+WHERE e.status IN ('New', 'In Progress')
+  AND e.team_lead_id = @TeamLeadId
+ORDER BY e.escalation_tier DESC, e.escalation_date;
+";
+
+                    metrics.EscalationsPending = (await connection.QueryAsync<EscalationPendingDTO>(
+                        EscalationsPendingQuery,
+                        new { TeamLeadId = teamLeadId }
+                    )).ToList();
+
 
                     return new ApiResponse<TeamLeadMetricsDTO>(
                         ResponseType.Success,
@@ -162,7 +233,7 @@ namespace RM_CMS.DAL.TeamLeads
                     );
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 return new ApiResponse<TeamLeadMetricsDTO>(
                     ResponseType.Error,

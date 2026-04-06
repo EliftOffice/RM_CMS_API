@@ -12,9 +12,16 @@
 </head>
 <body>
 <div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col-12 text-center">
+            <h2 id="dashboardTitle">TEAM LEAD DASHBOARD</h2>
+            <div id="dashboardSubtitle" class="text-muted">Week of --</div>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-12 d-flex justify-content-between align-items-center mb-3">
-            <h3>Team Lead Dashboard</h3>
+            <div></div>
             <div>
                 <label>Team Lead ID:</label>
                 <input id="teamLeadId" class="form-control d-inline-block ms-2" style="width:140px" />
@@ -41,9 +48,8 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Capacity</th>
-                                <th>This Week</th>
-                                <th>Last Week</th>
+                                <th><span>Capacity | Target Range</span> </th>
+                                <th>This Week</th>                               
                                 <th>Trend</th>
                                 <th>Flag</th>
                             </tr>

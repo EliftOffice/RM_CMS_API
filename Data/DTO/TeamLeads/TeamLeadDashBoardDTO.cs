@@ -2,11 +2,16 @@
 {
     public class TeamLeadMetricsDTO
     {
+        public string TeamLeadName { get; set; } = string.Empty;
+        public string WeekOf { get; set; } = string.Empty;
         public List<VolunteerMetricsDTO> Volunteers { get; set; } = new();
         public TeamPerformanceDTO TeamPerformance { get; set; }
         public List<AttentionDTO> AttentionNeeded { get; set; } = new();
         public List<CheckInDTO> UpcomingCheckIns { get; set; } = new();
+        public List<EscalationPendingDTO> EscalationsPending { get; set; } = new();
+
     }
+    
 
     public class VolunteerMetricsDTO
     {
@@ -45,6 +50,26 @@
         public string day_of_week { get; set; }
     }
 
+    public class EscalationPendingDTO
+    {
+        public string EscalationId { get; set; }
+
+        public DateTime EscalationDate { get; set; }
+
+        public string EscalationTier { get; set; } = string.Empty;
+
+        public string? EscalationReason { get; set; }
+
+        public string PersonName { get; set; } = string.Empty;
+
+        public string VolunteerName { get; set; } = string.Empty;
+
+        public string Status { get; set; } = string.Empty;
+
+        public string? AssignedTo { get; set; }
+
+        public int DaysPending { get; set; }
+    }
     public class VolunteerDTO
     {
         public string volunteer_id { get; set; }

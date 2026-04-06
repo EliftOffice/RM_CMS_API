@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RM_CMS - Templates</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; }
+    .card { cursor: pointer; transition: transform .12s ease-in-out; }
+    .card:hover { transform: translateY(-4px); }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <div class="row mb-4">
+      <div class="col text-center">
+        <h1 class="display-6">RM_CMS - Templates</h1>
+        <p class="text-muted">Quick access to frontend templates for People, Volunteers and Team Leads</p>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-md-4">
+        <a href="../templates/Peoples/PeopleEntry.html" class="text-decoration-none text-dark">
+          <div class="card p-3 h-100">
+            <div class="card-body text-center">
+              <h5 class="card-title">People</h5>
+              <p class="card-text">Visitor entry form and people-related screens.</p>
+              <span class="btn btn-primary">Open People</span>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-md-4">
+        <a href="../templates/Volunteers/Assignments.html" class="text-decoration-none text-dark">
+          <div class="card p-3 h-100">
+            <div class="card-body text-center">
+              <h5 class="card-title">Volunteers</h5>
+              <p class="card-text">Assignments list for volunteers; log follow-ups.</p>
+              <span class="btn btn-primary">Open Volunteers</span>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-md-4">
+        <a href="../templates/TeamLeads/TeamLeadDashboard.html" class="text-decoration-none text-dark">
+          <div class="card p-3 h-100">
+            <div class="card-body text-center">
+              <h5 class="card-title">Team Lead</h5>
+              <p class="card-text">Team lead dashboard and metrics.</p>
+              <span class="btn btn-primary">Open Dashboard</span>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <div class="row mt-5">
+      <div class="col text-center text-muted">
+        <small>Ensure the API is running and API_BASE_URL in assets/js/api-config.js is set to the correct endpoint.</small>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
