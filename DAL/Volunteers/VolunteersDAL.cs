@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using RM_CMS.DAL.Peoples;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO.Volunteers;
 using RM_CMS.Data.Models;
@@ -39,18 +40,21 @@ namespace RM_CMS.DAL.Volunteers
                     }
 
                     // 1. Get person
-                    const string personQuery = @"
-                SELECT person_id, campus 
-                FROM people 
-                WHERE person_id = @PersonId;
-            ";
+                    //        const string personQuery = @"
+                    //    SELECT person_id, campus 
+                    //    FROM people 
+                    //    WHERE person_id = @PersonId;
+                    //";
 
-                    var person = await connection.QueryFirstOrDefaultAsync<dynamic>(
-                        personQuery,
-                        new { PersonId = personId }
-                    );
+                    //        var person = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                    //            personQuery,
+                    //            new { PersonId = personId }
+                    //        );
 
-                    if (person == null)
+                    var response = await new PeoplesDAL(_dbConnectionFactory)
+                        .GetPersonByIdAsync(personId);
+
+                    if (response.Data == null)
                     {
                         return new ApiResponse<AssignedVolunteerDTO>(
                             ResponseType.Error,
@@ -58,6 +62,21 @@ namespace RM_CMS.DAL.Volunteers
                             null
                         );
                     }
+
+                    // 🔴 Check assignment
+                    if (response.Data.FollowUpStatus.ToLower() == "assigned")
+                    {
+                        return new ApiResponse<AssignedVolunteerDTO>(
+                            ResponseType.Error,
+                            "Person already assigned",
+                            null
+                        );
+                    }
+
+                    // ✅ Now you also have campus
+                    var campus = response.Data.Campus;
+
+                   
 
                     using (var transaction = connection.BeginTransaction())
                     {
@@ -75,7 +94,7 @@ namespace RM_CMS.DAL.Volunteers
 
                         var volunteer = await connection.QueryFirstOrDefaultAsync<AssignedVolunteerDTO>(
                             volunteerQuery,
-                            new { Campus = person.campus },
+                            new { Campus = campus },
                             transaction
                         );
 

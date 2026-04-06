@@ -12,7 +12,7 @@ namespace RM_CMS.DAL.Peoples
 
     public interface IPeoplesDAL
     {
-       
+
         Task<ApiResponse<People>> CreatePersonAsync(People datas);
         Task<ApiResponse<People>> FindByEmailOrPhoneAsync(string? email, string? phone);
         Task<ApiResponse<bool>> UpdatePersonVisitAsync(string personId);
@@ -31,92 +31,92 @@ namespace RM_CMS.DAL.Peoples
             _dbConnectionFactory = dbConnectionFactory;
         }
 
-      
 
-//        public async Task<ApiResponse<People>> CreatePersonAsync(People person)
-//        {
-//            try
-//            {
-//                using (var connection = _dbConnectionFactory.GetConnection())
-//                {
-//                    // generate next person id for current year
-//                    var year = DateTime.UtcNow.Year;
-//                    int prefixLength = 1 + year.ToString().Length; // e.g. 5 for P2026
 
-//                    const string seqQuery = @"
-//SELECT MAX(CAST(SUBSTRING(person_id, @PrefixLengthPlusOne) AS UNSIGNED)) AS max_seq
-//FROM people
-//WHERE person_id LIKE @LikePattern";
+        //        public async Task<ApiResponse<People>> CreatePersonAsync(People person)
+        //        {
+        //            try
+        //            {
+        //                using (var connection = _dbConnectionFactory.GetConnection())
+        //                {
+        //                    // generate next person id for current year
+        //                    var year = DateTime.UtcNow.Year;
+        //                    int prefixLength = 1 + year.ToString().Length; // e.g. 5 for P2026
 
-//                    var likePattern = $"P{year}%";
+        //                    const string seqQuery = @"
+        //SELECT MAX(CAST(SUBSTRING(person_id, @PrefixLengthPlusOne) AS UNSIGNED)) AS max_seq
+        //FROM people
+        //WHERE person_id LIKE @LikePattern";
 
-//                    var seqResult = await connection.QueryFirstOrDefaultAsync<int?>(seqQuery, new
-//                    {
-//                        LikePattern = likePattern,
-//                        PrefixLengthPlusOne = prefixLength + 1  // substring starting position
-//                    });
+        //                    var likePattern = $"P{year}%";
 
-//                    var nextNum = (seqResult ?? 0) + 1;
+        //                    var seqResult = await connection.QueryFirstOrDefaultAsync<int?>(seqQuery, new
+        //                    {
+        //                        LikePattern = likePattern,
+        //                        PrefixLengthPlusOne = prefixLength + 1  // substring starting position
+        //                    });
 
-//                    var newId = $"P{year}{nextNum.ToString().PadLeft(4, '0')}";
+        //                    var nextNum = (seqResult ?? 0) + 1;
 
-//                    const string insert = @"
-//                INSERT INTO people (
-//                    person_id, first_name, last_name, email, phone,
-//                    visit_type, first_visit_date, last_visit_date, visit_count,
-//                    follow_up_status, follow_up_priority, campus, connection_source,
-//                    interested_in, prayer_requests, specific_needs,
-//                    created_at, created_by
-//                ) VALUES (
-//                    @PersonId, @FirstName, @LastName, @Email, @Phone,
-//                    @VisitType, @FirstVisitDate, @LastVisitDate, @VisitCount,
-//                    @FollowUpStatus, @FollowUpPriority, @Campus, @ConnectionSource,
-//                    @InterestedIn, @PrayerRequests, @SpecificNeeds,
-//                    @CreatedAt, @CreatedBy
-//                )";
+        //                    var newId = $"P{year}{nextNum.ToString().PadLeft(4, '0')}";
 
-//                    var parameters = new
-//                    {
-//                        PersonId = newId,
-//                        person.FirstName,
-//                        person.LastName,
-//                        person.Email,
-//                        person.Phone,
-//                        person.VisitType,
-//                        FirstVisitDate = person.FirstVisitDate == default ? DateTime.UtcNow : person.FirstVisitDate,
-//                        LastVisitDate = person.LastVisitDate ?? DateTime.UtcNow,
-//                        VisitCount = person.VisitCount == 0 ? 1 : person.VisitCount,
-//                        FollowUpStatus = string.IsNullOrEmpty(person.FollowUpStatus) ? "NEW" : person.FollowUpStatus,
-//                        person.FollowUpPriority,
-//                        person.Campus,
-//                        person.ConnectionSource,
-//                        person.InterestedIn,
-//                        person.PrayerRequests,
-//                        person.SpecificNeeds,
-//                        CreatedAt = DateTime.UtcNow,                       
-//                        person.CreatedBy
-//                    };
+        //                    const string insert = @"
+        //                INSERT INTO people (
+        //                    person_id, first_name, last_name, email, phone,
+        //                    visit_type, first_visit_date, last_visit_date, visit_count,
+        //                    follow_up_status, follow_up_priority, campus, connection_source,
+        //                    interested_in, prayer_requests, specific_needs,
+        //                    created_at, created_by
+        //                ) VALUES (
+        //                    @PersonId, @FirstName, @LastName, @Email, @Phone,
+        //                    @VisitType, @FirstVisitDate, @LastVisitDate, @VisitCount,
+        //                    @FollowUpStatus, @FollowUpPriority, @Campus, @ConnectionSource,
+        //                    @InterestedIn, @PrayerRequests, @SpecificNeeds,
+        //                    @CreatedAt, @CreatedBy
+        //                )";
 
-//                    var rows = await connection.ExecuteAsync(insert, parameters);
+        //                    var parameters = new
+        //                    {
+        //                        PersonId = newId,
+        //                        person.FirstName,
+        //                        person.LastName,
+        //                        person.Email,
+        //                        person.Phone,
+        //                        person.VisitType,
+        //                        FirstVisitDate = person.FirstVisitDate == default ? DateTime.UtcNow : person.FirstVisitDate,
+        //                        LastVisitDate = person.LastVisitDate ?? DateTime.UtcNow,
+        //                        VisitCount = person.VisitCount == 0 ? 1 : person.VisitCount,
+        //                        FollowUpStatus = string.IsNullOrEmpty(person.FollowUpStatus) ? "NEW" : person.FollowUpStatus,
+        //                        person.FollowUpPriority,
+        //                        person.Campus,
+        //                        person.ConnectionSource,
+        //                        person.InterestedIn,
+        //                        person.PrayerRequests,
+        //                        person.SpecificNeeds,
+        //                        CreatedAt = DateTime.UtcNow,                       
+        //                        person.CreatedBy
+        //                    };
 
-//                    if (rows == 0)
-//                    {
-//                        return new ApiResponse<People>(ResponseType.Error, "Failed to create person", null);
-//                    }
+        //                    var rows = await connection.ExecuteAsync(insert, parameters);
 
-//                    // return created person with assigned id
-//                    person.PersonId = newId;
-//                    person.CreatedAt = DateTime.UtcNow;
-//                    person.UpdatedAt = DateTime.UtcNow;
+        //                    if (rows == 0)
+        //                    {
+        //                        return new ApiResponse<People>(ResponseType.Error, "Failed to create person", null);
+        //                    }
 
-//                    return new ApiResponse<People>(ResponseType.Success, "Person created", person);
-//                }
-//            }
-//            catch (Exception ex)
-//            {
-//                return new ApiResponse<People>(ResponseType.Error, $"Error creating person: {ex.Message}", null);
-//            }
-//        }
+        //                    // return created person with assigned id
+        //                    person.PersonId = newId;
+        //                    person.CreatedAt = DateTime.UtcNow;
+        //                    person.UpdatedAt = DateTime.UtcNow;
+
+        //                    return new ApiResponse<People>(ResponseType.Success, "Person created", person);
+        //                }
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                return new ApiResponse<People>(ResponseType.Error, $"Error creating person: {ex.Message}", null);
+        //            }
+        //        }
         public async Task<ApiResponse<People>> CreatePersonAsync(People person)
         {
             try
@@ -223,32 +223,32 @@ namespace RM_CMS.DAL.Peoples
                     //           OR
 
 
-                    
-                                //age_range AS AgeRange,
-                                //household_type AS HouseholdType,
-                                //zip_code AS ZipCode,
-                                //visit_type AS VisitType,
-                                //first_visit_date AS FirstVisitDate,
-                                //last_visit_date AS LastVisitDate,
-                                //visit_count AS VisitCount,
-                                //connection_source AS ConnectionSource,
-                                //campus AS Campus,
-                                //follow_up_status AS FollowUpStatus,
-                                //follow_up_priority AS FollowUpPriority,
-                                //assigned_volunteer AS AssignedVolunteer,
-                                //assigned_date AS AssignedDate,
-                                //last_contact_date AS LastContactDate,
-                                //next_action_date AS NextActionDate,
-                                //interested_in AS InterestedIn,
-                                //prayer_requests AS PrayerRequests,
-                                //specific_needs AS SpecificNeeds,
-                                //created_at AS CreatedAt,
-                                //updated_at AS UpdatedAt,
-                                //created_by AS CreatedBy
+
+                    //age_range AS AgeRange,
+                    //household_type AS HouseholdType,
+                    //zip_code AS ZipCode,
+                    //visit_type AS VisitType,
+                    //first_visit_date AS FirstVisitDate,
+                    //last_visit_date AS LastVisitDate,
+                    //visit_count AS VisitCount,
+                    //connection_source AS ConnectionSource,
+                    //campus AS Campus,
+                    //follow_up_status AS FollowUpStatus,
+                    //follow_up_priority AS FollowUpPriority,
+                    //assigned_volunteer AS AssignedVolunteer,
+                    //assigned_date AS AssignedDate,
+                    //last_contact_date AS LastContactDate,
+                    //next_action_date AS NextActionDate,
+                    //interested_in AS InterestedIn,
+                    //prayer_requests AS PrayerRequests,
+                    //specific_needs AS SpecificNeeds,
+                    //created_at AS CreatedAt,
+                    //updated_at AS UpdatedAt,
+                    //created_by AS CreatedBy
                     var person = await connection.QueryFirstOrDefaultAsync<People>(
                         query,
                         //new { Email = email, Phone = phone }
-                        new {  Phone = phone }
+                        new { Phone = phone }
                     );
 
                     if (person == null)
@@ -303,7 +303,7 @@ namespace RM_CMS.DAL.Peoples
                 return new ApiResponse<bool>(ResponseType.Error, $"Error updating person visit: {ex.Message}", false);
             }
         }
-       
+
         public async Task<ApiResponse<bool>> IncrementVisitCountAsync(string personId)
         {
             try
@@ -343,7 +343,37 @@ namespace RM_CMS.DAL.Peoples
             {
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
-                    const string query = "SELECT * FROM people WHERE person_id = @PersonId";
+                    const string query = @"
+SELECT 
+    person_id AS PersonId,
+    first_name AS FirstName,
+    last_name AS LastName,
+    email AS Email,
+    phone AS Phone,
+    age_range AS AgeRange,
+    household_type AS HouseholdType,
+    zip_code AS ZipCode,
+    visit_type AS VisitType,
+    first_visit_date AS FirstVisitDate,
+    last_visit_date AS LastVisitDate,
+    visit_count AS VisitCount,
+    connection_source AS ConnectionSource,
+    campus AS Campus,
+    follow_up_status AS FollowUpStatus,
+    follow_up_priority AS FollowUpPriority,
+    assigned_volunteer AS AssignedVolunteer,
+    assigned_date AS AssignedDate,
+    last_contact_date AS LastContactDate,
+    next_action_date AS NextActionDate,
+    interested_in AS InterestedIn,
+    prayer_requests AS PrayerRequests,
+    specific_needs AS SpecificNeeds,
+    created_at AS CreatedAt,
+    updated_at AS UpdatedAt,
+    created_by AS CreatedBy
+FROM people
+WHERE person_id = @PersonId";
+
                     var person = await connection.QueryFirstOrDefaultAsync<People>(
                         query,
                         new { PersonId = personId }
@@ -431,9 +461,8 @@ namespace RM_CMS.DAL.Peoples
                 );
             }
         }
-      
 
-
+       
 
         //public async Task<ApiResponse<bool>> UpdatePersonAssignmentAsync(string personId, string volunteerId, DateTime nextActionDate)
         //{
