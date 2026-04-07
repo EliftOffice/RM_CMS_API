@@ -34,19 +34,9 @@ namespace RM_CMS.BLL.Peoples
             {
                 //default Values                
                 if (string.IsNullOrWhiteSpace(createDto.campus))
-                    createDto.campus = "Ongole";
-                if (string.IsNullOrWhiteSpace(createDto.age_range))
-                    createDto.age_range = "18-25";
-                if (string.IsNullOrWhiteSpace(createDto.household_type))
-                    createDto.household_type = "Single";
-                if (string.IsNullOrWhiteSpace(createDto.zip_code))
-                    createDto.zip_code = "";
+                    createDto.campus = "Ongole";              
                 if (string.IsNullOrWhiteSpace(createDto.visit_type))
                     createDto.visit_type = "First-Time Visitor";
-                if (string.IsNullOrWhiteSpace(createDto.connection_source))
-                    createDto.connection_source = "Other";
-                if (string.IsNullOrWhiteSpace(createDto.email))
-                    createDto.email = null;
 
                 var result = await SaveNewVisitorAsync(createDto);
                 if (result.ResponseType != ResponseType.Success)
@@ -55,7 +45,10 @@ namespace RM_CMS.BLL.Peoples
                 {
                     var res = await _volunteersBLL.AssignToVolunteerAsync(result.Data.PersonId);
                     if (res.ResponseType != ResponseType.Success)
-                        return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"Error assigning volunteer: {res.Message}", new AssignedVolunteerDTO());
+                    {
+                        return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"People Saved Succefully But Error assigning volunteer: {res.Message}", new AssignedVolunteerDTO());
+                    }
+                        
 
                     else
                     {
@@ -144,15 +137,17 @@ namespace RM_CMS.BLL.Peoples
 
         private string DeterminePriority(CreatePeopleDto dto)
         {
+            if (!string.IsNullOrWhiteSpace(dto.interested_in) && dto.interested_in.Contains("Counseling", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Urgent";
+            }
+
             if (!string.IsNullOrWhiteSpace(dto.specific_needs) || !string.IsNullOrWhiteSpace(dto.prayer_requests))
             {
                 return "High";
             }
 
-            if (!string.IsNullOrWhiteSpace(dto.interested_in) && dto.interested_in.Contains("Counseling", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Urgent";
-            }
+            
 
             return "Normal";
         }
