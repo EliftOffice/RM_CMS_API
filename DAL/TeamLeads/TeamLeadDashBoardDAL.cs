@@ -28,9 +28,8 @@ namespace RM_CMS.DAL.TeamLeads
                     var metrics = new TeamLeadMetricsDTO();
 
                     //Get Threshold Values
-                    const string thresholdQuery = @"
-                                                        SELECT config_key, config_value 
-                                                        FROM cms_db.system_config 
+                    const string thresholdQuery = @"SELECT config_key, config_value 
+                                                        FROM system_config 
                                                         WHERE config_key IN ('green_threshold','red_threshold','yellow_threshold');";
 
                     var thresholdData = await connection.QueryAsync<(string Key, int Value)>(thresholdQuery);

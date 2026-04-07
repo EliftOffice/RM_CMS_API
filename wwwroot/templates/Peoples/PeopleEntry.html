@@ -136,6 +136,11 @@
                                     <input class="form-check-input" type="checkbox" value="Small Groups" id="interest_groups">
                                     <label class="form-check-label" for="interest_groups">Small Groups</label>
                                 </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Counseling" id="Counseling">
+                                    <label class="form-check-label" for="Counseling">Counseling</label>
+                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -169,6 +174,7 @@
                 if ($('#interest_membership').is(':checked')) interests.push('Membership');
                 if ($('#interest_volunteering').is(':checked')) interests.push('Volunteering');
                 if ($('#interest_groups').is(':checked')) interests.push('Small Groups');
+                if ($('#Counseling').is(':checked')) interests.push('Counseling');
 
                 const formData = {
                     first_name: $('#first_name').val(),
@@ -189,8 +195,9 @@
                 };
 
                 function determinePriority() {
-                    if ($('#specific_needs').val() || $('#prayer_requests').val()) return 'High';
+
                     if (interests.includes('Counseling')) return 'Urgent';
+                    if ($('#specific_needs').val() || $('#prayer_requests').val()) return 'High';                  
                     return 'Normal';
                 }
 
