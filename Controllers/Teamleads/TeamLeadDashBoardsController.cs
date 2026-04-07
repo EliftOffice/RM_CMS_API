@@ -28,7 +28,7 @@ namespace RM_CMS.Controllers.TeamLeads
             {
                 _logger.LogInformation("Fetching team metrics for TeamLead: {TeamLeadId}", teamLeadId);
 
-                var result = await _bll.GetTeamHealthMetricsAsync(teamLeadId);
+                var result = await _bll.GetTeamHealthMetricsAsyncV1(teamLeadId);
 
                 return HttpResponseHelper.CreateHttpResponse(result);
             }

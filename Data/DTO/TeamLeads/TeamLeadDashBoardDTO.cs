@@ -53,6 +53,7 @@
     public class EscalationPendingDTO
     {
         public string EscalationId { get; set; }
+        public string description { get; set; }
 
         public DateTime EscalationDate { get; set; }
 
@@ -69,6 +70,7 @@
         public string? AssignedTo { get; set; }
 
         public int DaysPending { get; set; }
+
     }
     public class VolunteerDTO
     {
@@ -78,6 +80,8 @@
         public string capacity_band { get; set; }
         public int capacity_min { get; set; }
         public int capacity_max { get; set; }
+
+        public string emotional_tone { get; set; }
     }
 
     public class TeamLeadPerformanceDTO

@@ -63,6 +63,26 @@ namespace RM_CMS.Controllers.Volunteers
                 ));
             }
         }
+
+        [HttpGet("/api/volunteers")]
+        public async Task<ActionResult<ApiResponse<List<Volunteer>>>> GetVolunteersAsync()
+        {
+            try
+            {
+                var result = await _VolunteersBLL.GetVolunteersAsync();
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving volunteers");
+
+                return StatusCode(500, new ApiResponse<List<Volunteer>>(
+                    ResponseType.Error,
+                    "An error occurred while retrieving volunteers",
+                    new List<Volunteer>()
+                ));
+            }
+        }
         [HttpGet("/api/volunteers/{id}/assignments")]
         public async Task<ActionResult<ApiResponse<List<People>>>> GetVolunteerAssignmentsAsync(string id)
         {
@@ -79,6 +99,27 @@ namespace RM_CMS.Controllers.Volunteers
                     ResponseType.Error,
                     "An error occurred while retrieving assignments",
                     new List<People>()
+                ));
+            }
+        }
+
+        [HttpPost("/api/volunteers")]
+        public async Task<ActionResult<ApiResponse<VolunteerResponseDto>>> CreateVolunteerAsync([FromBody] CreateVolunteerDto dto)
+        {
+            try
+            {
+                var result = await _VolunteersBLL.CreateVolunteerAsync(dto);
+
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating volunteer");
+
+                return StatusCode(500, new ApiResponse<VolunteerResponseDto>(
+                    ResponseType.Error,
+                    "An error occurred while creating volunteer",
+                    null
                 ));
             }
         }

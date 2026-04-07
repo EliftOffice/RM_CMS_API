@@ -418,14 +418,26 @@ namespace RM_CMS.DAL.Followups
                         new { PersonId = personId }
                     );
 
+                    const string maxattemptsQuery = @"SELECT config_value 
+FROM system_config 
+WHERE config_key = 'max_retry_attempts';";
+
+                    var maxattempts = await connection.ExecuteScalarAsync<int>(maxattemptsQuery);
+
+                    const string retryDaysQuery = @"SELECT config_value 
+FROM system_config 
+WHERE config_key = 'retry_delay_days';";
+
+                    var retry_delay_days = await connection.ExecuteScalarAsync<int>(retryDaysQuery);
+
                     using (var transaction = connection.BeginTransaction())
                     {
                         try
                         {
-                            if (attemptNumber < 3)
+                            if (attemptNumber < maxattempts)
                             {
                                 // Retry after 3 days
-                                var retryDate = DateTime.Now.AddDays(3);
+                                var retryDate = DateTime.Now.AddDays(retry_delay_days);
 
                                 // Update follow-up
                                 const string updateFollowUp = @"
@@ -592,7 +604,7 @@ namespace RM_CMS.DAL.Followups
                     var weekNumber = System.Globalization.ISOWeek.GetWeekOfYear(now);
                     var month = now.Month;
                     var quarter = (month - 1) / 3 + 1;
-                   
+
 
                     using (var transaction = connection.BeginTransaction())
                     {
@@ -648,7 +660,7 @@ namespace RM_CMS.DAL.Followups
 
                     return new ApiResponse<string>(
                         ResponseType.Success,
-                        "Follow-up logged successfully", followUpId 
+                        "Follow-up logged successfully", followUpId
                     );
                 }
             }

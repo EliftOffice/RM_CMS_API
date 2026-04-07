@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using RM_CMS.Data;
+using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Volunteers;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
@@ -12,6 +13,9 @@ namespace RM_CMS.DAL.Volunteers
         Task<ApiResponse<Volunteer>> GetAvailableVolunteerAsync(string campus);
         Task<ApiResponse<Volunteer>> GetVolunteerByIdAsync(string volunteerId);
         Task<ApiResponse<List<People>>> GetVolunteerAssignmentsAsync(string volunteerId);
+        Task<ApiResponse<VolunteerResponseDto>> CreateVolunteerAsync(CreateVolunteerDto volunteer);
+        Task<ApiResponse<bool>> ExistsByEmailAsync(string email);
+        Task<ApiResponse<List<Volunteer>>> GetVolunteersAsync();
     }
 
     public class VolunteersDAL : IVolunteersDAL
@@ -230,6 +234,42 @@ namespace RM_CMS.DAL.Volunteers
             }
         }
 
+        public async Task<ApiResponse<List<Volunteer>>> GetVolunteersAsync()
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"SELECT * FROM volunteers";
+
+                    var volunteers = (await connection.QueryAsync<Volunteer>(query)).ToList();
+
+                    if (volunteers == null || !volunteers.Any())
+                    {
+                        return new ApiResponse<List<Volunteer>>(
+                            ResponseType.Warning,
+                            "No volunteers found",
+                            new List<Volunteer>()
+                        );
+                    }
+
+                    return new ApiResponse<List<Volunteer>>(
+                        ResponseType.Success,
+                        "Volunteers retrieved successfully",
+                        volunteers
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<Volunteer>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteers: {ex.Message}",
+                    new List<Volunteer>()
+                );
+            }
+        }
+
         public async Task<ApiResponse<List<People>>> GetVolunteerAssignmentsAsync(string volunteerId)
         {
             try
@@ -291,5 +331,246 @@ namespace RM_CMS.DAL.Volunteers
                 );
             }
         }
+
+
+        //public async Task<ApiResponse<Volunteer>> CreateVolunteerAsync(CreateVolunteerDto volunteer)
+        //{
+        //    try
+        //    {
+        //        using (var connection = _dbConnectionFactory.GetConnection())
+        //        {
+        //            // 🔹 1. Generate Custom ID (V001, V002...)
+        //            const string idQuery = @"
+        //                                    SELECT CONCAT('V', LPAD(IFNULL(MAX(CAST(SUBSTRING(volunteer_id, 2) AS UNSIGNED)), 0) + 1, 3, '0'))
+        //                                    FROM volunteers;";
+
+        //            var newId = await connection.ExecuteScalarAsync<string>(idQuery);
+
+        //            volunteer.VolunteerId = newId;
+
+        //            // 🔹 2. Insert Query
+        //            const string insertQuery = @"
+        //                                        INSERT INTO volunteers (
+        //                                            volunteer_id,
+        //                                            first_name, last_name, email, phone,
+        //                                            status, level, start_date, end_date,
+        //                                            capacity_band, capacity_min, capacity_max, current_assignments,
+        //                                            total_completed, total_assigned, completion_rate, avg_response_time,
+        //                                            last_check_in, next_check_in, emotional_tone, vnps_score, burnout_risk,
+        //                                            team_lead, campus,
+        //                                            level_0_complete, crisis_trained, confidentiality_signed, background_check,
+        //                                            boundary_violations, last_violation_date,
+        //                                            created_at, updated_at
+        //                                        )
+        //                                        VALUES (
+        //                                            @VolunteerId,
+        //                                            @FirstName, @LastName, @Email, @Phone,
+        //                                            @Status, @Level, @StartDate, @EndDate,
+        //                                            @CapacityBand, @CapacityMin, @CapacityMax, @CurrentAssignments,
+        //                                            @TotalCompleted, @TotalAssigned, @CompletionRate, @AvgResponseTime,
+        //                                            @LastCheckIn, @NextCheckIn, @EmotionalTone, @VnpsScore, @BurnoutRisk,
+        //                                            @TeamLead, @Campus,
+        //                                            @Level0Complete, @CrisisTrained, @ConfidentialitySigned, @BackgroundCheck,
+        //                                            @BoundaryViolations, @LastViolationDate,
+        //                                            NOW(), NOW()
+        //                                        );";
+
+        //            await connection.ExecuteAsync(insertQuery, volunteer);
+
+        //            // 🔹 3. Return Created Object
+        //            return new ApiResponse<Volunteer>(
+        //                ResponseType.Success,
+        //                "Volunteer created successfully",
+        //                volunteer
+        //            );
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ApiResponse<Volunteer>(
+        //            ResponseType.Error,
+        //            $"DAL Error creating volunteer: {ex.Message}",
+        //            null
+        //        );
+        //    }
+        //}
+        public async Task<ApiResponse<VolunteerResponseDto>> CreateVolunteerAsync(CreateVolunteerDto volunteer)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    // 🔹 1. Generate ID
+                    const string idQuery = @"
+                SELECT CONCAT('V', LPAD(IFNULL(MAX(CAST(SUBSTRING(volunteer_id, 2) AS UNSIGNED)), 0) + 1, 3, '0'))
+                FROM volunteers;";
+
+                    var newId = await connection.ExecuteScalarAsync<string>(idQuery);
+                    volunteer.VolunteerId = newId;
+
+                    // 🔹 2. Get Capacity from DB
+                    const string capacityQuery = @"
+                SELECT min_per_week AS Min, max_per_week AS Max
+                FROM capacity_bands
+                WHERE band_name = @CapacityBand;";
+
+                    var capacity = await connection.QueryFirstOrDefaultAsync<(int Min, int Max)>(
+                        capacityQuery,
+                        new { CapacityBand = volunteer.CapacityBand }
+                    );
+
+                    if (capacity == default)
+                    {
+                        return new ApiResponse<VolunteerResponseDto>(
+                            ResponseType.Error,
+                            $"Invalid capacity band: {volunteer.CapacityBand}",
+                            null
+                        );
+                    }
+
+                    // 🔹 3. Insert
+                  const string insertQuery = @"
+                    INSERT INTO volunteers (
+                        volunteer_id,
+                        first_name,
+                        last_name,
+                        email,
+                        phone,
+                        team_lead,
+                        start_date,
+                        capacity_band,
+                        capacity_min,
+                        capacity_max,
+                        status,
+                        last_check_in,        
+                        next_check_in,       
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (
+                        @VolunteerId,
+                        @FirstName,
+                        @LastName,
+                        @Email,
+                        @Phone,
+                        @TeamLead,
+                        @StartDate,
+                        @CapacityBand,
+                        @CapacityMin,
+                        @CapacityMax,
+                        'Active',
+                        CURRENT_DATE,         
+                        CURRENT_DATE,         
+                        NOW(),
+                        NOW()
+                    );";
+
+                    await connection.ExecuteAsync(insertQuery, new
+                    {
+                        volunteer.VolunteerId,
+                        volunteer.FirstName,
+                        volunteer.LastName,
+                        volunteer.Email,
+                        volunteer.Phone,
+                        volunteer.TeamLead,
+                        volunteer.StartDate,
+                        volunteer.CapacityBand,
+                        CapacityMin = capacity.Min,
+                        CapacityMax = capacity.Max
+                    });
+
+                    // 🔥 4. Fetch FULL DATA → MAP TO DTO (NO MANUAL MAPPING)
+                    const string selectQuery = @"
+                SELECT 
+                    volunteer_id AS VolunteerId,
+                    first_name AS FirstName,
+                    last_name AS LastName,
+                    email AS Email,
+                    phone AS Phone,
+                    status AS Status,
+                    level AS Level,
+                    start_date AS StartDate,
+                    end_date AS EndDate,
+                    capacity_band AS CapacityBand,
+                    capacity_min AS CapacityMin,
+                    capacity_max AS CapacityMax,
+                    current_assignments AS CurrentAssignments,
+                    total_completed AS TotalCompleted,
+                    total_assigned AS TotalAssigned,
+                    completion_rate AS CompletionRate,
+                    avg_response_time AS AvgResponseTime,
+                    last_check_in AS LastCheckIn,
+                    next_check_in AS NextCheckIn,
+                    emotional_tone AS EmotionalTone,
+                    vnps_score AS VnpsScore,
+                    burnout_risk AS BurnoutRisk,
+                    team_lead AS TeamLead,
+                    campus AS Campus,
+                    level_0_complete AS Level0Complete,
+                    crisis_trained AS CrisisTrained,
+                    confidentiality_signed AS ConfidentialitySigned,
+                    background_check AS BackgroundCheck,
+                    boundary_violations AS BoundaryViolations,
+                    last_violation_date AS LastViolationDate,
+                    created_at AS CreatedAt,
+                    updated_at AS UpdatedAt
+                FROM volunteers
+                WHERE volunteer_id = @VolunteerId;";
+
+                    var result = await connection.QueryFirstOrDefaultAsync<VolunteerResponseDto>(
+                        selectQuery,
+                        new { VolunteerId = volunteer.VolunteerId }
+                    );
+
+                    return new ApiResponse<VolunteerResponseDto>(
+                        ResponseType.Success,
+                        "Volunteer created successfully",
+                        result
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<VolunteerResponseDto>(
+                    ResponseType.Error,
+                    $"DAL Error creating volunteer: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+        public async Task<ApiResponse<bool>> ExistsByEmailAsync(string email)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+SELECT COUNT(1) 
+FROM volunteers 
+WHERE LOWER(email) = @Email;";
+
+                    var count = await connection.ExecuteScalarAsync<int>(
+                        query,
+                        new { Email = email }
+                    );
+
+                    return new ApiResponse<bool>(
+                        ResponseType.Success,
+                        "Checked successfully",
+                        count > 0
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    $"DAL Error checking email: {ex.Message}",
+                    false
+                );
+            }
+        }
+
     }
 }

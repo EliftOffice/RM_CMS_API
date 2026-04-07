@@ -69,19 +69,33 @@ $(function () {
     `).join('');
 
         // Escalations Section
-        const escalations = (data.escalationsPending || data.EscalationsPending || [])
-            .map(e => `
-        <dt>${e.personName}</dt>
-        <dd>
-            Volunteer: ${e.volunteerName} <br/>
-            Tier: ${e.escalationTier} <br/>
-            Status: ${e.status} <br/>
-            Date: ${new Date(e.escalationDate).toDateString()} <br/>
-            Days Pending: ${e.daysPending}
-        </dd>
-    `).join('');
+        //    const escalations = (data.escalationsPending || data.EscalationsPending || [])
+        //        .map(e => `
+        //    <dt>${e.personName}</dt>
+        //    <dd>
+        //        Volunteer: ${e.volunteerName} <br/>
+        //        Tier: ${e.escalationTier} <br/>
+        //        Status: ${e.status} <br/>
+        //        Date: ${new Date(e.escalationDate).toDateString()} <br/>
+        //        Days Pending: ${e.daysPending}
+        //    </dd>
+        //`).join('');
 
-        // Final HTML with clear separation
+        const escalationsData = (data.escalationsPending || data.EscalationsPending || []);
+
+        const escalations = escalationsData
+            .map(e => {
+                const day = new Date(e.escalationDate)
+                    .toLocaleDateString('en-US', { weekday: 'short' });
+
+                return `- ${e.personName} (escalated ${day}, ${e.reason || e.description || 'no details'})`;
+            })
+            .join('<br/>');
+
+        // ✅ Count
+        const escalationCount = escalationsData.length;
+
+        // Final HTML
         const finalHtml = `
     <h5>Check-ins</h5>
     <dl class="mb-3">
@@ -89,9 +103,13 @@ $(function () {
     </dl>
 
     <h5>Escalations Pending</h5>
-    <dl>
-        ${escalations || '<dd>No pending escalations</dd>'}
-    </dl>
+    <h6 class="text-muted">
+        ${escalationCount} case${escalationCount !== 1 ? 's' : ''} need Team Lead Follow-up:
+    </h6>
+
+    <div>
+        ${escalations || 'No pending escalations'}
+    </div>
 `;
 
         // Render
