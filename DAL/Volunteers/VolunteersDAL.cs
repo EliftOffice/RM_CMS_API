@@ -332,68 +332,7 @@ namespace RM_CMS.DAL.Volunteers
             }
         }
 
-
-        //public async Task<ApiResponse<Volunteer>> CreateVolunteerAsync(CreateVolunteerDto volunteer)
-        //{
-        //    try
-        //    {
-        //        using (var connection = _dbConnectionFactory.GetConnection())
-        //        {
-        //            // 🔹 1. Generate Custom ID (V001, V002...)
-        //            const string idQuery = @"
-        //                                    SELECT CONCAT('V', LPAD(IFNULL(MAX(CAST(SUBSTRING(volunteer_id, 2) AS UNSIGNED)), 0) + 1, 3, '0'))
-        //                                    FROM volunteers;";
-
-        //            var newId = await connection.ExecuteScalarAsync<string>(idQuery);
-
-        //            volunteer.VolunteerId = newId;
-
-        //            // 🔹 2. Insert Query
-        //            const string insertQuery = @"
-        //                                        INSERT INTO volunteers (
-        //                                            volunteer_id,
-        //                                            first_name, last_name, email, phone,
-        //                                            status, level, start_date, end_date,
-        //                                            capacity_band, capacity_min, capacity_max, current_assignments,
-        //                                            total_completed, total_assigned, completion_rate, avg_response_time,
-        //                                            last_check_in, next_check_in, emotional_tone, vnps_score, burnout_risk,
-        //                                            team_lead, campus,
-        //                                            level_0_complete, crisis_trained, confidentiality_signed, background_check,
-        //                                            boundary_violations, last_violation_date,
-        //                                            created_at, updated_at
-        //                                        )
-        //                                        VALUES (
-        //                                            @VolunteerId,
-        //                                            @FirstName, @LastName, @Email, @Phone,
-        //                                            @Status, @Level, @StartDate, @EndDate,
-        //                                            @CapacityBand, @CapacityMin, @CapacityMax, @CurrentAssignments,
-        //                                            @TotalCompleted, @TotalAssigned, @CompletionRate, @AvgResponseTime,
-        //                                            @LastCheckIn, @NextCheckIn, @EmotionalTone, @VnpsScore, @BurnoutRisk,
-        //                                            @TeamLead, @Campus,
-        //                                            @Level0Complete, @CrisisTrained, @ConfidentialitySigned, @BackgroundCheck,
-        //                                            @BoundaryViolations, @LastViolationDate,
-        //                                            NOW(), NOW()
-        //                                        );";
-
-        //            await connection.ExecuteAsync(insertQuery, volunteer);
-
-        //            // 🔹 3. Return Created Object
-        //            return new ApiResponse<Volunteer>(
-        //                ResponseType.Success,
-        //                "Volunteer created successfully",
-        //                volunteer
-        //            );
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ApiResponse<Volunteer>(
-        //            ResponseType.Error,
-        //            $"DAL Error creating volunteer: {ex.Message}",
-        //            null
-        //        );
-        //    }
-        //}
+        
         public async Task<ApiResponse<VolunteerResponseDto>> CreateVolunteerAsync(CreateVolunteerDto volunteer)
         {
             try
