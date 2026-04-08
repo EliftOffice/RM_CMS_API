@@ -12,7 +12,7 @@ namespace RM_CMS
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-
+            builder.WebHost.UseUrls("http://0.0.0.0:8080");
             // Register Dapper and Data Access Services
             builder.Services.AddScoped<RM_CMS.Data.IDbConnectionFactory, RM_CMS.Data.DbConnectionFactory>();
             
@@ -39,7 +39,7 @@ namespace RM_CMS
 
 
             app.MapControllers();
-
+            app.MapGet("/", () => "CMS API Running");
             app.Run();
         }
     }
