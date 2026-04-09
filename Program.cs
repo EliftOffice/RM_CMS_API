@@ -68,7 +68,7 @@ namespace RM_CMS
                 app.UseSwaggerUI();
             }
 
-            app.UseHttpsRedirection();
+            //app.UseHttpsRedirection();
 
             // Enable static file serving for wwwroot
             app.UseStaticFiles(new StaticFileOptions
