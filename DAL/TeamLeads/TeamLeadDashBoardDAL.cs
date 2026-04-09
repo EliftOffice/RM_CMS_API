@@ -9,6 +9,8 @@ namespace RM_CMS.DAL.TeamLeads
     public interface ITeamLeadDashBoardDAL
     {
         Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsync(string teamLeadId);
+
+        Task<ApiResponse<bool>> SaveTeamLeadAsync(TeamLeadDTO teamLead);
     }
 
     public class TeamLeadDashBoardDAL: ITeamLeadDashBoardDAL
@@ -239,6 +241,81 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
                     ResponseType.Error,
                     "Error retrieving team metrics",
                     null
+                );
+            }
+        }
+
+
+
+        public async Task<ApiResponse<bool>> SaveTeamLeadAsync(TeamLeadDTO teamLead)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    // 🔹 1. Generate Team Lead ID
+                    const string seqQuery = @"
+                SELECT IFNULL(MAX(CAST(SUBSTRING(team_lead_id, 3) AS UNSIGNED)), 0)
+                FROM team_leads;
+            ";
+
+                    var seqResult = await connection.ExecuteScalarAsync<int>(seqQuery);
+
+                    var nextNum = seqResult + 1;
+
+                    teamLead.TeamLeadId = $"TL{nextNum.ToString().PadLeft(3, '0')}";
+
+                    // 🔹 2. Insert Team Lead
+                    const string insertQuery = @"
+                INSERT INTO team_leads
+                (
+                    team_lead_id,
+                    first_name,
+                    last_name,
+                    email,
+                    phone,
+                    role_type,
+                    campus,
+                    start_date,
+                    max_volunteers,
+                    current_volunteers,
+                    boundary_incidents,
+                    created_at,
+                    updated_at
+                )
+                VALUES
+                (
+                    @TeamLeadId,
+                    @FirstName,
+                    @LastName,
+                    @Email,
+                    @Phone,
+                    @RoleType,
+                    @Campus,
+                    NOW(),
+                    @MaxVolunteers,
+                    0,
+                    0,
+                    NOW(),
+                    NOW()
+                );
+            ";
+
+                    var result = await connection.ExecuteAsync(insertQuery, teamLead);
+
+                    return new ApiResponse<bool>(
+                        ResponseType.Success,
+                        $"Team Lead created successfully with ID {teamLead.TeamLeadId}",
+                        result > 0
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    $"Error saving team lead: {ex.Message}",
+                    false
                 );
             }
         }

@@ -5,6 +5,62 @@ $(function () {
         loadMetrics(teamLeadId);
     });
 
+    //----TeamLeads Screen
+
+    $("#saveBtn").click(function () {
+
+        var data = {
+            FirstName: $("#first_name").val().trim(),
+            LastName: $("#last_name").val().trim(),
+            Email: $("#email").val().trim(),
+            Phone: $("#phone").val().trim(),
+            RoleType: $("#role_type").val() || "TeamLead",
+            MaxVolunteers: parseInt($("#max_volunteers").val()) || 0
+        };
+
+        console.log("DATA:", data);
+
+        if (!data.FirstName || !data.LastName || !data.Phone) {
+            $("#message").text("First Name, Last Name and Phone are required")
+                .addClass("error");
+            return;
+        }
+
+        $.ajax({
+            url: API_BASE_URL + '/TeamLeadDashBoards/save-team-lead',
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(data),
+
+            success: function (res) {
+                console.log("SUCCESS:", res);
+
+                if (res.responseType === 1) {
+                    $("#message").text(res.message)
+                        .removeClass("error").addClass("success");
+                } else {
+                    $("#message").text(res.message)
+                        .removeClass("success").addClass("error");
+                }
+            },
+
+            error: function (err) {
+                console.error("ERROR FULL:", err);
+
+                // ?? IMPORTANT DEBUG
+                if (err.status === 404) {
+                    $("#message").text("API route not found (404)").addClass("error");
+                }
+                else if (err.status === 500) {
+                    $("#message").text("Server error (500)").addClass("error");
+                }
+                else {
+                    $("#message").text("Unknown error").addClass("error");
+                }
+            }
+        });
+    });
+
     function loadMetrics(teamLeadId) {
         $.ajax({
             url: API_BASE_URL + '/TeamLeadDashBoards/team-metrics?teamLeadId=' + encodeURIComponent(teamLeadId),

@@ -43,5 +43,30 @@ namespace RM_CMS.Controllers.TeamLeads
                 ));
             }
         }
+
+
+        [HttpPost("save-team-lead")]
+        public async Task<ActionResult<ApiResponse<bool>>> SaveTeamLead(
+[FromBody] TeamLeadDTO teamLead)
+        {
+            try
+            {
+                _logger.LogInformation("Saving Team Lead: {@TeamLead}", teamLead);
+
+                var result = await _bll.SaveTeamLeadAsync(teamLead);
+
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving team lead");
+                    
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<bool>(
+                    ResponseType.Error,
+                    "Error saving team lead",
+                    false
+                ));
+            }
+        }
     }
 }

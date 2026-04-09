@@ -1,0 +1,258 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Check-In Form</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/checkins.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #eef0f4;
+            min-height: 100vh;
+            padding: 40px 16px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a5c4a;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 32px 36px;
+            max-width: 560px;
+            margin: 0 auto;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+        }
+
+        #message {
+            font-size: .9rem;
+            margin-bottom: 14px;
+            min-height: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+            .form-group label {
+                display: block;
+                font-size: .92rem;
+                font-weight: 500;
+                color: #222;
+                margin-bottom: 6px;
+            }
+
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid #d0d5dd;
+                border-radius: 6px;
+                font-size: .95rem;
+                font-family: inherit;
+                color: #222;
+                background: #fff;
+                outline: none;
+                transition: border-color .15s;
+            }
+
+                .form-group input:focus,
+                .form-group select:focus,
+                .form-group textarea:focus {
+                    border-color: #1a5c4a;
+                }
+
+            .form-group textarea {
+                resize: vertical;
+                min-height: 72px;
+            }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+            .check-row input[type=checkbox] {
+                width: 16px;
+                height: 16px;
+                accent-color: #1a5c4a;
+                cursor: pointer;
+            }
+
+            .check-row label {
+                font-size: .92rem;
+                color: #222;
+                cursor: pointer;
+            }
+
+        .section-label {
+            font-size: .75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: #888;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 6px;
+            margin: 20px 0 14px;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 13px;
+            background: #1a5c4a;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background .15s;
+        }
+
+            .btn-save:hover {
+                background: #154a3b;
+            }
+
+            .btn-save:disabled {
+                background: #7aab99;
+                cursor: not-allowed;
+            }
+    </style>
+</head>
+<body>
+
+    <h1>Create Check-In</h1>
+
+    <div class="card">
+
+        <p id="message"></p>
+
+        <!-- Meeting Details -->
+        <div class="form-group">
+            <label>Volunteer ID *</label>
+            <input type="text" id="volunteer_id" placeholder="e.g. V001" />
+        </div>
+
+        <div class="form-group">
+            <label>Team Lead ID *</label>
+            <input type="text" id="team_lead_id" placeholder="e.g. TL001" />
+        </div>
+
+        <div class="form-group">
+            <label>Check-In Date</label>
+            <input type="date" id="check_in_date" />
+        </div>
+
+        <div class="form-group">
+            <label>Duration (minutes)</label>
+            <input type="number" id="duration_min" placeholder="30" min="1" />
+        </div>
+
+        <div class="form-group">
+            <label>Meeting Type</label>
+            <select id="meeting_type">
+                <option value="Monthly">Monthly</option>
+                <option value="Bi-Weekly">Bi-Weekly</option>
+                <option value="Ad-Hoc">Ad-Hoc</option>
+                <option value="Onboarding">Onboarding</option>
+                <option value="Emergency">Emergency</option>
+            </select>
+        </div>
+
+        <!-- Assessment -->
+        <div class="section-label">Assessment</div>
+
+        <div class="form-group">
+            <label>Emotional Tone *</label>
+            <select id="emotional_tone">
+                <option value="">— Select —</option>
+                <option value="😊">😊 Happy</option>
+                <option value="😐">😐 Neutral</option>
+                <option value="😟">😟 Worried</option>
+                <option value="😴">😴 Burned Out</option>
+                <option value="😤">😤 Frustrated</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Concerns Noted</label>
+            <textarea id="concerns_noted" placeholder="Any concerns raised…"></textarea>
+        </div>
+
+        <div class="check-row">
+            <input type="checkbox" id="capacity_adjustment" />
+            <label for="capacity_adjustment">Capacity Adjustment Made</label>
+        </div>
+
+        <div id="capBandWrap" class="form-group" style="display:none;">
+            <label>New Capacity Band</label>
+            <select id="new_capacity_band">
+                <option value="">— Select —</option>
+                <option value="Light">Light</option>
+                <option value="Balanced">Balanced</option>
+                <option value="Full">Full</option>
+                <option value="Intensive">Intensive</option>
+            </select>
+        </div>
+
+        <div class="check-row">
+            <input type="checkbox" id="follow_up_needed" />
+            <label for="follow_up_needed">Follow-Up Needed</label>
+        </div>
+
+        <!-- Performance -->
+        <div class="section-label">Performance Discussion</div>
+
+        <div class="check-row">
+            <input type="checkbox" id="completion_rate_discussed" />
+            <label for="completion_rate_discussed">Completion Rate Discussed</label>
+        </div>
+
+        <div class="check-row">
+            <input type="checkbox" id="boundary_issues" />
+            <label for="boundary_issues">Boundary Issues Noted</label>
+        </div>
+
+        <div class="form-group">
+            <label>Training Needs</label>
+            <textarea id="training_needs" placeholder="Any training requirements…"></textarea>
+        </div>
+
+        <!-- Next Steps -->
+        <div class="section-label">Next Steps</div>
+
+        <div class="form-group">
+            <label>Action Items</label>
+            <textarea id="action_items" placeholder="Action items from this meeting…"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Next Check-In Date</label>
+            <input type="date" id="next_check_in_date" />
+        </div>
+
+        <button class="btn-save" id="saveBtn">Save</button>
+
+    </div>
+
+    <script src="checkin.js"></script>
+</body>
+</html>
