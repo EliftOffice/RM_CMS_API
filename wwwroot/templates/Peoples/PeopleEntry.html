@@ -136,7 +136,6 @@
                                     <input class="form-check-input" type="checkbox" value="Small Groups" id="interest_groups">
                                     <label class="form-check-label" for="interest_groups">Small Groups</label>
                                 </div>
-
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="Counseling" id="Counseling">
                                     <label class="form-check-label" for="Counseling">Counseling</label>
@@ -195,9 +194,8 @@
                 };
 
                 function determinePriority() {
-
                     if (interests.includes('Counseling')) return 'Urgent';
-                    if ($('#specific_needs').val() || $('#prayer_requests').val()) return 'High';                  
+                    if ($('#specific_needs').val() || $('#prayer_requests').val()) return 'High';                   
                     return 'Normal';
                 }
 

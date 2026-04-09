@@ -11,8 +11,20 @@
         public List<EscalationPendingDTO> EscalationsPending { get; set; } = new();
 
     }
-    
 
+    public class TeamLeadDTO
+    {
+        public string? TeamLeadId { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? RoleType { get; set; }
+        public string? Campus { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? TermEndDate { get; set; }
+        public int? MaxVolunteers { get; set; }
+    }
     public class VolunteerMetricsDTO
     {
         public string VolunteerId { get; set; }

@@ -34,7 +34,7 @@ namespace RM_CMS.BLL.Peoples
             {
                 //default Values                
                 if (string.IsNullOrWhiteSpace(createDto.campus))
-                    createDto.campus = "Ongole";
+                    createDto.campus = "Ongole";              
                 if (string.IsNullOrWhiteSpace(createDto.visit_type))
                     createDto.visit_type = "First-Time Visitor";
 
@@ -45,7 +45,10 @@ namespace RM_CMS.BLL.Peoples
                 {
                     var res = await _volunteersBLL.AssignToVolunteerAsync(result.Data.PersonId);
                     if (res.ResponseType != ResponseType.Success)
-                        return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"Error assigning volunteer: {res.Message}", new AssignedVolunteerDTO());
+                    {
+                        return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"People Saved Succefully But Error assigning volunteer: {res.Message}", new AssignedVolunteerDTO());
+                    }
+                        
 
                     else
                     {
@@ -134,15 +137,18 @@ namespace RM_CMS.BLL.Peoples
 
         private string DeterminePriority(CreatePeopleDto dto)
         {
-
             if (!string.IsNullOrWhiteSpace(dto.interested_in) && dto.interested_in.Contains("Counseling", StringComparison.OrdinalIgnoreCase))
             {
                 return "Urgent";
             }
+
             if (!string.IsNullOrWhiteSpace(dto.specific_needs) || !string.IsNullOrWhiteSpace(dto.prayer_requests))
             {
                 return "High";
             }
+
+            
+
             return "Normal";
         }
 

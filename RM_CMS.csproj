@@ -15,7 +15,24 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="bin\Debug\net8.0\appsettings.json" />
+    <Content Include="bin\Debug\net8.0\RM_CMS.deps.json" />
+    <Content Include="bin\Debug\net8.0\RM_CMS.runtimeconfig.json" />
+    <Content Include="bin\Debug\net8.0\RM_CMS.staticwebassets.endpoints.json" />
+    <Content Include="bin\Debug\net8.0\RM_CMS.staticwebassets.runtime.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="appsettings.Development.json" />
+    <None Include="bin\Debug\net8.0\Dapper.dll" />
+    <None Include="bin\Debug\net8.0\Microsoft.OpenApi.dll" />
+    <None Include="bin\Debug\net8.0\MySqlConnector.dll" />
+    <None Include="bin\Debug\net8.0\RM_CMS.dll" />
+    <None Include="bin\Debug\net8.0\RM_CMS.exe" />
+    <None Include="bin\Debug\net8.0\RM_CMS.pdb" />
+    <None Include="bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll" />
+    <None Include="bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll" />
+    <None Include="bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerUI.dll" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,6 +2,7 @@
 using RM_CMS.Data;
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
+using System.Data;
 
 namespace RM_CMS.DAL.TeamLeads
 {
@@ -20,6 +21,7 @@ namespace RM_CMS.DAL.TeamLeads
         public async Task<ApiResponse<string>> CreateCheckInAsync(CreateCheckInDTO dto)
         {
             using var connection = _dbConnectionFactory.GetConnection();
+            IDbTransaction transaction = null;
 
             try
             {
@@ -28,13 +30,28 @@ namespace RM_CMS.DAL.TeamLeads
                 else
                     connection.Open();
 
-                using var transaction = connection.BeginTransaction();
+                transaction = connection.BeginTransaction();
 
-                var year = DateTime.UtcNow.Year;
+                // 🔹 1. Generate Check-In ID (CI001)
+                const string seqQuery = @"
+            SELECT IFNULL(MAX(CAST(SUBSTRING(check_in_id, 3) AS UNSIGNED)), 0)
+            FROM check_ins;
+        ";
 
-                // 1️⃣ Insert WITHOUT check_in_id
+                // ✅ FIXED: pass null for params, transaction as 3rd argument
+                var seqResult = await connection.ExecuteScalarAsync<int>(
+                    seqQuery,
+                    null,
+                    transaction
+                );
+
+                var nextNum = seqResult + 1;
+                var checkInId = $"CI{nextNum.ToString().PadLeft(3, '0')}";
+
+                // 🔹 2. Insert WITH check_in_id
                 const string insertQuery = @"
         INSERT INTO check_ins (
+            check_in_id,
             volunteer_id, team_lead_id,
             check_in_date, duration_min, meeting_type,
             emotional_tone, capacity_adjustment, new_capacity_band,
@@ -43,6 +60,7 @@ namespace RM_CMS.DAL.TeamLeads
             training_needs, action_items, next_check_in_date,
             created_at
         ) VALUES (
+            @CheckInId,
             @VolunteerId, @TeamLeadId,
             @CheckInDate, @DurationMin, @MeetingType,
             @EmotionalTone, @CapacityAdjustment, @NewCapacityBand,
@@ -50,11 +68,11 @@ namespace RM_CMS.DAL.TeamLeads
             @CompletionRateDiscussed, @BoundaryIssues,
             @TrainingNeeds, @ActionItems, @NextCheckInDate,
             NOW()
-        );
-        SELECT LAST_INSERT_ID();";
+        );";
 
-                var newId = await connection.ExecuteScalarAsync<long>(insertQuery, new
+                await connection.ExecuteAsync(insertQuery, new
                 {
+                    CheckInId = checkInId,
                     dto.VolunteerId,
                     dto.TeamLeadId,
                     CheckInDate = dto.CheckInDate ?? DateTime.UtcNow,
@@ -72,22 +90,7 @@ namespace RM_CMS.DAL.TeamLeads
                     dto.NextCheckInDate
                 }, transaction);
 
-                // 2️⃣ Generate ID → CHK2026001
-                var checkInId = $"CI{newId.ToString().PadLeft(3, '0')}";
-
-                // 3️⃣ ✅ FIX: Use id column (NOT check_in_id)
-                const string updateCheckInIdQuery = @"
-        UPDATE check_ins
-        SET check_in_id = @CheckInId
-        WHERE id = @Id";
-
-                await connection.ExecuteAsync(updateCheckInIdQuery, new
-                {
-                    CheckInId = checkInId,
-                    Id = newId
-                }, transaction);
-
-                // 4️⃣ Update volunteer
+                // 🔹 3. Update volunteer
                 const string updateVolunteerQuery = @"
         UPDATE volunteers SET
             last_check_in = @CheckInDate,
@@ -103,6 +106,7 @@ namespace RM_CMS.DAL.TeamLeads
                     dto.VolunteerId
                 }, transaction);
 
+                // 🔹 4. Commit
                 transaction.Commit();
 
                 return new ApiResponse<string>(
@@ -113,6 +117,9 @@ namespace RM_CMS.DAL.TeamLeads
             }
             catch (Exception ex)
             {
+                // 🔥 IMPORTANT: rollback safely
+                transaction?.Rollback();
+
                 return new ApiResponse<string>(
                     ResponseType.Error,
                     $"Error creating check-in: {ex.Message}",
