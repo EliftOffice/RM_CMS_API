@@ -68,19 +68,6 @@ $(function () {
         </dd>
     `).join('');
 
-        // Escalations Section
-        //    const escalations = (data.escalationsPending || data.EscalationsPending || [])
-        //        .map(e => `
-        //    <dt>${e.personName}</dt>
-        //    <dd>
-        //        Volunteer: ${e.volunteerName} <br/>
-        //        Tier: ${e.escalationTier} <br/>
-        //        Status: ${e.status} <br/>
-        //        Date: ${new Date(e.escalationDate).toDateString()} <br/>
-        //        Days Pending: ${e.daysPending}
-        //    </dd>
-        //`).join('');
-
         const escalationsData = (data.escalationsPending || data.EscalationsPending || []);
 
         const escalations = escalationsData
@@ -88,9 +75,19 @@ $(function () {
                 const day = new Date(e.escalationDate)
                     .toLocaleDateString('en-US', { weekday: 'short' });
 
-                return `- ${e.personName} (escalated ${day}, ${e.reason || e.description || 'no details'})`;
+                const reason = e.escalationReason || e.reason || e.description || 'no details';
+
+                return `
+            <div class="escalation-item"
+                 data-id="${e.escalationId}"
+                 style="cursor:pointer; padding:6px; border-radius:5px;">
+                 
+                - ${e.personName} (escalated ${day}, ${reason})
+            
+            </div>
+        `;
             })
-            .join('<br/>');
+            .join('');
 
         // ✅ Count
         const escalationCount = escalationsData.length;
@@ -115,4 +112,13 @@ $(function () {
         // Render
         $('#checkinsList').html(finalHtml);
     }
+
+    function openEscalation(id) {
+        window.location.href = `Escalations.html?id=${id}`;
+    }
+
+    $(document).on('click', '.escalation-item', function () {
+        const id = $(this).data('id');
+        openEscalation(id);
+    });
 });

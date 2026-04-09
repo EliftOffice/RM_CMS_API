@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO.Followups;
+using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
 using System.Text;
@@ -32,9 +33,11 @@ namespace RM_CMS.DAL.Followups
     public class FollowupsDAL : IFollowupsDAL
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
-        public FollowupsDAL(IDbConnectionFactory dbConnectionFactory)
+        private readonly IEscalationsDAL _escalationsDAL;
+        public FollowupsDAL(IDbConnectionFactory dbConnectionFactory, IEscalationsDAL escalationsDAL)
         {
             _dbConnectionFactory = dbConnectionFactory;
+            _escalationsDAL = escalationsDAL;
         }
 
         public async Task<ApiResponse<bool>> HandleNormalResponseAsync(
@@ -130,7 +133,7 @@ namespace RM_CMS.DAL.Followups
             }
         }
 
-        public async Task<ApiResponse<bool>> HandleNeedsFollowUpAsync(
+        public async Task<ApiResponse<bool>> HandleNeedsFollowUpAsyncV1(
       string followUpId,
       string personId,
       string volunteerId,
@@ -268,7 +271,7 @@ namespace RM_CMS.DAL.Followups
             }
         }
 
-        public async Task<ApiResponse<bool>> HandleCrisisResponseAsync(
+        public async Task<ApiResponse<bool>> HandleCrisisResponseAsyncV1(
       string followUpId,
       string personId,
       string volunteerId,
@@ -731,6 +734,159 @@ WHERE config_key = 'retry_delay_days';";
                 );
             }
         }
+
+
+
+        #region [Escalations]
+        public async Task<ApiResponse<bool>> HandleNeedsFollowUpAsync(
+    string followUpId,
+    string personId,
+    string volunteerId,
+    string teamLeadId,
+    string? notes)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                if (connection.State == System.Data.ConnectionState.Closed)
+                    connection.Open();
+
+                // 1. Update follow-up
+                const string updateFollowUp = @"
+            UPDATE follow_ups SET
+                next_action = 'Escalate to Team Lead',
+                escalation_tier = 'Standard'
+            WHERE follow_up_id = @FollowUpId;
+        ";
+
+                await connection.ExecuteAsync(updateFollowUp, new { FollowUpId = followUpId });
+
+                // 2. Update person
+                const string updatePerson = @"
+            UPDATE people SET
+                follow_up_status = 'ESCALATED',
+                follow_up_priority = 'High'
+            WHERE person_id = @PersonId;
+        ";
+
+                await connection.ExecuteAsync(updatePerson, new { PersonId = personId });
+
+                // 3. Create escalation via DAL
+                var escalation = new EscalationDTO
+                {
+                    FollowUpId = followUpId,
+                    PersonId = personId,
+                    VolunteerId = volunteerId,
+                    TeamLeadId = teamLeadId,
+                    EscalationTier = "Standard",
+                    EscalationReason = "Needs Follow-Up",
+                    Description = string.IsNullOrEmpty(notes)
+                        ? "Volunteer indicated person needs additional follow-up"
+                        : notes
+                };
+
+                var escalationResponse = await _escalationsDAL.CreateEscalationAsync(escalation);
+
+                if (escalationResponse.ResponseType != ResponseType.Success)
+                    return new ApiResponse<bool>(ResponseType.Error, escalationResponse.Message, false);
+
+                // 4. Update volunteer
+                const string updateVolunteer = @"
+            UPDATE volunteers SET
+                current_assignments = current_assignments - 1
+            WHERE volunteer_id = @VolunteerId;
+        ";
+
+                await connection.ExecuteAsync(updateVolunteer, new { VolunteerId = volunteerId });
+
+                return new ApiResponse<bool>(
+                    ResponseType.Success,
+                    $"Follow-up escalated successfully (ID: {escalationResponse.Data})",
+                    true
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    $"Error handling needs follow-up: {ex.Message}",
+                    false
+                );
+            }
+        }
+
+        public async Task<ApiResponse<bool>> HandleCrisisResponseAsync(
+     string followUpId,
+     string personId,
+     string volunteerId,
+     string teamLeadId,
+     string? notes)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                if (connection.State == System.Data.ConnectionState.Closed)
+                    connection.Open();
+
+                // 1. Update follow-up
+                const string updateFollowUp = @"
+            UPDATE follow_ups SET
+                next_action = 'Crisis Protocol',
+                escalation_tier = 'Emergency'
+            WHERE follow_up_id = @FollowUpId;
+        ";
+
+                await connection.ExecuteAsync(updateFollowUp, new { FollowUpId = followUpId });
+
+                // 2. Update person
+                const string updatePerson = @"
+            UPDATE people SET
+                follow_up_status = 'ESCALATED',
+                follow_up_priority = 'Urgent'
+            WHERE person_id = @PersonId;
+        ";
+
+                await connection.ExecuteAsync(updatePerson, new { PersonId = personId });
+
+                // 3. Create escalation via DAL
+                var escalation = new EscalationDTO
+                {
+                    FollowUpId = followUpId,
+                    PersonId = personId,
+                    VolunteerId = volunteerId,
+                    TeamLeadId = teamLeadId,
+                    EscalationTier = "Emergency",
+                    EscalationReason = "Suicidal Ideation", // or dynamic mapping
+                    Description = "🚨 CRISIS: " + (
+                        string.IsNullOrEmpty(notes)
+                            ? "Immediate attention required"
+                            : notes
+                    )
+                };
+
+                var escalationResponse = await _escalationsDAL.CreateEscalationAsync(escalation);
+
+                if (escalationResponse.ResponseType != ResponseType.Success)
+                    return new ApiResponse<bool>(ResponseType.Error, escalationResponse.Message, false);
+
+                return new ApiResponse<bool>(
+                    ResponseType.Success,
+                    $"Crisis escalation created (ID: {escalationResponse.Data})",
+                    true
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    $"Error handling crisis response: {ex.Message}",
+                    false
+                );
+            }
+        }
+        #endregion
 
     }
 

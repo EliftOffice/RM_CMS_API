@@ -48,6 +48,8 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.DAL.TeamLeads.ITeamLeadDashBoardDAL, RM_CMS.DAL.TeamLeads.TeamLeadDashBoardDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.TeamLeads.ITeamLeadDashBoardBLL, RM_CMS.BLL.TeamLeads.TeamLeadDashBoardBLL>();
 
+           
+
             //register check-in  module
             builder.Services.AddScoped<RM_CMS.DAL.TeamLeads.ICheckInDAL, RM_CMS.DAL.TeamLeads.CheckInDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.TeamLeads.ICheckInBLL, RM_CMS.BLL.TeamLeads.CheckInBLL>();           
