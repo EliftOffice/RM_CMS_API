@@ -59,7 +59,9 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.DAL.Pastors.IPastorDashboardDAL, RM_CMS.DAL.Pastors.PastorDashboardDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.Pastors.IPastorDashboardBLL, RM_CMS.BLL.Pastors.PastorDashBoardBLL>();
 
-            
+            Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
+
+
 
             var app = builder.Build();
 

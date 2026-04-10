@@ -8,6 +8,9 @@ namespace RM_CMS.Data.Models
         [Column("volunteer_id")]
         public string VolunteerId { get; set; } = string.Empty;
 
+        public string TeamLeadFullName { get; set; } // 🔥 ADD THIS ONLY
+
+
         // Personal Information
         [Column("first_name")]
         public string FirstName { get; set; } = string.Empty;
@@ -87,5 +90,13 @@ namespace RM_CMS.Data.Models
         public DateTime CreatedAt { get; set; }
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; }
+    }
+
+    public class VolunteerLookupDto
+    {
+        public string VolunteerId { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Phone { get; set; }
     }
 }

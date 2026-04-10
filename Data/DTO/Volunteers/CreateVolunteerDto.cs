@@ -5,14 +5,14 @@ namespace RM_CMS.Data.DTO.Volunteers
 {
     public class CreateVolunteerDto
     {
-       
+
         public string VolunteerId { get; set; }
         public string FirstName { get; set; } = string.Empty;
-        
+
         public string LastName { get; set; } = string.Empty;
-        
+
         public string Email { get; set; } = string.Empty;
-        
+
         public string? Phone { get; set; }
         public string? TeamLead { get; set; }
         public DateTime StartDate { get; set; } = DateTime.Now;
@@ -42,5 +42,11 @@ namespace RM_CMS.Data.DTO.Volunteers
         //public DateTime? ConfidentialitySigned { get; set; }
 
         //public DateTime? BackgroundCheck { get; set; }
+    }
+
+    public class UpdateVolunteerMobileDto
+    {
+        public string VolunteerId { get; set; }
+        public string NewMobile { get; set; }
     }
 }

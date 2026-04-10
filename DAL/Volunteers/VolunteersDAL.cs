@@ -17,6 +17,8 @@ namespace RM_CMS.DAL.Volunteers
         Task<ApiResponse<VolunteerResponseDto>> CreateVolunteerAsync(CreateVolunteerDto volunteer);
         Task<ApiResponse<bool>> ExistsByEmailAsync(string email);
         Task<ApiResponse<List<Volunteer>>> GetVolunteersAsync();
+        Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersAsyncByMobile(string mobile);
+        Task<ApiResponse<string>> UpdateVolunteerMobileAsync(string volunteerId, string mobile);
     }
 
     public class VolunteersDAL : IVolunteersDAL
@@ -80,7 +82,7 @@ namespace RM_CMS.DAL.Volunteers
                     // ✅ Now you also have campus
                     var campus = response.Data.Campus;
 
-                   
+
 
                     using (var transaction = connection.BeginTransaction())
                     {
@@ -220,7 +222,47 @@ namespace RM_CMS.DAL.Volunteers
             {
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
-                    const string query = "SELECT * FROM volunteers WHERE volunteer_id = @VolunteerId";
+                    const string query = @"SELECT 
+    v.volunteer_id AS VolunteerId,
+    v.first_name AS FirstName,
+    v.last_name AS LastName,
+    v.email AS Email,
+    v.phone AS Phone,
+    v.status AS Status,
+    v.level AS Level,
+    v.start_date AS StartDate,
+    v.end_date AS EndDate,
+    v.capacity_band AS CapacityBand,
+    v.capacity_min AS CapacityMin,
+    v.capacity_max AS CapacityMax,
+    v.current_assignments AS CurrentAssignments,
+    v.total_completed AS TotalCompleted,
+    v.total_assigned AS TotalAssigned,
+    v.completion_rate AS CompletionRate,
+    v.avg_response_time AS AvgResponseTime,
+    v.last_check_in AS LastCheckIn,
+    v.next_check_in AS NextCheckIn,
+    v.emotional_tone AS EmotionalTone,
+    v.vnps_score AS VnpsScore,
+    v.burnout_risk AS BurnoutRisk,
+    v.team_lead AS TeamLead,
+    v.campus AS Campus,
+    v.level_0_complete AS Level0Complete,
+    v.crisis_trained AS CrisisTrained,
+    v.confidentiality_signed AS ConfidentialitySigned,
+    v.background_check AS BackgroundCheck,
+    v.boundary_violations AS BoundaryViolations,
+    v.last_violation_date AS LastViolationDate,
+    v.created_at AS CreatedAt,
+    v.updated_at AS UpdatedAt,
+
+    CONCAT(tl.first_name, ' ', tl.last_name) AS TeamLeadFullName
+
+FROM volunteers v
+LEFT JOIN team_leads tl 
+    ON v.team_lead = tl.team_lead_id
+WHERE v.volunteer_id = @VolunteerId;
+            ";
 
                     var volunteer = await connection.QueryFirstOrDefaultAsync<Volunteer>(
                         query,
@@ -296,36 +338,52 @@ namespace RM_CMS.DAL.Volunteers
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
                     const string query = @"SELECT 
-                                            p.person_id            AS PersonId,
-                                            p.first_name           AS FirstName,
-                                            p.last_name            AS LastName,
-                                            p.email                AS Email,
-                                            p.phone                AS Phone,
-                                            p.age_range            AS AgeRange,
-                                            p.household_type       AS HouseholdType,
-                                            p.zip_code             AS ZipCode,
-                                            p.visit_type           AS VisitType,
-                                            p.first_visit_date     AS FirstVisitDate,
-                                            p.last_visit_date      AS LastVisitDate,
-                                            p.visit_count          AS VisitCount,
-                                            p.connection_source    AS ConnectionSource,
-                                            p.campus               AS Campus,
-                                            p.follow_up_status     AS FollowUpStatus,
-                                            p.follow_up_priority   AS FollowUpPriority,
-                                            p.assigned_volunteer   AS AssignedVolunteer,
-                                            p.assigned_date        AS AssignedDate,
-                                            p.last_contact_date    AS LastContactDate,
-                                            p.next_action_date     AS NextActionDate,
-                                            p.interested_in        AS InterestedIn,
-                                            p.prayer_requests      AS PrayerRequests,
-                                            p.specific_needs       AS SpecificNeeds,
-                                            p.created_at           AS CreatedAt,
-                                            p.updated_at           AS UpdatedAt,
-                                            p.created_by           AS CreatedBy
-                                        FROM people p
-                                        WHERE p.assigned_volunteer = @VolunteerId
-                                          AND p.follow_up_status IN ('ASSIGNED', 'RETRY PENDING')
-                                        ORDER BY p.next_action_date;";
+    p.person_id            AS PersonId,
+    p.first_name           AS FirstName,
+    p.last_name            AS LastName,
+    p.email                AS Email,
+    p.phone                AS Phone,
+    p.age_range            AS AgeRange,
+    p.household_type       AS HouseholdType,
+    p.zip_code             AS ZipCode,
+    p.visit_type           AS VisitType,
+    p.first_visit_date     AS FirstVisitDate,
+    p.last_visit_date      AS LastVisitDate,
+    p.visit_count          AS VisitCount,
+    p.connection_source    AS ConnectionSource,
+    p.campus               AS Campus,
+    p.follow_up_status     AS FollowUpStatus,
+    p.follow_up_priority   AS FollowUpPriority,
+    p.assigned_volunteer   AS AssignedVolunteer,
+    p.assigned_date        AS AssignedDate,
+    p.last_contact_date    AS LastContactDate,
+    p.next_action_date     AS NextActionDate,
+
+    -- From followups
+    f.attempt_date         AS AttemptDate,
+    f.response_type        AS ResponseType,
+
+    p.interested_in        AS InterestedIn,
+    p.prayer_requests      AS PrayerRequests,
+    p.specific_needs       AS SpecificNeeds,
+    p.created_at           AS CreatedAt,
+    p.updated_at           AS UpdatedAt,
+    p.created_by           AS CreatedBy
+
+FROM people p
+
+LEFT JOIN follow_ups f 
+    ON f.person_id = p.person_id
+    AND f.attempt_number = (
+        SELECT MAX(f2.attempt_number)
+        FROM follow_ups f2
+        WHERE f2.person_id = p.person_id
+    )
+
+WHERE p.assigned_volunteer = @VolunteerId
+  AND p.follow_up_status IN ('ASSIGNED', 'RETRY PENDING')
+
+ORDER BY p.next_action_date;";
 
                     var assignments = await connection.QueryAsync<People>(
                         query,
@@ -351,13 +409,34 @@ namespace RM_CMS.DAL.Volunteers
             }
         }
 
-        
+
         public async Task<ApiResponse<VolunteerResponseDto>> CreateVolunteerAsync(CreateVolunteerDto volunteer)
         {
             try
             {
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
+                    // 🔹 2.5 Check duplicate mobile
+                    const string duplicateQuery = @"
+    SELECT COUNT(1)
+    FROM volunteers
+    WHERE phone = @Phone;
+";
+
+                    var exists = await connection.ExecuteScalarAsync<int>(duplicateQuery, new
+                    {
+                        Phone = volunteer.Phone
+                    });
+
+                    if (exists > 0)
+                    {
+                        return new ApiResponse<VolunteerResponseDto>(
+                            ResponseType.Warning,
+                            "Mobile number already exists..Duplicate Entry...",
+                            null
+                        );
+                    }
+
                     // 🔹 1. Generate ID
                     const string idQuery = @"
                 SELECT CONCAT('V', LPAD(IFNULL(MAX(CAST(SUBSTRING(volunteer_id, 2) AS UNSIGNED)), 0) + 1, 3, '0'))
@@ -387,7 +466,7 @@ namespace RM_CMS.DAL.Volunteers
                     }
 
                     // 🔹 3. Insert
-                  const string insertQuery = @"
+                    const string insertQuery = @"
                     INSERT INTO volunteers (
                         volunteer_id,
                         first_name,
@@ -530,5 +609,106 @@ WHERE LOWER(email) = @Email;";
             }
         }
 
+        public async Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersAsyncByMobile(string mobile)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+                SELECT 
+                    volunteer_id AS VolunteerId,
+                    first_name AS FirstName,
+                    last_name AS LastName,
+                    phone AS Phone
+                FROM volunteers
+                WHERE phone = @Mobile;
+            ";
+
+                    var volunteers = (await connection.QueryAsync<VolunteerLookupDto>(
+                        query,
+                        new { Mobile = mobile }
+                    )).ToList();
+
+                    if (!volunteers.Any())
+                    {
+                        return new ApiResponse<List<VolunteerLookupDto>>(
+                            ResponseType.Warning,
+                            "No volunteers found for this mobile number",
+                            new List<VolunteerLookupDto>()
+                        );
+                    }
+
+                    return new ApiResponse<List<VolunteerLookupDto>>(
+                        ResponseType.Success,
+                        "Volunteer retrieved successfully",
+                        volunteers
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<VolunteerLookupDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteers: {ex.Message}",
+                    new List<VolunteerLookupDto>()
+                );
+            }
+        }
+
+
+        public async Task<ApiResponse<string>> UpdateVolunteerMobileAsync(string volunteerId, string mobile)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(volunteerId) || string.IsNullOrWhiteSpace(mobile))
+                {
+                    return new ApiResponse<string>(
+                        ResponseType.Warning,
+                        "VolunteerId and Mobile number are required",
+                        null
+                    );
+                }
+
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+                UPDATE volunteers
+                SET phone = @Mobile,
+                    updated_at = NOW()
+                WHERE volunteer_id = @VolunteerId;
+            ";
+
+                    var rowsAffected = await connection.ExecuteAsync(query, new
+                    {
+                        VolunteerId = volunteerId,
+                        Mobile = mobile
+                    });
+
+                    if (rowsAffected == 0)
+                    {
+                        return new ApiResponse<string>(
+                            ResponseType.Warning,
+                            "Volunteer not found",
+                            null
+                        );
+                    }
+
+                    return new ApiResponse<string>(
+                        ResponseType.Success,
+                        "Mobile number updated successfully",
+                        null
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<string>(
+                    ResponseType.Error,
+                    $"DAL Error updating mobile: {ex.Message}",
+                    null
+                );
+            }
+        }
     }
 }

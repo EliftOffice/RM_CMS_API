@@ -64,7 +64,7 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
-        [HttpGet("/api/volunteers")]
+        [HttpGet("/api/volunteers/GetVolunteersAsync")]
         public async Task<ActionResult<ApiResponse<List<Volunteer>>>> GetVolunteersAsync()
         {
             try
@@ -124,6 +124,55 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
+        [HttpGet("/api/volunteers/mobile/{mobile}")]
+        public async Task<ActionResult<ApiResponse<List<VolunteerLookupDto>>>> GetVolunteersByMobileAsync(string mobile)
+        {
+            try
+            {
+                var result = await _VolunteersBLL.GetVolunteersByMobileAsync(mobile);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving volunteer by mobile");
+
+                return StatusCode(500, new ApiResponse<List<VolunteerLookupDto>>(
+                    ResponseType.Error,
+                    "An error occurred while retrieving volunteer by mobile",
+                    new List<VolunteerLookupDto>()
+                ));
+            }
+        }
+
+        [HttpPut("update-mobile")]
+        public async Task<ActionResult<ApiResponse<string>>> UpdateVolunteerMobileAsync([FromBody] UpdateVolunteerMobileDto dto)
+        {
+            try
+            {
+                // 🔹 Log correct identifiers
+                _logger.LogInformation(
+                    "Updating mobile for VolunteerId: {VolunteerId}",
+                    dto?.VolunteerId
+                );
+
+                // 🔹 Call BLL
+                var result = await _VolunteersBLL.UpdateVolunteerMobileAsync(dto);
+
+                // 🔹 Standard response
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating volunteer mobile");
+
+                return StatusCode(500, new ApiResponse<string>(
+                    ResponseType.Error,
+                    "An error occurred while updating mobile number",
+                    null
+                ));
+            }
+        }
+
     }
-   
+
 }

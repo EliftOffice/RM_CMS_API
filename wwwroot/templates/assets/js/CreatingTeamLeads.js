@@ -19,6 +19,13 @@
             return;
         }
 
+        // 🔹 Validate phone number (10 digits only)
+        if (!isValidMobileNumber(data.Phone)) {
+            $("#message").text("Phone number must be exactly 10 digits")
+                .addClass("error");
+            return;
+        }
+
         $.ajax({
             url: API_BASE_URL + '/TeamLeadDashBoards/save-team-lead',
             type: "POST",

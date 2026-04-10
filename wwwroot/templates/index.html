@@ -1,70 +1,149 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>RM_CMS - Templates</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body { background-color: #f8f9fa; }
-    .card { cursor: pointer; transition: transform .12s ease-in-out; }
-    .card:hover { transform: translateY(-4px); }
-  </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RM CMS</title>
+    <link rel="icon" href="assets/Images/favicon.ico">
+    <link rel="icon" type="image/png" href="assets/Images/logo.png">
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #ffffff;
+            color: #111827;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        .logo-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 2.5rem;
+        }
+
+        .logo-box {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #e6f4ef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #085c40;
+            overflow: hidden;
+        }
+
+            .logo-box img {
+                width: 36px;
+                height: 36px;
+                object-fit: contain;
+                border-radius: 8px;
+            }
+
+        .brand {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #111827;
+        }
+
+            .brand span {
+                color: #085c40;
+            }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin: 0 0 2rem;
+            text-align: center;
+        }
+
+        .list {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            text-decoration: none;
+            color: inherit;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+            .item:hover {
+                border-color: #085c40;
+                background: #f4faf7;
+            }
+
+        .item-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        .item-sub {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        .arrow {
+            color: #9ca3af;
+            font-size: 1.1rem;
+        }
+    </style>
 </head>
 <body>
-  <div class="container py-5">
-    <div class="row mb-4">
-      <div class="col text-center">
-        <h1 class="display-6">RM_CMS - Templates</h1>
-        <p class="text-muted">Quick access to frontend templates for People, Volunteers and Team Leads</p>
-      </div>
+    <div class="logo-row">
+        <div class="logo-box">
+            <img src="assets/Images/logo.jpeg" alt="Logo" onerror="this.style.display='none';this.parentElement.textContent='R'">
+        </div>
+        <span class="brand">RM <span>CMS</span></span>
     </div>
 
-    <div class="row g-4">
-      <div class="col-md-4">
-        <a href="../templates/Peoples/PeopleEntry.html" class="text-decoration-none text-dark">
-          <div class="card p-3 h-100">
-            <div class="card-body text-center">
-              <h5 class="card-title">People</h5>
-              <p class="card-text">Visitor entry form and people-related screens.</p>
-              <span class="btn btn-primary">Open People</span>
-            </div>
-          </div>
-        </a>
-      </div>
+    <h1>Welcome</h1>
 
-      <div class="col-md-4">
-        <a href="../templates/Volunteers/Assignments.html" class="text-decoration-none text-dark">
-          <div class="card p-3 h-100">
-            <div class="card-body text-center">
-              <h5 class="card-title">Volunteers</h5>
-              <p class="card-text">Assignments list for volunteers; log follow-ups.</p>
-              <span class="btn btn-primary">Open Volunteers</span>
+    <div class="list">
+        <a href="../templates/Peoples/PeopleEntry.html" class="item">
+            <div>
+                <p class="item-title">Visitor Entry</p>
+                <p class="item-sub">Check-in and registration</p>
             </div>
-          </div>
+            <span class="arrow">›</span>
         </a>
-      </div>
-
-      <div class="col-md-4">
-        <a href="../templates/TeamLeads/TeamLeadDashboard.html" class="text-decoration-none text-dark">
-          <div class="card p-3 h-100">
-            <div class="card-body text-center">
-              <h5 class="card-title">Team Lead</h5>
-              <p class="card-text">Team lead dashboard and metrics.</p>
-              <span class="btn btn-primary">Open Dashboard</span>
+        <a href="../templates/Volunteers/Login.html" class="item">
+            <div>
+                <p class="item-title">Volunteer</p>
+                <p class="item-sub">Team portal access</p>
             </div>
-          </div>
+            <span class="arrow">›</span>
         </a>
-      </div>
+        <a href="../templates/TeamLeads/TeamLeadDashboard.html" class="item">
+            <div>
+                <p class="item-title">Leaders</p>
+                <p class="item-sub">Management dashboard</p>
+            </div>
+            <span class="arrow">›</span>
+        </a>
     </div>
-
-    <div class="row mt-5">
-      <div class="col text-center text-muted">
-        <small>Ensure the API is running and API_BASE_URL in assets/js/api-config.js is set to the correct endpoint.</small>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,90 +1,470 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Create Volunteer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Volunteer - RM CMS</title>
+    <link rel="icon" href="../assets/Images/favicon.ico">
+    <link rel="icon" type="image/png" href="../assets/Images/logo.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="../assets/js/api-config.js"></script>
     <script src="../assets/js/utils.js"></script>
-    <script src="../assets/js/volunteers.js"></script>
-
-    <!-- jQuery CDN -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial;
-            background: #f5f5f5;
-            padding: 30px;
-        }
-
-        .container {
-            max-width: 500px;
-            margin: auto;
-            background: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7f6 0%, #e8f0ed 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px #ccc;
         }
 
-        input, select {
-            width: 100%;
-            padding: 10px;
-            margin: 8px 0;
+        /* ─── LOGO AREA ─── */
+        .logo-container {
+            position: fixed;
+            top: 30px;
+            left: 30px;
         }
 
-        button {
-            background: #28a745;
+        .logo {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #085c40;
+            border-radius: 8px;
             color: white;
-            padding: 10px;
-            border: none;
+            font-weight: bold;
+            font-size: 20px;
+        }
+
+        /* ─── CONTAINER ─── */
+        .signup-container {
             width: 100%;
+            max-width: 480px;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 48px 32px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ─── BACK LINK ─── */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #085c40;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 24px;
+            padding: 8px 0;
+            border-bottom: 1px solid transparent;
+            transition: all 0.2s ease;
             cursor: pointer;
         }
 
-        .message {
-            margin-top: 15px;
-            padding: 10px;
+        .back-link:hover {
+            border-bottom-color: #085c40;
+            color: #064d35;
+        }
+
+        /* ─── HEADER ─── */
+        .signup-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .portal-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #085c40;
+            margin-bottom: 8px;
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #666666;
+            line-height: 1.5;
+        }
+
+        /* ─── FORM GROUP ─── */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333333;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            background: #fafafa;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #085c40;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(8, 92, 64, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: #999;
+        }
+
+        /* ─── ERROR & SUCCESS MESSAGES ─── */
+        .alert-message {
             display: none;
+            padding: 12px 16px;
+            border-radius: 6px;
+            border-left: 4px solid;
+            font-size: 13px;
+            margin-bottom: 20px;
+            animation: slideDown 0.3s ease;
         }
 
-        .success {
-            background: #d4edda;
-            color: #155724;
+        .alert-message.show {
+            display: block;
         }
 
-        .error {
-            background: #f8d7da;
-            color: #721c24;
+        .alert-error {
+            background: #fef5f5;
+            border-left-color: #ef4444;
+            color: #991b1b;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            border-left-color: #22c55e;
+            color: #166534;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ─── BUTTON ─── */
+        .submit-btn {
+            width: 100%;
+            padding: 13px 20px;
+            background: #085c40;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 8px;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            background: #064d35;
+            box-shadow: 0 4px 12px rgba(8, 92, 64, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .submit-btn:disabled {
+            background: #b3dcc9;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .submit-btn.loading {
+            position: relative;
+            color: transparent;
+        }
+
+        .submit-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-left: -8px;
+            margin-top: -8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .back-btn {
+            background: #6b7280;
+        }
+
+        .back-btn:hover:not(:disabled) {
+            background: #4b5563;
+            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.25);
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 480px) {
+            .signup-container {
+                padding: 32px 20px;
+            }
+
+            .title {
+                font-size: 24px;
+            }
+
+            .logo-container {
+                top: 20px;
+                left: 20px;
+            }
+        }
+
+        /* ─── ACCESSIBILITY ─── */
+        .form-input:focus-visible {
+            outline: 2px solid #085c40;
+            outline-offset: 2px;
+        }
+
+        .submit-btn:focus-visible {
+            outline: 2px solid #085c40;
+            outline-offset: 2px;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="container">
-        <h2>Create Volunteer</h2>
-
-        <input type="text" id="firstName" placeholder="First Name" />
-        <input type="text" id="lastName" placeholder="Last Name" />
-        <input type="email" id="email" placeholder="Email" />
-        <input type="text" id="phone" placeholder="Phone" />
-        <input type="text" id="teamLead" placeholder="Team Lead ID" />
-
-        <select id="capacityBand">
-            <option value="">Select Capacity</option>
-            <option value="Consistent">Consistent (4-6)</option>
-            <option value="Balanced">Balanced (2-3)</option>
-            <option value="Limited">Limited (1-2)</option>
-        </select>
-
-        <button id="submitBtn">Create Volunteer</button>
-
-        <div id="message" class="message"></div>
+    <!-- Logo -->
+    <div class="logo-container">
+        <div class="logo">RM</div>
     </div>
 
-    
+    <!-- Signup Container -->
+    <div class="signup-container">
+        <!-- Back Link -->
+        <a href="Login.html" class="back-link">
+            <span>←</span>
+            Back to Login
+        </a>
+
+        <!-- Header -->
+        <div class="signup-header">
+            <span class="portal-label">Volunteer Portal</span>
+            <h1 class="title">Create Account</h1>
+            <p class="subtitle">Join our volunteer community. Sign up to get started.</p>
+        </div>
+
+        <!-- Messages -->
+        <div id="errorMessage" class="alert-message alert-error"></div>
+        <div id="successMessage" class="alert-message alert-success"></div>
+
+        <!-- Form -->
+        <form id="signupForm">
+            <div class="form-group">
+                <label class="form-label">First Name *</label>
+                <input 
+                    type="text" 
+                    id="firstName" 
+                    class="form-input" 
+                    placeholder="Your first name" 
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Last Name *</label>
+                <input 
+                    type="text" 
+                    id="lastName" 
+                    class="form-input" 
+                    placeholder="Your last name" 
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Email *</label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    class="form-input" 
+                    placeholder="your.email@example.com" 
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Mobile Number *</label>
+                <input 
+                    type="tel" 
+                    id="phone" 
+                    class="form-input mobile-input" 
+                    placeholder="10-digit mobile number" 
+                    maxlength="10"
+                    inputmode="tel"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Team Lead ID</label>
+                <input 
+                    type="text" 
+                    id="teamLead" 
+                    class="form-input" 
+                    placeholder="Your Team Lead's ID (if known)"
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Capacity Band</label>
+                <select id="capacityBand" class="form-input">
+                    <option value="">Select Capacity</option>
+                    <option value="Consistent">Consistent (4-6)</option>
+                    <option value="Balanced">Balanced (2-3)</option>
+                    <option value="Limited">Limited (1-2)</option>
+                </select>
+            </div>
+
+            <button type="submit" id="submitBtn" class="submit-btn">
+                Create Account
+            </button>
+
+            <button type="button" id="backBtn" class="submit-btn back-btn">
+                Back to Login
+            </button>
+        </form>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../assets/js/volunteers.js"></script>
+    <script>
+        $(document).ready(function () {
+
+            // Initialize mobile input restrictions
+            restrictMobileInput('phone');
+
+            // Handle back button
+            $('#backBtn').on('click', function (e) {
+                e.preventDefault();
+                window.location.href = 'Login.html';
+            });
+
+            // Handle form submission
+            $('#signupForm').on('submit', function (e) {
+                e.preventDefault();
+
+                const errorMsg = $('#errorMessage');
+                const successMsg = $('#successMessage');
+
+                // Hide previous messages
+                errorMsg.removeClass('show').text('');
+                successMsg.removeClass('show').text('');
+
+                const payload = {
+                    VolunteerId: "",
+                    firstName: $("#firstName").val().trim(),
+                    lastName: $("#lastName").val().trim(),
+                    email: $("#email").val().trim(),
+                    phone: $("#phone").val().trim(),
+                    teamLead: $("#teamLead").val().trim(),
+                    capacityBand: $("#capacityBand").val()
+                };
+
+                // Validation
+                if (!payload.firstName || !payload.lastName || !payload.email) {
+                    errorMsg.text("First Name, Last Name, and Email are required").addClass('show');
+                    return;
+                }
+
+                if (payload.phone && !isValidMobileNumber(payload.phone)) {
+                    errorMsg.text("Phone number must be exactly 10 digits").addClass('show');
+                    return;
+                }
+
+                const btn = $('#submitBtn');
+                btn.addClass('loading').prop('disabled', true);
+
+                $.ajax({
+                    url: API_BASE_URL + "/volunteers",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(payload),
+
+                    success: function (res) {
+                        btn.removeClass('loading').prop('disabled', false);
+                        successMsg.text("Account created successfully! Redirecting to login...").addClass('show');
+
+                        setTimeout(() => {
+                            window.location.href = 'Login.html';
+                        }, 2000);
+                    },
+
+                    error: function (xhr) {
+                        btn.removeClass('loading').prop('disabled', false);
+                        let msg = "Something went wrong";
+
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            msg = xhr.responseJSON.message;
+                        }
+
+                        errorMsg.text(msg).addClass('show');
+                    }
+                });
+            });
+        });
+    </script>
 
 </body>
 </html>

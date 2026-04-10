@@ -41,4 +41,8 @@
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\templates\assets\Images\" />
+  </ItemGroup>
+
 </Project>

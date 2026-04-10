@@ -21,6 +21,12 @@ $(document).ready(function () {
             return;
         }
 
+        // 🔹 Validate phone number (10 digits only)
+        if (payload.phone && !isValidMobileNumber(payload.phone)) {
+            showMessage("Phone number must be exactly 10 digits", "error");
+            return;
+        }
+
         // 🔹 AJAX call
         $.ajax({
             url: API_BASE_URL +"/volunteers",

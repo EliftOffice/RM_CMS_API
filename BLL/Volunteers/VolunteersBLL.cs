@@ -15,6 +15,8 @@ namespace RM_CMS.BLL.Volunteers
 
         Task<ApiResponse<VolunteerResponseDto>> CreateVolunteerAsync(CreateVolunteerDto dto);
         Task<ApiResponse<List<Volunteer>>> GetVolunteersAsync();
+        Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersByMobileAsync(string mobile);
+        Task<ApiResponse<string>> UpdateVolunteerMobileAsync(UpdateVolunteerMobileDto dto);
     }
     public class VolunteersBLL : IVolunteersBLL
     {
@@ -144,6 +146,87 @@ namespace RM_CMS.BLL.Volunteers
                 return new ApiResponse<VolunteerResponseDto>(
                     ResponseType.Error,
                     ex.Message,
+                    null
+                );
+            }
+        }
+
+
+        public async Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersByMobileAsync(string mobile)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(mobile))
+                {
+                    return new ApiResponse<List<VolunteerLookupDto>>(
+                        ResponseType.Warning,
+                        "Mobile number is required",
+                        new List<VolunteerLookupDto>()
+                    );
+                }
+
+                // ✅ Call DAL
+                return await _volunteersDAL.GetVolunteersAsyncByMobile(mobile);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<VolunteerLookupDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteer: {ex.Message}",
+                    new List<VolunteerLookupDto>()
+                );
+            }
+        }
+
+        public async Task<ApiResponse<string>> UpdateVolunteerMobileAsync(UpdateVolunteerMobileDto dto)
+        {
+            try
+            {
+                // 🔹 1. Basic validation
+                if (dto == null)
+                {
+                    return new ApiResponse<string>(
+                        ResponseType.Warning,
+                        "Invalid payload",
+                        null
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(dto.VolunteerId) ||
+                    string.IsNullOrWhiteSpace(dto.NewMobile))
+                {
+                    return new ApiResponse<string>(
+                        ResponseType.Warning,
+                        "VolunteerId and Mobile are required",
+                        null
+                    );
+                }
+
+                // 🔹 2. Normalize
+                dto.VolunteerId = dto.VolunteerId.Trim();
+                dto.NewMobile = dto.NewMobile.Trim();
+
+                // 🔹 3. Validate mobile (10 digits)
+                if (!System.Text.RegularExpressions.Regex.IsMatch(dto.NewMobile, @"^\d{10}$"))
+                {
+                    return new ApiResponse<string>(
+                        ResponseType.Warning,
+                        "Mobile number must be exactly 10 digits",
+                        null
+                    );
+                }
+
+                // 🔹 4. Call DAL (correct signature)
+                return await _volunteersDAL.UpdateVolunteerMobileAsync(
+                    dto.VolunteerId,
+                    dto.NewMobile
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<string>(
+                    ResponseType.Error,
+                    $"Error updating mobile: {ex.Message}",
                     null
                 );
             }
