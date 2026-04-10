@@ -263,7 +263,7 @@ namespace RM_CMS.DAL.Volunteers
 
                     var volunteers = (await connection.QueryAsync<Volunteer>(query)).ToList();
 
-                    if (volunteers == null || !volunteers.Any())
+                    if (!volunteers.Any())
                     {
                         return new ApiResponse<List<Volunteer>>(
                             ResponseType.Warning,
