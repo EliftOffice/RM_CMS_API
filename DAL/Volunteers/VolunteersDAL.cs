@@ -68,14 +68,14 @@ namespace RM_CMS.DAL.Volunteers
                     }
 
                     // 🔴 Check assignment
-                    if (response.Data.FollowUpStatus.ToLower() == "assigned")
-                    {
-                        return new ApiResponse<AssignedVolunteerDTO>(
-                            ResponseType.Error,
-                            "Person already assigned",
-                            null
-                        );
-                    }
+                    //if (response.Data.FollowUpStatus.ToLower() == "assigned")
+                    //{
+                    //    return new ApiResponse<AssignedVolunteerDTO>(
+                    //        ResponseType.Error,
+                    //        "Person already assigned",
+                    //        null
+                    //    );
+                    //}
 
                     // ✅ Now you also have campus
                     var campus = response.Data.Campus;

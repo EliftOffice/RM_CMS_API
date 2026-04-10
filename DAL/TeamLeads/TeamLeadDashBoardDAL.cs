@@ -24,7 +24,7 @@ namespace RM_CMS.DAL.TeamLeads
         #region [Enhanced Trend]
         Task<List<int>> GetLast4WeeksCountsAsync(string volunteerId, int currentWeek);
         #endregion
-        Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsync(string teamLeadId);
+        //Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsync(string teamLeadId);
 
         Task<ApiResponse<bool>> SaveTeamLeadAsync(TeamLeadDTO teamLead);
     }
