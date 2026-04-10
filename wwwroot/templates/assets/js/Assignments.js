@@ -1,21 +1,30 @@
-﻿//Assignmentws.js File 
+﻿//Assignments.js File
 
 $(document).ready(function () {
-    // Read volunteerId from querystring
     const urlParams = new URLSearchParams(window.location.search);
     const volunteerId = urlParams.get('volunteerid');
     $('#volunteerIdDisplay').text(volunteerId || '-');
     if (!volunteerId) return;
 
-    // Load assignments
-    function loadAssignments() {
+    // ── helper: "10 Apr 2026" format ──────────────────────────────────────────
+    function fmtDate(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        if (isNaN(d)) return '-';
+        return d.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }).replace(/ /g, ' '); // e.g. "10 Apr 2026"
+    }
 
+    // ── Load assignments ──────────────────────────────────────────────────────
+    function loadAssignments() {
         $.ajax({
             url: API_BASE_URL + `/volunteers/${volunteerId}/assignments`,
             method: 'GET',
 
             success: function (res) {
-
                 if (!res || !res.data || res.data.length === 0) {
                     $('#responseContainer').html(
                         '<div class="alert alert-warning">No assignments found.</div>'
@@ -23,122 +32,89 @@ $(document).ready(function () {
                     return;
                 }
 
-               
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
-                const cards = res.data
-                    .filter(p => {
+                const filtered = res.data.filter(p => {
+                    const status = p.followUpStatus?.toUpperCase();
+                    if (status === 'ASSIGNED') return true;
+                    if (status === 'RETRY PENDING' && p.nextActionDate) {
+                        const nextDate = new Date(p.nextActionDate);
+                        nextDate.setHours(0, 0, 0, 0);
+                        return nextDate <= today;
+                    }
+                    return false;
+                });
 
-                        const status = p.followUpStatus?.toUpperCase();
+                // Update section label with count
+                $('#listLabel').text(`My List (${filtered.length})`);
 
-                        // ✅ Always show ASSIGNED
-                        if (status === 'ASSIGNED') return true;
+                const cards = filtered.map(p => {
+                    const status = p.followUpStatus?.toUpperCase();
+                    const name = `${p.firstName || ''} ${p.lastName || ''}`.trim();
+                    const phone = p.phone || '-';
+                    const assignedDate = fmtDate(p.assignedDate);
 
-                        // ✅ Show RETRY PENDING only if today or overdue
-                        if (status === 'RETRY PENDING' && p.nextActionDate) {
+                    let statusClass = '';
+                    let actionButton = '';
+                    let retryText = '';
 
-                            const nextDate = new Date(p.nextActionDate);
-                            nextDate.setHours(0, 0, 0, 0);
-
-                            return nextDate <= today; // today or past
-                        }
-
-                        return false;
-                    })
-                    .map(p => {
-
-                        const status = p.followUpStatus?.toUpperCase();
-
-                        const name = `${p.firstName || ''} ${p.lastName || ''}`;
-                        const phone = p.phone || '-';
-
-                        const assignedDate = p.assignedDate
-                            ? new Date(p.assignedDate).toLocaleDateString()
-                            : '-';
-
-                        let statusClass = '';
-                        let actionButton = '';
-                        let retryText = '';
-
-                        // ✅ CASE 1: ASSIGNED
-                        if (status === 'ASSIGNED') {
-                            const fullName = `${p.firstName || ''} ${p.lastName || ''}`.trim();
-                            statusClass = 'status-pending';
-
-                            actionButton = `
+                    // CASE 1: ASSIGNED
+                    if (status === 'ASSIGNED') {
+                        statusClass = 'status-pending';
+                        actionButton = `
                             <button class="action-btn btn-start start-followup"
-                                data-person="${p.personId}"  data-personname="${fullName}">
+                                data-person="${p.personId}" data-personname="${name}">
                                 Start Follow-up
-                            </button>
-                        `;
+                            </button>`;
+                    }
+
+                    // CASE 2: RETRY PENDING
+                    else if (status === 'RETRY PENDING') {
+                        const nextDateObj = new Date(p.nextActionDate);
+                        nextDateObj.setHours(0, 0, 0, 0);
+                        const isToday = nextDateObj.getTime() === today.getTime();
+
+                        if (isToday) {
+                            statusClass = 'status-contacted';
+                            actionButton = `
+                                <button class="action-btn btn-update update-status"
+                                    data-person="${p.personId}" data-personname="${name}">
+                                    Update Status
+                                </button>`;
                         }
 
-                        // ✅ CASE 2: RETRY PENDING
-                        else if (status === 'RETRY PENDING') {
-
-                            const nextDateObj = new Date(p.nextActionDate);
-                            nextDateObj.setHours(0, 0, 0, 0);
-
-                            const isToday = nextDateObj.getTime() === today.getTime();
-
-                            if (isToday) {
-                                statusClass = 'status-contacted';
-
-                                const fullName = `${p.firstName || ''} ${p.lastName || ''}`.trim();
-
-                                actionButton = `
-    <button class="action-btn btn-update update-status"
-        data-person="${p.personId}" 
-        data-personname="${fullName}">
-        Update Status
-    </button>
-`;
-                            }
-
-                            // 🔁 Retry info (days since last attempt)
-                            if (p.attemptDate) {
-                                const attemptDate = new Date(p.attemptDate);
-                                attemptDate.setHours(0, 0, 0, 0);
-
-                                const diffDays = Math.floor(
-                                    (today - attemptDate) / (1000 * 60 * 60 * 24)
-                                );
-
-                                if (diffDays >= 0) {
-                                    retryText = `
+                        if (p.attemptDate) {
+                            const attemptDate = new Date(p.attemptDate);
+                            attemptDate.setHours(0, 0, 0, 0);
+                            const diffDays = Math.floor((today - attemptDate) / (1000 * 60 * 60 * 24));
+                            if (diffDays >= 0) {
+                                retryText = `
                                     <div class="retry-text">
-                                        • Contacted ${diffDays} day${diffDays !== 1 ? 's' : ''} ago
-                                    </div>
-                                `;
-                                }
+                                        Contacted ${diffDays} day${diffDays !== 1 ? 's' : ''} ago
+                                    </div>`;
                             }
                         }
+                    }
 
-                        return `
+                    return `
                         <div class="assignment-card">
-
                             <div class="card-header">
                                 <div>
-                                    <strong>${name}</strong><br>
-                                    <span class="phone">${phone}</span>
+                                    <div class="person-name">${name}</div>
+                                    <div class="phone">${phone}</div>
                                 </div>
                                 <span class="status-badge ${statusClass}">
-                                    ${status}
+                                    ${status === 'ASSIGNED' ? 'PENDING' : status}
                                 </span>
                             </div>
-
                             ${retryText}
-
                             <div class="card-footer">
-                                <span>${assignedDate}</span>
+                                <span class="assign-date">${assignedDate}</span>
                                 ${actionButton}
                             </div>
-
-                        </div>
-                    `;
-                    })
-                    .join('');
+                        </div>`;
+                }).join('');
 
                 $('#assignmentsGrid').html(cards);
             },
@@ -150,40 +126,30 @@ $(document).ready(function () {
             }
         });
     }
-    loadVolunteerHeader();
-    loadAssignments();
-  
 
-
-
-    // Load assignments
+    // ── Load volunteer header ─────────────────────────────────────────────────
     function loadVolunteerHeader() {
-
         $.ajax({
-            url: API_BASE_URL + `/volunteers/${volunteerId}`, // 👈 your controller
+            url: API_BASE_URL + `/volunteers/${volunteerId}`,
             method: 'GET',
-
             success: function (res) {
-
                 if (!res || !res.data) return;
-
                 const v = res.data;
-
-                // ✅ Full Name
                 const fullName = `${v.firstName || ''} ${v.lastName || ''}`.trim();
-
-                // ✅ Bind to UI
                 $('#spnVolunteerName').text(fullName || 'N/A');
                 $('#spnteamLead').text(v.teamLeadFullName || 'N/A');
             },
-
             error: function () {
                 $('#spnVolunteerName').text('Error');
                 $('#spnteamLead').text('Error');
             }
         });
     }
-    // Start follow-up
+
+    loadVolunteerHeader();
+    loadAssignments();
+
+    // ── Open modal on action button click ────────────────────────────────────
     $(document).on('click', '.action-btn', function () {
         const personId = $(this).data('person');
         const name = $(this).data('personname');
@@ -194,15 +160,12 @@ $(document).ready(function () {
         modal.show();
     });
 
+    // ── Logout ────────────────────────────────────────────────────────────────
     $(document).on('click', '.logout-btn', function () {
-        setTimeout(() => {
-            window.location.href = `Login.html`;
-        }, 500); // Small delay to show success message
+        setTimeout(() => { window.location.href = 'Login.html'; }, 500);
     });
 
-
-   
-
+    // ── Toggle response type based on contact status ──────────────────────────
     $('#contact_status').on('change', function () {
         if ($(this).val() === 'Contacted') {
             $('#responseTypeGroup').show();
@@ -211,7 +174,7 @@ $(document).ready(function () {
         }
     }).trigger('change');
 
-    // Save follow-up
+    // ── Save follow-up ────────────────────────────────────────────────────────
     $('#saveFollowUp').on('click', function () {
         const payload = {
             person_id: $('#person_id').val(),
@@ -223,8 +186,6 @@ $(document).ready(function () {
             notes: $('#notes').val(),
             tags: $('#tags').val(),
             team_lead_id: 'TL001'
-
-
         };
 
         $.ajax({
@@ -232,13 +193,12 @@ $(document).ready(function () {
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(payload),
-            success: function (res) {
+            success: function () {
                 $('#modalResponse').html('<div class="alert alert-success">Follow-up logged successfully.</div>');
-                // refresh assignments
                 loadAssignments();
                 setTimeout(() => { $('#followUpModal .btn-close').click(); }, 1000);
             },
-            error: function (xhr) {
+            error: function () {
                 $('#modalResponse').html('<div class="alert alert-danger">Error logging follow-up.</div>');
             }
         });

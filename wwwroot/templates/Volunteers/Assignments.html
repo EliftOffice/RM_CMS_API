@@ -3,118 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- ✅ Title + Favicon -->
-    <title>RM CMS Volunteer Portal </title>
+    <title>RM CMS Volunteer Portal</title>
     <link rel="icon" href="../assets/Images/favicon.ico">
-    <link rel="icon" type="image/png" href="../assets/Images/logo.png">
-
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="../assets/js/api-config.js"></script>
     <script src="../assets/js/utils.js"></script>
-    <script src="../assets/js/Assignments.js"></script>
 
     <style>
-        body {
-            background-color: #f5f7f6;
-            font-family: 'Segoe UI', sans-serif;
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
 
-        /* ================= HEADER ================= */
+        body {
+            background-color: #f5f7f6;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* ═══════════════════════════════════
+           HEADER
+        ═══════════════════════════════════ */
         .page-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 20px;
+            padding: 10px 24px;
             background: #ffffff;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #e6f4ef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+            .header-logo img {
+                width: 30px;
+                height: 30px;
+                object-fit: contain;
+            }
+
         .page-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
+            font-size: 15px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
+            line-height: 1.2;
         }
 
         .page-subtitle {
-            font-size: 12px;
-            color: #888;
+            font-size: 11px;
+            color: #9ca3af;
+            margin: 0;
+            line-height: 1.2;
         }
 
         .logout-btn {
-            border: 1px solid #ff4d4f;
-            color: #ff4d4f;
             background: transparent;
-            border-radius: 6px;
-            padding: 5px 12px;
-            font-size: 12px;
-        }
-
-        /* ================= CARD ================= */
-        .container {
-            margin-top: 20px;
-        }
-
-        .card {
-            border-radius: 12px;
             border: none;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            color: #ef4444;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            padding: 0;
         }
 
-        .card-header {
-            background: transparent;
-            border-bottom: none;
+            .logout-btn:hover {
+                text-decoration: underline;
+            }
+
+        /* ═══════════════════════════════════
+           ASSIGNMENTS PAGE
+        ═══════════════════════════════════ */
+        .page-body {
+            display: flex;
+            justify-content: center;
+            padding: 32px 16px;
+        }
+
+        .assignments-panel {
+            width: 100%;
+            max-width: 480px;
         }
 
         .section-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #888;
-            margin-bottom: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #9ca3af;
+            margin: 0 0 12px;
         }
 
-        /* ================= LIST ================= */
+        /* Cards */
         .grid-container {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
         }
 
         .assignment-card {
-            border-radius: 14px;
-            padding: 16px;
             background: #ffffff;
-            border: 1px solid #eee;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.04);
-            transition: 0.2s ease;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
 
             .assignment-card:hover {
                 transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.07);
             }
 
-            .assignment-card .card-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin-bottom: 2px;
+        }
 
-            .assignment-card strong {
-                font-size: 15px;
-            }
+        .person-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin: 0;
+        }
 
         .phone {
             font-size: 12px;
-            color: #9aa0a6;
+            color: #9ca3af;
+            margin: 2px 0 0;
         }
 
         .status-badge {
-            font-size: 11px;
-            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 3px 10px;
             border-radius: 20px;
-            font-weight: 600;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-left: 8px;
+            margin-top: 2px;
         }
 
         .status-pending {
@@ -130,241 +184,721 @@
         .retry-text {
             font-size: 12px;
             color: #f39c12;
-            margin-top: 6px;
+            font-weight: 500;
+            margin: 6px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
+
+            .retry-text::before {
+                content: '●';
+                font-size: 8px;
+            }
 
         .card-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-top: 12px;
-            font-size: 12px;
-            color: #888;
+            padding: 0;
+            background: transparent;
+            border: none;
         }
 
+        .assign-date {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        /* Card action buttons — pill style, NOT full width */
         .action-btn {
             border: none;
             border-radius: 20px;
-            padding: 6px 14px;
+            padding: 6px 16px;
             font-size: 12px;
             font-weight: 600;
             cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s, transform 0.1s;
+            width: auto;
+            display: inline-block;
         }
+
+            .action-btn:active {
+                transform: scale(0.97);
+            }
 
         .btn-start {
-            background: #1e7e34;
-            color: #fff;
+            background: #085c40;
+            color: #ffffff;
         }
+
+            .btn-start:hover {
+                background: #064d35;
+            }
 
         .btn-update {
-            background: #34c38f;
-            color: #fff;
+            background: #e6f4ef;
+            color: #085c40;
+            border: 1px solid #b3dcc9;
         }
 
-        /* ================= MODAL ================= */
-        .modal-content {
-            border-radius: 14px;
-            border: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            .btn-update:hover {
+                background: #d1ece0;
+            }
+
+        #responseContainer .alert {
+            border-radius: 10px;
+            font-size: 13px;
         }
 
-        .modal-header {
-            border-bottom: none;
+        /* ═══════════════════════════════════
+           FOLLOW-UP PAGE  (hidden by default)
+        ═══════════════════════════════════ */
+        #followupPage {
+            display: none;
+        }
+
+        /* Top bar */
+        .followup-topbar {
+            display: flex;
+            align-items: center;
             justify-content: center;
-            text-align: center;
+            position: relative;
+            padding: 10px 24px;
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
-        .modal-title {
+        .followup-back {
+            position: absolute;
+            left: 16px;
+            background: transparent;
+            border: none;
+            font-size: 13px;
             font-weight: 600;
+            color: #085c40;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0;
+            font-family: inherit;
         }
 
-        .modal-body::before {
-            content: "V";
-            display: block;
-            width: 50px;
-            height: 50px;
+            .followup-back:hover {
+                text-decoration: underline;
+            }
+
+        .followup-topbar-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        /* Body */
+        .followup-body {
+            display: flex;
+            justify-content: center;
+            padding: 28px 16px 48px;
+            background: #f5f7f6;
+            min-height: calc(100vh - 53px);
+        }
+
+        .followup-panel {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        /* Person card */
+        .person-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 20px 16px;
+            text-align: center;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+
+        .person-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
             background: #d1f2e0;
             color: #0f9d58;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 50px;
-            font-weight: bold;
+            font-weight: 700;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             margin: 0 auto 10px;
         }
 
-        .modal-body .mb-3 {
-            border: 1px solid #eee;
-            border-radius: 10px;
-            padding: 10px;
-            background: #fff;
+        .person-card-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
         }
 
-        .form-label {
+        .person-card-phone {
             font-size: 12px;
-            font-weight: 600;
-            color: #888;
+            color: #9ca3af;
+            margin: 2px 0 0;
         }
 
-        .form-select,
-        .form-control {
-            border-radius: 8px;
-            font-size: 14px;
+        /* Form sections */
+        .form-section {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
         }
 
-        #saveFollowUp {
-            width: 100%;
-            border-radius: 8px;
-            background: #1e7e34;
-            border: none;
-            font-weight: 600;
+        .form-section-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #9ca3af;
+            margin-bottom: 10px;
+            display: block;
         }
 
-        .modal-footer {
-            border-top: none;
-        }
-
-        .card-body .card-body {
-            padding: 0;
-        }
-
-        /* Center the whole content */
-        .container {
+        /* Radio rows */
+        .radio-row {
             display: flex;
-            justify-content: center;
-            margin-top: 40px;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.1s;
+            gap: 10px;
         }
 
-            /* Limit width like screenshot */
-            .container .row {
-                width: 100%;
-                max-width: 480px; /* 🔥 controls width */
+            .radio-row:hover {
+                background: #f9fafb;
             }
 
-        /* Remove bootstrap full width behavior */
-        .col-12 {
-            padding: 0;
-        }
+            .radio-row + .radio-row {
+                border-top: 1px solid #f3f4f6;
+            }
 
-        /* Card spacing */
-        .card {
+            .radio-row input[type="radio"] {
+                accent-color: #085c40;
+                width: 16px;
+                height: 16px;
+                flex-shrink: 0;
+                cursor: pointer;
+            }
+
+            .radio-row label {
+                font-size: 13px;
+                color: #111827;
+                font-weight: 500;
+                cursor: pointer;
+                margin: 0;
+            }
+
+                .radio-row label.crisis {
+                    color: #ef4444;
+                }
+
+        /* Text inputs inside sections */
+        .followup-input {
             width: 100%;
+            border: none;
+            outline: none;
+            font-size: 13px;
+            color: #111827;
+            font-family: inherit;
+            background: transparent;
+            padding: 4px 0;
         }
 
-        /* Center header content properly */
-        .page-header {
-            padding: 12px 40px;
+            .followup-input::placeholder {
+                color: #9ca3af;
+            }
+
+        textarea.followup-input {
+            resize: vertical;
+            min-height: 72px;
         }
+
+        /* ── Submit row: Back + Submit, centered, fixed widths ── */
+        .submit-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-back-bottom {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px 0;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            width: 140px;
+            transition: background 0.15s;
+        }
+
+            .btn-back-bottom:hover {
+                background: #e5e7eb;
+            }
+
+        .btn-submit-followup {
+            background: #085c40;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 0;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            width: 200px;
+            transition: background 0.15s, transform 0.1s;
+        }
+
+            .btn-submit-followup:hover {
+                background: #064d35;
+            }
+
+            .btn-submit-followup:active {
+                transform: scale(0.98);
+            }
+
+            .btn-submit-followup:disabled {
+                background: #9ca3af;
+                cursor: not-allowed;
+                transform: none;
+            }
     </style>
 </head>
 
 <body>
 
-    <!-- ✅ HEADER -->
-    <div class="page-header">
-        <div>
-            <div class="page-title">Assignments</div>
-            <div class="page-subtitle"><span id="spnVolunteerName"> Volunteer Name</span> - <span id="spnteamLead">Team Lead Name</span></div>
-        </div>
-        <button class="logout-btn">Log out</button>
-    </div>
+    <!-- ════════════════════════════════════════
+         PAGE 1 — ASSIGNMENTS LIST
+    ════════════════════════════════════════ -->
+    <div id="assignmentsPage">
 
-    <!-- ✅ MAIN CONTENT -->
-    <div class="container">
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Your Assignments</h5>
-                        <div>
-                            <span class="me-2">Volunteer:</span>
-                            <strong id="volunteerIdDisplay">-</strong>
-                        </div>
-                    </div>
-
-                    <div class="card-body">
-                        <div id="responseContainer"></div>
-
-                        <h5 class="section-title">My List</h5>
-                        <div id="assignmentsGrid" class="grid-container"></div>
+        <div class="page-header">
+            <div class="header-left">
+                <div class="header-logo">
+                    <img src="../assets/Images/logo.png" alt="RM"
+                         onerror="this.style.display='none';this.parentElement.textContent='R'">
+                </div>
+                <div>
+                    <div class="page-title">Assignments</div>
+                    <div class="page-subtitle">
+                        <span id="spnVolunteerName">Volunteer Name</span> &bull;
+                        Lead: <span id="spnteamLead">Team Lead Name</span>
                     </div>
                 </div>
             </div>
+            <button class="logout-btn" id="logoutBtn">Log out</button>
         </div>
-    </div>
 
-    <!-- ✅ MODAL -->
-    <div class="modal fade" id="followUpModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
+        <div class="page-body">
+            <div class="assignments-panel">
+                <div id="responseContainer"></div>
+                <h5 class="section-title" id="listLabel">My List</h5>
+                <div id="assignmentsGrid" class="grid-container"></div>
+            </div>
+        </div>
 
-                <div class="modal-header">
-                    <h5 class="modal-title">Log Follow-up Attempt</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div><!-- /assignmentsPage -->
+    <!-- ════════════════════════════════════════
+         PAGE 2 — FOLLOW-UP FORM  (inline)
+    ════════════════════════════════════════ -->
+    <div id="followupPage">
+
+        <div class="followup-topbar">
+            <button class="followup-back" id="topBackBtn">&#8249; Back</button>
+            <span class="followup-topbar-title">Update Status</span>
+        </div>
+
+        <div class="followup-body">
+            <div class="followup-panel">
+
+                <!-- hidden fields -->
+                <input type="hidden" id="person_id">
+                <input type="hidden" id="volunteer_id">
+
+                <!-- Person card -->
+                <div class="person-card">
+                    <div class="person-avatar" id="avatarInitial">V</div>
+                    <div class="person-card-name" id="displayPersonName"></div>
+                    <div class="person-card-phone" id="displayPhone"></div>
                 </div>
 
-                <div class="modal-body">
-                    <form id="followUpForm">
-                        <input type="hidden" id="person_id">
-                        <input type="hidden" id="volunteer_id">
-                        <input type="hidden" id="hdnPersonName" value="Person Name">
-
-                        <div class="mb-3">
-                            <label class="form-label">Contact Method</label>
-                            <select id="contact_method" class="form-select">
-                                <option>Phone Call</option>
-                                <option>Text Message</option>
-                                <option>Email</option>
-                                <option>In-Person</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Contact Status</label>
-                            <select id="contact_status" class="form-select">
-                                <option value="Contacted">Contacted</option>
-                                <option value="Not Contacted">Not Contacted</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-3" id="responseTypeGroup">
-                            <label class="form-label">Response Type</label>
-                            <select id="response_type" class="form-select">
-                                <option>Normal</option>
-                                <option>Needs Follow-Up</option>
-                                <option>Crisis</option>
-                                <option>No Response</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Call Duration (min)</label>
-                            <input type="number" id="call_duration_min" class="form-control">
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Notes</label>
-                            <textarea id="notes" class="form-control"></textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Tags</label>
-                            <input type="text" id="tags" class="form-control">
-                        </div>
-                    </form>
-
-                    <div id="modalResponse"></div>
+                <!-- Did you contact them? -->
+                <div class="form-section">
+                    <span class="form-section-label">Did you contact them?</span>
+                    <div class="radio-row">
+                        <input type="radio" name="contact_status" id="cs_yes" value="Contacted" checked>
+                        <label for="cs_yes">Yes, Contacted</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="contact_status" id="cs_no" value="Not Contacted">
+                        <label for="cs_no">Not Contacted</label>
+                    </div>
                 </div>
 
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button id="saveFollowUp" class="btn btn-primary">Save Follow-up</button>
+                <!-- Response Type (hidden when Not Contacted) -->
+                <div class="form-section" id="responseTypeSection">
+                    <span class="form-section-label">Response Type</span>
+                    <div class="radio-row">
+                        <input type="radio" name="response_type" id="rt_no" value="No Response">
+                        <label for="rt_no">No response — Try again in 3 days</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="response_type" id="rt_normal" value="Normal">
+                        <label for="rt_normal">Normal — Mark complete</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="response_type" id="rt_followup" value="Needs Follow-Up">
+                        <label for="rt_followup">Needs follow-up — Assign to lead</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="response_type" id="rt_crisis" value="Crisis">
+                        <label for="rt_crisis" class="crisis">Crisis — Immediate alert</label>
+                    </div>
+                </div>
+
+                <!-- Call Duration -->
+                <div class="form-section">
+                    <span class="form-section-label">Call Duration (Minutes) — Optional</span>
+                    <input type="number" id="call_duration_min" class="followup-input" placeholder="e.g. 5" min="0">
+                </div>
+
+                <!-- Notes -->
+                <div class="form-section">
+                    <span class="form-section-label">Notes</span>
+                    <textarea id="notes" class="followup-input" placeholder="Add any notes here..."></textarea>
+                </div>
+
+                <!-- Feedback message -->
+                <div id="modalResponse"></div>
+
+                <!-- Back + Submit — centered, fixed widths -->
+                <div class="submit-row">
+                    <button class="btn-back-bottom" id="bottomBackBtn">Back</button>
+                    <button class="btn-submit-followup" id="submitFollowupBtn">Submit Update</button>
                 </div>
 
             </div>
         </div>
-    </div>
+
+    </div><!-- /followupPage -->
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+
+            /* ══════════════════════════════════════
+               URL PARAMS
+            ══════════════════════════════════════ */
+            const urlParams = new URLSearchParams(window.location.search);
+            const volunteerId = urlParams.get('volunteerid');
+
+            if (!volunteerId) {
+                $('#responseContainer').html(
+                    '<div class="alert alert-warning">Volunteer ID not found in URL.</div>'
+                );
+            }
+
+            /* ══════════════════════════════════════
+               HELPERS
+            ══════════════════════════════════════ */
+            function fmtDate(dateStr) {
+                if (!dateStr) return '-';
+                const d = new Date(dateStr);
+                if (isNaN(d)) return '-';
+                return d.toLocaleDateString('en-GB', {
+                    day: '2-digit', month: 'short', year: 'numeric'
+                });
+            }
+
+            /* ══════════════════════════════════════
+               PAGE SWITCHING
+            ══════════════════════════════════════ */
+            function showAssignmentsPage() {
+                $('#followupPage').hide();
+                $('#assignmentsPage').show();
+                window.scrollTo(0, 0);
+            }
+
+            function showFollowupPage(data) {
+                // Populate hidden fields
+                $('#person_id').val(data.personId || '');
+                $('#volunteer_id').val(volunteerId || '');
+
+                // Populate person card
+                const initial = (data.name || 'V').trim()[0].toUpperCase();
+                $('#avatarInitial').text(initial);
+                $('#displayPersonName').text(data.name || '');
+                $('#displayPhone').text(data.phone || '');
+
+                // Reset form state
+                $('#cs_yes').prop('checked', true);
+                $('input[name="response_type"]').prop('checked', false);
+                $('#call_duration_min').val('');
+                $('#notes').val('');
+                $('#modalResponse').html('');
+                $('#responseTypeSection').show();
+                $('#submitFollowupBtn').prop('disabled', false).text('Submit Update');
+
+                // Switch pages
+                $('#assignmentsPage').hide();
+                $('#followupPage').show();
+                window.scrollTo(0, 0);
+            }
+
+            // Back buttons
+            $('#topBackBtn, #bottomBackBtn').on('click', showAssignmentsPage);
+
+            /* ══════════════════════════════════════
+               LOAD VOLUNTEER HEADER
+            ══════════════════════════════════════ */
+            function loadVolunteerHeader() {
+                if (!volunteerId) return;
+                $.ajax({
+                    url: API_BASE_URL + `/volunteers/${volunteerId}`,
+                    method: 'GET',
+                    success: function (res) {
+                        if (!res || !res.data) return;
+                        const v = res.data;
+                        const fullName = `${v.firstName || ''} ${v.lastName || ''}`.trim();
+                        $('#spnVolunteerName').text(fullName || 'N/A');
+                        $('#spnteamLead').text(v.teamLeadFullName || 'N/A');
+                    },
+                    error: function () {
+                        $('#spnVolunteerName').text('Error');
+                        $('#spnteamLead').text('Error');
+                    }
+                });
+            }
+
+            /* ══════════════════════════════════════
+               LOAD ASSIGNMENTS
+            ══════════════════════════════════════ */
+            function loadAssignments() {
+                if (!volunteerId) return;
+
+                $.ajax({
+                    url: API_BASE_URL + `/volunteers/${volunteerId}/assignments`,
+                    method: 'GET',
+                    success: function (res) {
+                        if (!res || !res.data || res.data.length === 0) {
+                            $('#responseContainer').html(
+                                '<div class="alert alert-warning">No assignments found.</div>'
+                            );
+                            $('#listLabel').text('My List (0)');
+                            return;
+                        }
+
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        const filtered = res.data.filter(p => {
+                            const status = p.followUpStatus?.toUpperCase();
+                            if (status === 'ASSIGNED') return true;
+                            if (status === 'RETRY PENDING' && p.nextActionDate) {
+                                const nextDate = new Date(p.nextActionDate);
+                                nextDate.setHours(0, 0, 0, 0);
+                                return nextDate <= today;
+                            }
+                            return false;
+                        });
+
+                        $('#listLabel').text(`My List (${filtered.length})`);
+
+                        if (filtered.length === 0) {
+                            $('#responseContainer').html(
+                                '<div class="alert alert-info">No pending assignments for today.</div>'
+                            );
+                            $('#assignmentsGrid').html('');
+                            return;
+                        }
+
+                        const cards = filtered.map(p => {
+                            const status = p.followUpStatus?.toUpperCase();
+                            const name = `${p.firstName || ''} ${p.lastName || ''}`.trim();
+                            const phone = p.phone || '-';
+                            const assignedDate = fmtDate(p.assignedDate);
+
+                            let statusClass = '';
+                            let actionButton = '';
+                            let retryText = '';
+
+                            if (status === 'ASSIGNED') {
+                                statusClass = 'status-pending';
+                                actionButton = `
+                                <button class="action-btn btn-start open-followup"
+                                    data-personid="${p.personId}"
+                                    data-name="${name}"
+                                    data-phone="${phone}">
+                                    Start Follow-up
+                                </button>`;
+                            } else if (status === 'RETRY PENDING') {
+                                statusClass = 'status-contacted';
+                                actionButton = `
+                                <button class="action-btn btn-update open-followup"
+                                    data-personid="${p.personId}"
+                                    data-name="${name}"
+                                    data-phone="${phone}">
+                                    Update Status
+                                </button>`;
+
+                                if (p.attemptDate) {
+                                    const attemptDate = new Date(p.attemptDate);
+                                    attemptDate.setHours(0, 0, 0, 0);
+                                    const diffDays = Math.floor((today - attemptDate) / 86400000);
+                                    if (diffDays >= 0) {
+                                        retryText = `
+                                        <div class="retry-text">
+                                            Contacted ${diffDays} day${diffDays !== 1 ? 's' : ''} ago
+                                        </div>`;
+                                    }
+                                }
+                            }
+
+                            return `
+                            <div class="assignment-card">
+                                <div class="card-header">
+                                    <div>
+                                        <div class="person-name">${name}</div>
+                                        <div class="phone">${phone}</div>
+                                    </div>
+                                    <span class="status-badge ${statusClass}">
+                                        ${status === 'ASSIGNED' ? 'PENDING' : status}
+                                    </span>
+                                </div>
+                                ${retryText}
+                                <div class="card-footer">
+                                    <span class="assign-date">${assignedDate}</span>
+                                    ${actionButton}
+                                </div>
+                            </div>`;
+                        }).join('');
+
+                        $('#assignmentsGrid').html(cards);
+                    },
+                    error: function (xhr) {
+                        $('#responseContainer').html(
+                            `<div class="alert alert-danger">Error loading assignments: ${xhr.responseText || xhr.status}</div>`
+                        );
+                    }
+                });
+            }
+
+            /* ══════════════════════════════════════
+               CARD BUTTON → OPEN FOLLOW-UP PAGE
+            ══════════════════════════════════════ */
+            $(document).on('click', '.open-followup', function () {
+                showFollowupPage({
+                    personId: $(this).data('personid'),
+                    name: $(this).data('name'),
+                    phone: $(this).data('phone')
+                });
+            });
+
+            /* ══════════════════════════════════════
+               SHOW / HIDE RESPONSE TYPE SECTION
+            ══════════════════════════════════════ */
+            $(document).on('change', 'input[name="contact_status"]', function () {
+                if ($(this).val() === 'Contacted') {
+                    $('#responseTypeSection').show();
+                } else {
+                    $('#responseTypeSection').hide();
+                    $('input[name="response_type"]').prop('checked', false);
+                }
+            });
+
+            /* ══════════════════════════════════════
+               SUBMIT FOLLOW-UP
+            ══════════════════════════════════════ */
+            $('#submitFollowupBtn').on('click', function () {
+                const contactStatus = $('input[name="contact_status"]:checked').val();
+                const responseType = $('input[name="response_type"]:checked').val() || '';
+
+                // Basic validation
+                if (contactStatus === 'Contacted' && !responseType) {
+                    $('#modalResponse').html(
+                        '<div class="alert alert-warning mt-2">Please select a Response Type.</div>'
+                    );
+                    return;
+                }
+
+                const payload = {
+                    person_id: $('#person_id').val(),
+                    volunteer_id: $('#volunteer_id').val(),
+                    contact_method: 'Phone Call',          // default; extend if needed
+                    contact_status: contactStatus,
+                    response_type: responseType,
+                    call_duration_min: parseInt($('#call_duration_min').val() || '0'),
+                    notes: $('#notes').val(),
+                    tags: '',
+                    team_lead_id: 'TL001'
+                };
+
+                const $btn = $(this);
+                $btn.prop('disabled', true).text('Saving…');
+                $('#modalResponse').html('');
+
+                $.ajax({
+                    url: API_BASE_URL + '/followups/log-followup',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(payload),
+                    success: function () {
+                        $('#modalResponse').html(
+                            '<div class="alert alert-success mt-2">Follow-up logged successfully.</div>'
+                        );
+                        loadAssignments(); // refresh list in background
+                        setTimeout(showAssignmentsPage, 1200);
+                    },
+                    error: function (xhr) {
+                        $('#modalResponse').html(
+                            `<div class="alert alert-danger mt-2">Error saving follow-up: ${xhr.responseText || xhr.status}</div>`
+                        );
+                        $btn.prop('disabled', false).text('Submit Update');
+                    }
+                });
+            });
+
+            /* ══════════════════════════════════════
+               LOGOUT
+            ══════════════════════════════════════ */
+            $('#logoutBtn').on('click', function () {
+                setTimeout(() => { window.location.href = 'Login.html'; }, 400);
+            });
+
+            /* ══════════════════════════════════════
+               INIT
+            ══════════════════════════════════════ */
+            loadVolunteerHeader();
+            loadAssignments();
+        });
+    </script>
 
 </body>
 </html>

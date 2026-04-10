@@ -19,6 +19,7 @@ namespace RM_CMS.DAL.TeamLeads
         Task<TeamPerformanceDTO> GetTeamPerformanceAsync(string teamLeadId, int week);
         Task<List<CheckInDTO>> GetUpcomingCheckInsAsync(string teamLeadId);
         Task<List<EscalationPendingDTO>> GetEscalationsAsync(string teamLeadId);
+        Task<ApiResponse<List<TeamLeadDTO>>> GetTeamLeadsAsync();
 
 
         #region [Enhanced Trend]
@@ -510,5 +511,39 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
                 );
             }
         }
+
+
+        public async Task<ApiResponse<List<TeamLeadDTO>>> GetTeamLeadsAsync()
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+                SELECT id,team_lead_id, CONCAT(first_name, ' ', last_name) AS name
+                FROM team_leads
+                WHERE status = 'Active'
+                ORDER BY first_name, last_name;";
+
+                    var result = (await connection.QueryAsync<TeamLeadDTO>(query)).ToList();
+
+                    return new ApiResponse<List<TeamLeadDTO>>(
+                        ResponseType.Success,
+                        "TeamLeads fetched successfully",
+                        result
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<TeamLeadDTO>>(
+                    ResponseType.Error,
+                    $"DAL Error fetching TeamLeads: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+
     }
 }

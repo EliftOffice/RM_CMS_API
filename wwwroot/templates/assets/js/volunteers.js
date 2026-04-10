@@ -1,6 +1,6 @@
 $(document).ready(function () {
 
- 
+    loadTeamLeads();
 
     // 🔹 Submit form
     $("#submitBtn").click(function () {
@@ -15,21 +15,18 @@ $(document).ready(function () {
             capacityBand: $("#capacityBand").val()
         };
 
-        // 🔹 Basic validation (frontend)
         if (!payload.firstName || !payload.email) {
             showMessage("First Name and Email are required", "error");
             return;
         }
 
-        // 🔹 Validate phone number (10 digits only)
         if (payload.phone && !isValidMobileNumber(payload.phone)) {
             showMessage("Phone number must be exactly 10 digits", "error");
             return;
         }
 
-        // 🔹 AJAX call
         $.ajax({
-            url: API_BASE_URL +"/volunteers",
+            url: API_BASE_URL + "/volunteers",
             method: "POST",
             contentType: "application/json",
             data: JSON.stringify(payload),
@@ -37,9 +34,6 @@ $(document).ready(function () {
             success: function (res) {
                 showMessage(res.message || "Volunteer created successfully", "success");
 
-                console.log("Response:", res.data);
-
-                // 🔹 Reset form
                 $("#firstName").val('');
                 $("#lastName").val('');
                 $("#email").val('');
@@ -59,6 +53,31 @@ $(document).ready(function () {
             }
         });
     });
+
+    // 🔹 LOAD TEAM LEADS (FIXED)
+    function loadTeamLeads() {
+        $.ajax({
+            url: API_BASE_URL + "/TeamLeadDashBoards/team-leads",
+            method: "GET",
+            success: function (res) {
+
+                let dropdown = $("#teamLead");
+                dropdown.empty();
+                dropdown.append('<option value="">Select TeamLead</option>');
+
+                if (res.data && res.data.length > 0) {
+                    res.data.forEach(function (tl) {
+                        dropdown.append(
+                            `<option value="${tl.team_lead_id}">${tl.name}</option>`
+                        );
+                    });
+                }
+            },
+            error: function () {
+                showMessage("Failed to load TeamLeads", "error");
+            }
+        });
+    }
 
     // 🔹 Message helper
     function showMessage(message, type) {

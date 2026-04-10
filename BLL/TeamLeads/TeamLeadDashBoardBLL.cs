@@ -10,6 +10,7 @@ namespace RM_CMS.BLL.TeamLeads
         Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsync(string teamLeadId);
         Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsyncV1(string teamLeadId);
         Task<ApiResponse<bool>> SaveTeamLeadAsync(TeamLeadDTO teamLead);
+        Task<ApiResponse<List<TeamLeadDTO>>> GetTeamLeadsAsync();
     }
 
     public class TeamLeadDashBoardBLL : ITeamLeadDashBoardBLL
@@ -352,5 +353,20 @@ namespace RM_CMS.BLL.TeamLeads
         }
 
 
+        public async Task<ApiResponse<List<TeamLeadDTO>>> GetTeamLeadsAsync()
+        {
+            try
+            {
+                return await _dal.GetTeamLeadsAsync();
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<TeamLeadDTO>>(
+                    ResponseType.Error,
+                    $"DAL Error fetching TeamLeads: {ex.Message}",
+                    null
+                );
+            }
+        }
     }
 }

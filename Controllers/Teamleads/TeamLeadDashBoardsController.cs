@@ -68,5 +68,33 @@ namespace RM_CMS.Controllers.TeamLeads
                 ));
             }
         }
+
+
+        [HttpGet("team-leads")]
+        public async Task<ActionResult<ApiResponse<List<TeamLeadDTO>>>> GetTeamLeads()
+        {
+            try
+            {
+                _logger.LogInformation("Fetching active team leads");
+
+                var result = await _bll.GetTeamLeadsAsync();
+
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching team leads");
+
+                return HttpResponseHelper.CreateHttpResponse(
+                    new ApiResponse<List<TeamLeadDTO>>(
+                        ResponseType.Error,
+                        "Error fetching team leads",
+                        null
+                    )
+                );
+            }
+        }
+
+
     }
 }
