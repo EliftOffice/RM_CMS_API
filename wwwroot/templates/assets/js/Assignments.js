@@ -215,7 +215,7 @@
             call_duration_min: parseInt($('#call_duration_min').val() || '0'),
             notes: $('#notes').val(),
             tags: '',
-            team_lead_id: 'TL001'
+            team_lead_id: ''
         };
 
         const $btn = $(this);

@@ -434,13 +434,23 @@ namespace RM_CMS.DAL.Followups
                     var year = DateTime.UtcNow.Year;
 
                     const string seqQuery = @"
-    SELECT MAX(CAST(SUBSTRING(follow_up_id, 2) AS UNSIGNED)) 
-    FROM follow_ups;
-";
+                                                SELECT MAX(CAST(SUBSTRING(follow_up_id, 2) AS UNSIGNED)) 
+                                                FROM follow_ups;
+                                            ";
 
                     var seqResult = await connection.ExecuteScalarAsync<int?>(seqQuery);
 
                     var nextNum = (seqResult ?? 0) + 1;
+
+                    //TeamLead Details
+                    const string teamLeadIdQuery = @"SELECT team_lead FROM volunteers WHERE volunteer_id = @VolunteerId;";
+
+                    var teamLeadId = await connection.ExecuteScalarAsync<string?>(teamLeadIdQuery,new { VolunteerId = data.volunteer_id });
+
+                    if (!string.IsNullOrEmpty(teamLeadId))
+                    {
+                        data.team_lead_id= teamLeadId;
+                    }
 
                     // Dynamic padding (optional)
                     var followUpId = $"F{nextNum.ToString().PadLeft(4, '0')}";
