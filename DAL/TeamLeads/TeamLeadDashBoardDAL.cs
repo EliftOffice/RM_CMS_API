@@ -158,7 +158,7 @@ namespace RM_CMS.DAL.TeamLeads
                     // 2. Team Performance
                     const string teamPerformanceQuery = @"
                                      SELECT 
-                                         COUNT(DISTINCT f.person_id) as total_people,
+                                         COUNT(DISTINCT f.person_id) as total_follow_ups,
 
                                          COUNT(DISTINCT CASE 
                                              WHEN f.contact_status = 'Contacted'
