@@ -2,7 +2,7 @@
 {
     public class UpdateEscalationDTO
     {
-        public string Status { get; set; }
+        public string Status { get; set; } = string.Empty;
         public string? ResolutionNotes { get; set; }
         public string? Outcome { get; set; }
     }

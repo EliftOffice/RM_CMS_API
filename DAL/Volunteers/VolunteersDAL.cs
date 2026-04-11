@@ -577,7 +577,7 @@ ORDER BY p.next_action_date;";
                     return new ApiResponse<VolunteerResponseDto>(
                         ResponseType.Success,
                         "Volunteer created successfully",
-                        result
+                        result ?? new VolunteerResponseDto()
                     );
                 }
             }

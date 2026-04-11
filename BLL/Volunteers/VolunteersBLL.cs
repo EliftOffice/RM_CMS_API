@@ -54,7 +54,7 @@ namespace RM_CMS.BLL.Volunteers
                 return new ApiResponse<Volunteer>(
                     ResponseType.Error,
                     $"Error retrieving volunteer: {ex.Message}",
-                    null
+                    new Volunteer()
                 );
             }
         }

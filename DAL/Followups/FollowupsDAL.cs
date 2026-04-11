@@ -210,6 +210,10 @@ namespace RM_CMS.DAL.Followups
         {
             try
             {
+                string followUpId = data.follow_up_id ?? "";
+                if(string.IsNullOrEmpty(followUpId))
+                    return new ApiResponse<bool>(ResponseType.Warning, "Invalid Follow-up ID", false);
+
                 using var connection = _dbConnectionFactory.GetConnection();
 
                 if (connection.State == System.Data.ConnectionState.Closed)
@@ -238,12 +242,12 @@ namespace RM_CMS.DAL.Followups
                 // 3. Create escalation via DAL
                 var escalation = new EscalationDTO
                 {
-                    FollowUpId = data.follow_up_id,
+                    FollowUpId = followUpId,
                     PersonId = data.person_id,
                     VolunteerId = data.volunteer_id,
                     TeamLeadId = data.team_lead_id,
                     EscalationTier = "Standard",
-                    EscalationReason = "Needs Follow-Up",
+                    EscalationReason = data.response_type,
                     Description = string.IsNullOrEmpty(data.notes)
                         ? "Volunteer indicated person needs additional follow-up"
                         : data.notes
@@ -298,6 +302,10 @@ namespace RM_CMS.DAL.Followups
         {
             try
             {
+                string followUpId = data.follow_up_id ?? "";
+                if (string.IsNullOrEmpty(followUpId))
+                    return new ApiResponse<bool>(ResponseType.Warning, "Invalid Follow-up ID", false);
+
                 using var connection = _dbConnectionFactory.GetConnection();
 
                 if (connection.State == System.Data.ConnectionState.Closed)
@@ -326,12 +334,12 @@ namespace RM_CMS.DAL.Followups
                 // 3. Create escalation via DAL
                 var escalation = new EscalationDTO
                 {
-                    FollowUpId = data.follow_up_id,
+                    FollowUpId = followUpId,
                     PersonId = data.person_id,
                     VolunteerId = data.volunteer_id,
                     TeamLeadId = data.team_lead_id,
                     EscalationTier = "Emergency",
-                    EscalationReason = "Suicidal Ideation", // or dynamic mapping
+                    EscalationReason = data.response_type,
                     Description = "🚨 CRISIS: " + (
                         string.IsNullOrEmpty(data.notes)
                             ? "Immediate attention required"
@@ -356,7 +364,7 @@ namespace RM_CMS.DAL.Followups
                         WHERE volunteer_id = @VolunteerId;
                         ";
 
-                await connection.ExecuteAsync(updateOnResolve, new { VolunteerId = data });
+                await connection.ExecuteAsync(updateOnResolve, new { VolunteerId = data.volunteer_id });
 
                 if (escalationResponse.ResponseType != ResponseType.Success)
                     return new ApiResponse<bool>(ResponseType.Error, escalationResponse.Message, false);
