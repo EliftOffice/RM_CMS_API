@@ -132,14 +132,29 @@ namespace RM_CMS.DAL.Volunteers
                         }, transaction);
 
                         // 4. Update volunteer
-                        const string updateVolunteer = @"
-                    UPDATE volunteers SET
-                        current_assignments = current_assignments + 1,
-                        updated_at = NOW()
-                    WHERE volunteer_id = @VolunteerId;
-                ";
+                        //        const string updateOnAssign = @"
+                        //    UPDATE volunteers SET
+                        //        current_assignments = current_assignments + 1,
+                        //        total_assigned=total_assigned+1,                        
+                        //        updated_at = NOW()
+                        //    WHERE volunteer_id = @VolunteerId;
+                        //";
+                        const string updateOnAssign = @"
+                                                    UPDATE volunteers
+                                                    SET
+                                                        current_assignments = current_assignments + 1,
+                                                        total_assigned = total_assigned + 1  WHERE volunteer_id = @VolunteerId;
+                                                    UPDATE volunteers
+                                                    SET
+                                                        completion_rate = 
+                                                            CASE 
+                                                                WHEN total_assigned = 0 THEN 0
+                                                                ELSE ROUND((total_completed * 100.0) / (total_assigned), 2)
+                                                            END                                                        
+                                                    WHERE volunteer_id = @VolunteerId;
+                                                    ";
 
-                        await connection.ExecuteAsync(updateVolunteer,
+                        await connection.ExecuteAsync(updateOnAssign,
                             new { VolunteerId = volunteer.volunteer_id },
                             transaction);
 

@@ -6,35 +6,11 @@ using RM_CMS.Utilities;
 namespace RM_CMS.BLL.Followups
 {
     public interface IFollowupsBLL
-    {
-        Task<ApiResponse<bool>> HandleNormalResponseAsync(string followUpId, string personId, string volunteerId);
-        Task<ApiResponse<bool>> HandleNeedsFollowUpAsync(
-               string followUpId,
-               string personId,
-               string volunteerId,
-               string teamLeadId,
-               string? notes
-           );
-
-        Task<ApiResponse<bool>> HandleCrisisResponseAsync(
-       string followUpId,
-       string personId,
-       string volunteerId,
-       string teamLeadId,
-       string? notes
-   );
-
-        Task<ApiResponse<bool>> HandleNoResponseAsync(
-            string followUpId,
-            string personId,
-            string volunteerId
-        );
-
+    {       
         Task<ApiResponse<object>> LogFollowUpAttemptAsync(FollowUpRequestDTO data);
         Task<ApiResponse<IEnumerable<FollowUp>>> GetFollowUpsByFilterAsync(FollowUpsFilterDTO filter);
-
-
     }
+
     public class FollowupsBLL : IFollowupsBLL
     {
         private readonly IFollowupsDAL _followupsDAL;
@@ -44,13 +20,12 @@ namespace RM_CMS.BLL.Followups
             _followupsDAL = followupsDAL;
         }
 
-        public async Task<ApiResponse<bool>> HandleNormalResponseAsync(string followUpId, string personId, string volunteerId)
+        // ✅ NORMAL
+        public async Task<ApiResponse<bool>> HandleNormalResponseAsync(FollowUpRequestDTO dto)
         {
             try
             {
-                // Call DAL directly
-                return await _followupsDAL.HandleNormalResponseAsync(followUpId, personId, volunteerId);
-
+                return await _followupsDAL.HandleNormalResponseAsync(dto);
             }
             catch (Exception)
             {
@@ -62,24 +37,12 @@ namespace RM_CMS.BLL.Followups
             }
         }
 
-        public async Task<ApiResponse<bool>> HandleNeedsFollowUpAsync(
-          string followUpId,
-          string personId,
-          string volunteerId,
-          string teamLeadId,
-          string? notes)
+        // ✅ NEEDS FOLLOW-UP
+        public async Task<ApiResponse<bool>> HandleNeedsFollowUpAsync(FollowUpRequestDTO dto)
         {
             try
             {
-                var result = await _followupsDAL.HandleNeedsFollowUpAsync(
-                    followUpId,
-                    personId,
-                    volunteerId,
-                    teamLeadId,
-                    notes
-                );
-
-                return result;
+                return await _followupsDAL.HandleNeedsFollowUpAsync(dto);
             }
             catch (Exception)
             {
@@ -91,24 +54,12 @@ namespace RM_CMS.BLL.Followups
             }
         }
 
-        public async Task<ApiResponse<bool>> HandleCrisisResponseAsync(
-           string followUpId,
-           string personId,
-           string volunteerId,
-           string teamLeadId,
-           string? notes)
+        // ✅ CRISIS
+        public async Task<ApiResponse<bool>> HandleCrisisResponseAsync(FollowUpRequestDTO dto)
         {
             try
             {
-                var result = await _followupsDAL.HandleCrisisResponseAsync(
-                    followUpId,
-                    personId,
-                    volunteerId,
-                    teamLeadId,
-                    notes
-                );
-
-                return result;
+                return await _followupsDAL.HandleCrisisResponseAsync(dto);
             }
             catch (Exception)
             {
@@ -120,20 +71,12 @@ namespace RM_CMS.BLL.Followups
             }
         }
 
-        public async Task<ApiResponse<bool>> HandleNoResponseAsync(
-           string followUpId,
-           string personId,
-           string volunteerId)
+        // ✅ NO RESPONSE
+        public async Task<ApiResponse<bool>> HandleNoResponseAsync(FollowUpRequestDTO dto)
         {
             try
             {
-                var result = await _followupsDAL.HandleNoResponseAsync(
-                    followUpId,
-                    personId,
-                    volunteerId
-                );
-
-                return result;
+                return await _followupsDAL.HandleNoResponseAsync(dto);
             }
             catch (Exception)
             {
@@ -145,11 +88,12 @@ namespace RM_CMS.BLL.Followups
             }
         }
 
+        // ✅ MAIN FLOW (LOG + ROUTE)
         public async Task<ApiResponse<object>> LogFollowUpAttemptAsync(FollowUpRequestDTO data)
         {
             try
             {
-                // 1. Log follow-up in the database
+                // 1. Log follow-up
                 var result = await _followupsDAL.LogFollowUpAttemptAsync(data);
 
                 if (result.ResponseType != ResponseType.Success || result.Data == null)
@@ -161,44 +105,42 @@ namespace RM_CMS.BLL.Followups
                     );
                 }
 
-                // 2. Extract the generated followUpId
-                var followUpId = result.Data;
+                // 2. Attach generated followUpId back to DTO
+                data.follow_up_id = result.Data;
 
-                // 3. Route follow-up based on response_type
+                // 3. Route based on response type
                 ApiResponse<bool> routeResult = data.response_type?.Trim().ToLower() switch
                 {
-                    "normal" => await HandleNormalResponseAsync(followUpId, data.person_id, data.volunteer_id),
+                    "normal" => await HandleNormalResponseAsync(data),
 
-                    "needs follow-up" => await HandleNeedsFollowUpAsync(
-                        followUpId, data.person_id, data.volunteer_id, data.team_lead_id, data.notes),
+                    "needs follow-up" => await HandleNeedsFollowUpAsync(data),
+                    "needs followup" => await HandleNeedsFollowUpAsync(data),
 
-                    "needs followup" => await HandleNeedsFollowUpAsync(
-                        followUpId, data.person_id, data.volunteer_id, data.team_lead_id, data.notes),
+                    "crisis" => await HandleCrisisResponseAsync(data),
 
-                    "crisis" => await HandleCrisisResponseAsync(
-                        followUpId, data.person_id, data.volunteer_id, data.team_lead_id, data.notes),
+                    "no response" => await HandleNoResponseAsync(data),
+                    "noresponse" => await HandleNoResponseAsync(data),
 
-                    "no response" => await HandleNoResponseAsync(followUpId, data.person_id, data.volunteer_id),
-
-                    "noresponse" => await HandleNoResponseAsync(followUpId, data.person_id, data.volunteer_id),
-
-                    _ => new ApiResponse<bool>(ResponseType.Error, $"Unknown response type: {data.response_type}", false)
+                    _ => new ApiResponse<bool>(
+                        ResponseType.Error,
+                        $"Unknown response type: {data.response_type}",
+                        false)
                 };
 
                 if (routeResult.ResponseType != ResponseType.Success)
                 {
                     return new ApiResponse<object>(
                         ResponseType.Error,
-                        $"Follow-up logged but failed to route: {routeResult.Message}",
-                        new { follow_up_id = followUpId }
+                        $"Follow-up logged but routing failed: {routeResult.Message}",
+                        new { follow_up_id = data.follow_up_id }
                     );
                 }
 
-                // 4. Return success with followUpId
+                // 4. Success
                 return new ApiResponse<object>(
                     ResponseType.Success,
                     "Follow-up logged and routed successfully",
-                    new { follow_up_id = followUpId }
+                    new { follow_up_id = data.follow_up_id }
                 );
             }
             catch (Exception ex)
@@ -211,6 +153,7 @@ namespace RM_CMS.BLL.Followups
             }
         }
 
+        // ✅ FILTER
         public async Task<ApiResponse<IEnumerable<FollowUp>>> GetFollowUpsByFilterAsync(FollowUpsFilterDTO filter)
         {
             try
@@ -226,7 +169,5 @@ namespace RM_CMS.BLL.Followups
                 );
             }
         }
-
     }
-
 }

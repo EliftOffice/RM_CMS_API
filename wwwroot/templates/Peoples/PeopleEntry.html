@@ -552,7 +552,7 @@
                             .show();
                         $('#visitorForm')[0].reset();
                         btn.disabled = false;
-                        btn.innerHTML = 'Submit Connection Card';
+                        btn.innerHTML = 'Submit';
                     },
                     error: function (xhr) {
                         $('#responseMessage')
@@ -561,7 +561,7 @@
                             .text('Error: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Something went wrong'))
                             .show();
                         btn.disabled = false;
-                        btn.innerHTML = 'Submit Connection Card';
+                        btn.innerHTML = 'Submit';
                     }
                 });
             });

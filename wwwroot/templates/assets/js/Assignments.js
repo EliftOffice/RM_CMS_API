@@ -1,6 +1,4 @@
-﻿//Assignments.js File
-
-$(document).ready(function () {
+﻿$(document).ready(function () {
     const urlParams = new URLSearchParams(window.location.search);
     const volunteerId = urlParams.get('volunteerid');
     $('#volunteerIdDisplay').text(volunteerId || '-');
@@ -15,11 +13,51 @@ $(document).ready(function () {
             day: '2-digit',
             month: 'short',
             year: 'numeric'
-        }).replace(/ /g, ' '); // e.g. "10 Apr 2026"
+        }).replace(/ /g, ' ');
     }
+
+    // ── PAGE SWITCHING ────────────────────────────────────────────────────────
+    function showAssignmentsPage() {
+        $('#followupPage').hide();
+        $('#assignmentsPage').show();
+        window.scrollTo(0, 0);
+    }
+
+    function showFollowupPage(data) {
+        // Populate hidden fields
+        $('#person_id').val(data.personId || '');
+        $('#volunteer_id').val(volunteerId || '');
+
+        // Populate person card
+        const initial = (data.name || 'V').trim()[0].toUpperCase();
+        $('#avatarInitial').text(initial);
+        $('#displayPersonName').text(data.name || '');
+        $('#displayPhone').text(data.phone || '');
+
+        // Update top bar title
+        $('#followupPage .followup-topbar-title').text('Update Status');
+
+        // Reset form state
+        $('#cs_yes').prop('checked', true);
+        $('input[name="response_type"]').prop('checked', false);
+        $('#call_duration_min').val('');
+        $('#notes').val('');
+        $('#modalResponse').html('');
+        $('#responseTypeSection').show();
+        $('#submitFollowupBtn').prop('disabled', false).text('Submit');
+
+        // Switch pages
+        $('#assignmentsPage').hide();
+        $('#followupPage').show();
+        window.scrollTo(0, 0);
+    }
+
+    // Back buttons
+    $('#topBackBtn, #bottomBackBtn').on('click', showAssignmentsPage);
 
     // ── Load assignments ──────────────────────────────────────────────────────
     function loadAssignments() {
+        $('#assignmentsGrid').html("");
         $.ajax({
             url: API_BASE_URL + `/volunteers/${volunteerId}/assignments`,
             method: 'GET',
@@ -28,25 +66,18 @@ $(document).ready(function () {
                 if (!res || !res.data || res.data.length === 0) {
                     $('#responseContainer').html(
                         '<div class="alert alert-warning">No assignments found.</div>'
+
                     );
                     return;
                 }
 
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
                 const filtered = res.data.filter(p => {
                     const status = p.followUpStatus?.toUpperCase();
                     if (status === 'ASSIGNED') return true;
-                    if (status === 'RETRY PENDING' && p.nextActionDate) {
-                        const nextDate = new Date(p.nextActionDate);
-                        nextDate.setHours(0, 0, 0, 0);
-                        return nextDate <= today;
-                    }
+                    if (status === 'RETRY PENDING') return true;
                     return false;
                 });
 
-                // Update section label with count
                 $('#listLabel').text(`My List (${filtered.length})`);
 
                 const cards = filtered.map(p => {
@@ -54,6 +85,7 @@ $(document).ready(function () {
                     const name = `${p.firstName || ''} ${p.lastName || ''}`.trim();
                     const phone = p.phone || '-';
                     const assignedDate = fmtDate(p.assignedDate);
+                    const nextActionDate = fmtDate(p.nextActionDate);
 
                     let statusClass = '';
                     let actionButton = '';
@@ -63,57 +95,50 @@ $(document).ready(function () {
                     if (status === 'ASSIGNED') {
                         statusClass = 'status-pending';
                         actionButton = `
-                            <button class="action-btn btn-start start-followup"
-                                data-person="${p.personId}" data-personname="${name}">
-                                Start Follow-up
-                            </button>`;
+                        <button class="action-btn btn-start start-followup"
+                            data-personid="${p.personId}"
+                            data-name="${name}"
+                            data-phone="${phone}">
+                            Start Follow-up
+                        </button>`;
                     }
 
                     // CASE 2: RETRY PENDING
                     else if (status === 'RETRY PENDING') {
-                        const nextDateObj = new Date(p.nextActionDate);
-                        nextDateObj.setHours(0, 0, 0, 0);
-                        const isToday = nextDateObj.getTime() === today.getTime();
-
-                        if (isToday) {
-                            statusClass = 'status-contacted';
-                            actionButton = `
-                                <button class="action-btn btn-update update-status"
-                                    data-person="${p.personId}" data-personname="${name}">
-                                    Update Status
-                                </button>`;
-                        }
+                        statusClass = 'status-contacted';
+                        actionButton = `
+                        <button class="action-btn btn-update update-status"
+                            data-personid="${p.personId}"
+                            data-name="${name}"
+                            data-phone="${phone}">
+                            Update Status
+                        </button>`;
 
                         if (p.attemptDate) {
-                            const attemptDate = new Date(p.attemptDate);
-                            attemptDate.setHours(0, 0, 0, 0);
-                            const diffDays = Math.floor((today - attemptDate) / (1000 * 60 * 60 * 24));
-                            if (diffDays >= 0) {
-                                retryText = `
-                                    <div class="retry-text">
-                                        Contacted ${diffDays} day${diffDays !== 1 ? 's' : ''} ago
-                                    </div>`;
-                            }
+                            retryText = `
+                            <div class="retry-text">
+                                Last contacted on ${fmtDate(p.attemptDate)}
+                            </div>`;
                         }
                     }
 
                     return `
-                        <div class="assignment-card">
-                            <div class="card-header">
-                                <div>
-                                    <div class="person-name">${name}</div>
-                                    <div class="phone">${phone}</div>
-                                </div>
-                                <span class="status-badge ${statusClass}">
-                                    ${status === 'ASSIGNED' ? 'PENDING' : status}
-                                </span>
+                    <div class="assignment-card">
+                        <div class="card-header">
+                            <div>
+                                <div class="person-name">${name}</div>
+                                <div class="phone">${phone}</div>
                             </div>
-                            ${retryText}
-                            <div class="card-footer">
-                                <span class="assign-date">${assignedDate}</span>
-                                ${actionButton}
-                            </div>
-                        </div>`;
+                            <span class="status-badge ${statusClass}">
+                                ${status === 'ASSIGNED' ? 'PENDING' : status}
+                            </span>
+                        </div>
+                        ${retryText}
+                        <div class="card-footer">
+                            <span class="assign-date">Due date: ${nextActionDate}</span>
+                            ${actionButton}
+                        </div>
+                    </div>`;
                 }).join('');
 
                 $('#assignmentsGrid').html(cards);
@@ -149,44 +174,53 @@ $(document).ready(function () {
     loadVolunteerHeader();
     loadAssignments();
 
-    // ── Open modal on action button click ────────────────────────────────────
+    // ── ACTION BUTTON CLICK → Show Follow-up Page ─────────────────────────────
+    // FIX: Instead of Bootstrap modal, switch to followupPage div
     $(document).on('click', '.action-btn', function () {
-        const personId = $(this).data('person');
-        const name = $(this).data('personname');
-        $('#person_id').val(personId);
-        $('#volunteer_id').val(volunteerId);
-        $('#followUpModal .modal-title').text(`Log Follow-up: ${name} (${personId})`);
-        var modal = new bootstrap.Modal(document.getElementById('followUpModal'));
-        modal.show();
+        showFollowupPage({
+            personId: $(this).data('personid'),
+            name: $(this).data('name'),
+            phone: $(this).data('phone')
+        });
     });
 
-    // ── Logout ────────────────────────────────────────────────────────────────
-    $(document).on('click', '.logout-btn', function () {
-        setTimeout(() => { window.location.href = 'Login.html'; }, 500);
-    });
-
-    // ── Toggle response type based on contact status ──────────────────────────
-    $('#contact_status').on('change', function () {
+    // ── Show/Hide response type based on contact status ───────────────────────
+    $(document).on('change', 'input[name="contact_status"]', function () {
         if ($(this).val() === 'Contacted') {
-            $('#responseTypeGroup').show();
+            $('#responseTypeSection').show();
         } else {
-            $('#responseTypeGroup').hide();
+            $('#responseTypeSection').hide();
+            $('input[name="response_type"]').prop('checked', false);
         }
-    }).trigger('change');
+    });
 
-    // ── Save follow-up ────────────────────────────────────────────────────────
-    $('#saveFollowUp').on('click', function () {
+    // ── Submit follow-up ──────────────────────────────────────────────────────
+    $('#submitFollowupBtn').on('click', function () {
+        const contactStatus = $('input[name="contact_status"]:checked').val();
+        const responseType = $('input[name="response_type"]:checked').val() || '';
+
+        if (contactStatus === 'Contacted' && !responseType) {
+            $('#modalResponse').html(
+                '<div class="alert alert-warning mt-2">Please select a Response Type.</div>'
+            );
+            return;
+        }
+
         const payload = {
             person_id: $('#person_id').val(),
             volunteer_id: $('#volunteer_id').val(),
-            contact_method: $('#contact_method').val(),
-            contact_status: $('#contact_status').val(),
-            response_type: $('#response_type').val(),
+            contact_method: 'Phone Call',
+            contact_status: contactStatus,
+            response_type: responseType,
             call_duration_min: parseInt($('#call_duration_min').val() || '0'),
             notes: $('#notes').val(),
-            tags: $('#tags').val(),
+            tags: '',
             team_lead_id: 'TL001'
         };
+
+        const $btn = $(this);
+        $btn.prop('disabled', true).text('Saving…');
+        $('#modalResponse').html('');
 
         $.ajax({
             url: API_BASE_URL + '/followups/log-followup',
@@ -194,13 +228,23 @@ $(document).ready(function () {
             contentType: 'application/json',
             data: JSON.stringify(payload),
             success: function () {
-                $('#modalResponse').html('<div class="alert alert-success">Follow-up logged successfully.</div>');
+                $('#modalResponse').html(
+                    '<div class="alert alert-success mt-2">Follow-up logged successfully.</div>'
+                );
                 loadAssignments();
-                setTimeout(() => { $('#followUpModal .btn-close').click(); }, 1000);
+                setTimeout(showAssignmentsPage, 1200);
             },
-            error: function () {
-                $('#modalResponse').html('<div class="alert alert-danger">Error logging follow-up.</div>');
+            error: function (xhr) {
+                $('#modalResponse').html(
+                    `<div class="alert alert-danger mt-2">Error: ${xhr.responseText || xhr.status}</div>`
+                );
+                $btn.prop('disabled', false).text('Submit');
             }
         });
+    });
+
+    // ── Logout ────────────────────────────────────────────────────────────────
+    $(document).on('click', '.logout-btn, #logoutBtn', function () {
+        setTimeout(() => { window.location.href = 'Login.html'; }, 400);
     });
 });

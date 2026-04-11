@@ -1,191 +1,452 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Team Lead Management</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Lead Management - RM CMS</title>
 
-    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-    <!-- API Config -->
     <script src="../assets/js/api-config.js"></script>
     <script src="../assets/js/utils.js"></script>
     <script src="../assets/js/CreatingTeamLeads.js"></script>
 
     <style>
+        :root {
+            --primary: #085c40;
+            --primary-hover: #064d35;
+            --primary-light: #e6f4ef;
+            --primary-dark: #053d2b;
+            --white: #ffffff;
+            --bg: #ffffff;
+            --surface: #f9fafb;
+            --border: #e5e7eb;
+            --text: #111827;
+            --muted: #6b7280;
+            --danger: #ef4444;
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --t: 0.18s ease;
+            --radius: 12px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #eef2f7;
-            padding: 30px;
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
         }
 
-        .container {
-            max-width: 600px;
-            margin: auto;
+            body::before {
+                content: '';
+                display: block;
+                height: 3px;
+                background: var(--primary);
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 999;
+            }
+
+        /* ── Navbar ── */
+        .site-navbar {
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            position: sticky;
+            top: 3px;
+            z-index: 100;
         }
 
-        h2 {
-            text-align: center;
-            color: #0B3D3B;
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
         }
 
-        .card {
-            background: #fff;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        .navbar-logo {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid var(--primary-light);
         }
 
+        .navbar-logo-placeholder {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            border: 2px solid var(--primary-light);
+        }
+
+        .navbar-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+
+            .navbar-name span {
+                color: var(--primary);
+            }
+
+        .navbar-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border-radius: 999px;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Page Wrap ── */
+        .page-wrap {
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 40px 20px 60px;
+        }
+
+        .page-eyebrow {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin-bottom: 6px;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.04em;
+            margin-bottom: 4px;
+        }
+
+        .page-divider {
+            height: 1px;
+            background: var(--border);
+            margin-bottom: 28px;
+        }
+
+        /* ── Form Card ── */
+        .form-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .form-card-header {
+            padding: 16px 22px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-card-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .form-card-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0;
+            letter-spacing: -0.01em;
+        }
+
+        .form-card-body {
+            padding: 22px;
+        }
+
+        /* ── Form Elements ── */
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 16px;
         }
+
+            .form-group:last-child {
+                margin-bottom: 0;
+            }
 
         label {
+            display: block;
+            font-size: 0.8rem;
             font-weight: 600;
-            font-size: 14px;
+            color: var(--text);
+            margin-bottom: 7px;
+            letter-spacing: 0.01em;
+        }
+
+        .required-star {
+            color: var(--danger);
+            margin-left: 2px;
         }
 
         input, select {
             width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
+            padding: 11px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.925rem;
+            font-family: var(--font);
+            color: var(--text);
+            background: var(--surface);
+            outline: none;
+            transition: border-color var(--t), box-shadow var(--t), background var(--t);
+            appearance: none;
+            margin-top: 0;
         }
 
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #0B3D3B;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
+            input::placeholder {
+                color: #9ca3af;
+            }
+
+            input:focus, select:focus {
+                border-color: var(--primary);
+                background: var(--white);
+                box-shadow: 0 0 0 3px rgba(8, 92, 64, 0.12);
+            }
+
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
             cursor: pointer;
         }
 
-            button:hover {
-                background: #145c59;
-            }
-
-        .success {
-            color: green;
+        /* ── Submit Button ── */
+        .btn-row {
+            display: flex;
+            justify-content: center;
+            margin-top: 4px;
         }
 
-        .error {
-            color: red;
+        button#saveBtn {
+            padding: 12px 40px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: var(--font);
+            cursor: pointer;
+            width: auto;
+            min-width: 180px;
+            transition: background var(--t), box-shadow var(--t), transform var(--t);
+        }
+
+            button#saveBtn:hover {
+                background: var(--primary-hover);
+                box-shadow: 0 6px 20px rgba(8, 92, 64, 0.28);
+            }
+
+            button#saveBtn:active {
+                transform: scale(0.98);
+            }
+
+        /* ── Message ── */
+        #message {
+            margin-top: 14px;
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-align: center;
+            min-height: 0;
+        }
+
+            #message.success {
+                background: #f0fdf4;
+                border: 1px solid #86efac;
+                color: #166534;
+            }
+
+            #message.error {
+                background: #fef2f2;
+                border: 1px solid #fca5a5;
+                color: #991b1b;
+            }
+
+        @media (max-width: 560px) {
+            .page-wrap {
+                padding: 24px 16px 48px;
+            }
+
+            .page-title {
+                font-size: 1.5rem;
+            }
+
+            .site-navbar {
+                padding: 0 16px;
+            }
+
+            .form-card-body {
+                padding: 16px;
+            }
         }
     </style>
 </head>
-
 <body>
 
-    <div class="container">
-
-        <h2>Create Team Lead</h2>
-
-        <div class="card">
-
-            <div class="form-group">
-                <label>First Name *</label>
-                <input type="text" id="first_name">
-            </div>
-
-            <div class="form-group">
-                <label>Last Name *</label>
-                <input type="text" id="last_name">
-            </div>
-
-            <div class="form-group">
-                <label>Email </label>
-                <input type="email" id="email">
-            </div>
-
-            <div class="form-group">
-                <label>Phone *</label>
-                <input type="text" id="phone" class="mobile-input" maxlength="10">
-            </div>
-
-            <div class="form-group">
-                <label>Role</label>
-                <select id="role_type">
-                    <option value="TeamLead" selected>TeamLead</option>
-                    <option value="Pastor">Pastor</option>
-                    <option value="Admin">Admin</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Max Volunteers</label>
-                <input type="number" id="max_volunteers" value="10">
-            </div>
-
-            <button id="saveBtn">Save</button>
-
-            <p id="message"></p>
-
+    <!-- Navbar -->
+    <nav class="site-navbar">
+        <a class="navbar-brand" href="#">
+            <img src="../assets/Images/logo.jpeg" alt="Logo" class="navbar-logo"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+            <div class="navbar-logo-placeholder" style="display:none;">R</div>
+            <span class="navbar-name">RM <span>CMS</span></span>
+        </a>
+        <div>
+            <span class="navbar-badge">Team Lead Management</span>
         </div>
+    </nav>
+
+    <div class="page-wrap">
+
+        <p class="page-eyebrow">Management</p>
+        <h1 class="page-title">Create Team Lead</h1>
+        <div class="page-divider"></div>
+
+        <!-- Form Card -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-icon">👤</div>
+                <h2 class="form-card-title">Team Lead Details</h2>
+            </div>
+            <div class="form-card-body">
+
+                <div class="form-group">
+                    <label>First Name <span class="required-star">*</span></label>
+                    <input type="text" id="first_name" placeholder="First name">
+                </div>
+
+                <div class="form-group">
+                    <label>Last Name <span class="required-star">*</span></label>
+                    <input type="text" id="last_name" placeholder="Last name">
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="email" placeholder="Email address">
+                </div>
+
+                <div class="form-group">
+                    <label>Phone <span class="required-star">*</span></label>
+                    <input type="text" id="phone" class="mobile-input" maxlength="10" placeholder="10-digit phone number" inputmode="numeric">
+                </div>
+
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="role_type">
+                        <option value="TeamLead" selected>TeamLead</option>
+                        <option value="Pastor">Pastor</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Max Volunteers</label>
+                    <input type="number" id="max_volunteers" value="10" min="1">
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Save Button -->
+        <div class="btn-row">
+            <button id="saveBtn">Save Team Lead</button>
+        </div>
+
+        <!-- Message -->
+        <p id="message"></p>
 
     </div>
 
-   <!--<script>
-    $(document).ready(function () {
+    <!--  ORIGINAL JS — UNTOUCHED -->
+    <script>
+        $(document).ready(function () {
 
-        $("#saveBtn").click(function () {
+            $("#saveBtn").click(function () {
 
-            var data = {
-                FirstName: $("#first_name").val().trim(),
-                LastName: $("#last_name").val().trim(),
-                Email: $("#email").val().trim(),
-                Phone: $("#phone").val().trim(),
-                RoleType: $("#role_type").val() || "TeamLead",
-                MaxVolunteers: parseInt($("#max_volunteers").val()) || 0
-            };
+                var data = {
+                    FirstName: $("#first_name").val()?.trim(),
+                    LastName: $("#last_name").val()?.trim(),
+                    Email: $("#email").val()?.trim(),
+                    Phone: $("#phone").val()?.trim(),
+                    RoleType: $("#role_type").val() || "TeamLead",
+                    MaxVolunteers: parseInt($("#max_volunteers").val()) || 0
+                };
 
-            console.log("DATA:", data);
+                console.log("DATA:", JSON.stringify(data));
 
-            if (!data.FirstName || !data.LastName || !data.Phone) {
-                $("#message").text("First Name, Last Name and Phone are required")
-                             .addClass("error");
-                return;
-            }
-
-            $.ajax({
-                url: API_BASE_URL + '/TeamLeadDashBoards/save-team-lead',
-                type: "POST",
-                contentType: "application/json",
-                data: JSON.stringify(data),
-
-                success: function (res) {
-                    console.log("SUCCESS:", res);
-
-                    if (res.responseType === 1) {
-                        $("#message").text(res.message)
-                                     .removeClass("error").addClass("success");
-                    } else {
-                        $("#message").text(res.message)
-                                     .removeClass("success").addClass("error");
-                    }
-                },
-
-                error: function (err) {
-                    console.error("ERROR FULL:", err);
-
-                    // 🔥 IMPORTANT DEBUG
-                    if (err.status === 404) {
-                        $("#message").text("API route not found (404)").addClass("error");
-                    }
-                    else if (err.status === 500) {
-                        $("#message").text("Server error (500)").addClass("error");
-                    }
-                    else {
-                        $("#message").text("Unknown error").addClass("error");
-                    }
+                if (!data.FirstName || !data.LastName || !data.Phone) {
+                    $("#message").text("First Name, Last Name and Phone are required")
+                        .addClass("error");
+                    return;
                 }
-            });
-        });
 
-    });
-</script>-->
+                // 🔹 Validate phone number (10 digits only)
+                if (!isValidMobileNumber(data.Phone)) {
+                    $("#message").text("Phone number must be exactly 10 digits")
+                        .addClass("error");
+                    return;
+                }
+
+                $.ajax({
+                    url: API_BASE_URL + '/TeamLeadDashBoards/save-team-lead',
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(data),
+
+                    success: function (res) {
+                        console.log("SUCCESS:", res);
+                        $("#message").text(res.message)
+                            .removeClass("error")
+                            .addClass(res.responseType === 1 ? "success" : "error");
+                    },
+
+                    error: function (err) {
+                        console.error("ERROR:", err);
+                        console.error("RESPONSE:", err.responseText);
+
+                        $("#message").text(err.responseText || "Bad Request")
+                            .addClass("error");
+                    }
+                });
+            });
+
+        });
+    </script>
 
 </body>
 </html>

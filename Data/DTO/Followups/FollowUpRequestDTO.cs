@@ -2,6 +2,8 @@
 {
     public class FollowUpRequestDTO
     {
+        
+        public string? follow_up_id { get; set; }
         public string person_id { get; set; }
         public string volunteer_id { get; set; }
         public string team_lead_id { get; set; }
