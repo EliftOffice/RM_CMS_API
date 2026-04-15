@@ -190,14 +190,25 @@ namespace RM_CMS.DAL.TeamLeads
                     );
 
                     // 3. Upcoming Check-ins
-                    const string checkInsQuery = @"
-                SELECT first_name, last_name, next_check_in,
-                       DAYNAME(next_check_in) as day_of_week
-                FROM volunteers
-                WHERE team_lead = @TeamLeadId
-                  AND next_check_in BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
-                ORDER BY next_check_in;
-            ";
+            //        const string checkInsQuery = @"
+            //    SELECT first_name, last_name, next_check_in,
+            //           DAYNAME(next_check_in) as day_of_week
+            //    FROM volunteers
+            //    WHERE team_lead = @TeamLeadId
+            //      AND next_check_in BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+            //    ORDER BY next_check_in;
+            //";
+                    const string checkInsQuery = @"SELECT 
+                                                    volunteer_id,    
+                                                    first_name, 
+                                                    last_name, 
+                                                    next_check_in,
+                                                    DAYNAME(next_check_in) AS day_of_week
+                                                FROM volunteers
+                                                WHERE team_lead = @TeamLeadId
+                                                  AND next_check_in <= DATE_ADD(CURDATE(), INTERVAL (5 - WEEKDAY(CURDATE())) DAY)
+                                                ORDER BY next_check_in;
+                                                            ";
 
                     metrics.UpcomingCheckIns = (await connection.QueryAsync<CheckInDTO>(
                         checkInsQuery,

@@ -98,7 +98,7 @@ $(function () {
         const volunteers = data.volunteers || data.Volunteers || [];
         const rows = volunteers.map(v => `
             <tr>
-                <td>${v.name || v.Name}</td>
+                <td class='v-name' data-id='${v.VolunteerId || v.volunteerId}'>${v.name || v.Name}</td>
                 <td>${v.capacityBand || v.CapacityBand}</td>
                 <td>${v.thisWeek || v.ThisWeek}</td>
                
@@ -113,16 +113,42 @@ $(function () {
         const att = attention.map(a => `<li class="list-group-item">${a.volunteer || a.Volunteer} - ${a.message || a.Message} <span class="badge bg-secondary ms-2">${a.priority || a.Priority}</span></li>`).join('');
         $('#attentionList').html(att);
 
-        // Checkins
+       
         // Checkins Section
+    //    const cis = (data.upcomingCheckIns || data.UpcomingCheckIns || [])
+    //        .map(c => `
+    //    <dt>${c.first_name} ${c.last_name}</dt>
+    //    <dd>
+    //        Date: ${new Date(c.next_check_in).toDateString()} <br/>
+    //        Day: ${c.day_of_week}
+    //    </dd>
+    //`).join('');
+
         const cis = (data.upcomingCheckIns || data.UpcomingCheckIns || [])
-            .map(c => `
-        <dt>${c.first_name} ${c.last_name}</dt>
+            .map(c => {
+                const checkInDate = new Date(c.next_check_in);
+                const today = new Date();
+
+                today.setHours(0, 0, 0, 0);
+                checkInDate.setHours(0, 0, 0, 0);
+
+                let message = '';
+
+                if (checkInDate < today) {
+                    message = `${c.first_name} ${c.last_name} – Check-in Overdue`;
+                } else {
+                    message = `${c.first_name} ${c.last_name} – Monthly Check-in On: (${c.day_of_week})`;
+                }
+
+                return `
+        <dt class='checkin-ele'  data-id='${c.volunteer_id }' style="cursor:pointer;">
+            ${message}
+        </dt>
         <dd>
-            Date: ${new Date(c.next_check_in).toDateString()} <br/>
-            Day: ${c.day_of_week}
+            Date: ${checkInDate.toDateString()}
         </dd>
-    `).join('');
+        `;
+            }).join('');
 
         const escalationsData = (data.escalationsPending || data.EscalationsPending || []);
 
@@ -177,4 +203,25 @@ $(function () {
         const id = $(this).data('id');
         openEscalation(id);
     });
+
+    function openVolunteerDashboard(id) {
+        window.location.href = `../Volunteers/Assignments.html?volunteerid=${id}`;
+    }
+
+    $(document).on('click', '.v-name', function () {
+        const id = $(this).data('id');
+        openVolunteerDashboard(id);
+    });
+
+    $(document).on('click', '.checkin-ele', function () {
+        const id = $(this).data('id');
+        goToCheckIns(id);
+    });
+
+    function goToCheckIns(id) {
+        window.location.href = "CheckIns.html?id="+id;
+    }
+
+
+    
 });
