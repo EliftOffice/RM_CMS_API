@@ -43,6 +43,7 @@
 
   <ItemGroup>
     <Folder Include="wwwroot\templates\assets\Images\" />
+    <Folder Include="wwwroot\templates\assets\Pastor\" />
   </ItemGroup>
 
 </Project>

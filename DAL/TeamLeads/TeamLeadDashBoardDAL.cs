@@ -157,19 +157,32 @@ namespace RM_CMS.DAL.TeamLeads
 
                     // 2. Team Performance
                     const string teamPerformanceQuery = @"
-                SELECT 
-                    COUNT(*) as total_follow_ups,
-                    SUM(CASE WHEN contact_status = 'Contacted' THEN 1 ELSE 0 END) as completed,
-                    SUM(CASE WHEN response_type = 'Normal' THEN 1 ELSE 0 END) as normal,
-                    SUM(CASE WHEN response_type = 'Needs Follow-Up' THEN 1 ELSE 0 END) as needs_follow_up,
-                    SUM(CASE WHEN response_type = 'Crisis' THEN 1 ELSE 0 END) as crisis,
-                    AVG(call_duration_min) as avg_duration
-                FROM follow_ups
-                WHERE week_number = @Week
-                  AND volunteer_id IN (
-                      SELECT volunteer_id FROM volunteers WHERE team_lead = @TeamLeadId
-                  );
-            ";
+                                                        SELECT 
+                                                            COUNT(DISTINCT f.person_id) as total_people,
+
+                                                            COUNT(DISTINCT CASE 
+                                                                WHEN f.contact_status = 'Contacted'
+                                                                 AND (
+                                                                        f.response_type != 'No Response'
+                                                                        OR f.next_action = 'Mark Unresponsive'
+                                                                     )
+                                                                THEN f.person_id 
+                                                            END) as completed,
+
+                                                            SUM(CASE WHEN f.response_type = 'Normal' THEN 1 ELSE 0 END) as normal,
+                                                            SUM(CASE WHEN f.response_type = 'Needs Follow-Up' THEN 1 ELSE 0 END) as needs_follow_up,
+                                                            SUM(CASE WHEN f.response_type = 'Crisis' THEN 1 ELSE 0 END) as crisis,
+
+                                                            IFNULL(ROUND(AVG(f.call_duration_min), 2), 0) as avg_duration
+
+                                                        FROM follow_ups f
+                                                        WHERE f.week_number = @Week
+                                                          AND f.volunteer_id IN (
+                                                              SELECT volunteer_id 
+                                                              FROM volunteers 
+                                                              WHERE team_lead = @TeamLeadId
+                                                          );
+                                                    ";
 
                     metrics.TeamPerformance = await connection.QueryFirstOrDefaultAsync<TeamPerformanceDTO>(
                         teamPerformanceQuery,
