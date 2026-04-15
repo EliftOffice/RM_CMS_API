@@ -21,7 +21,7 @@ namespace RM_CMS.Controllers.Peoples
             _logger = logger;
         }
 
-        [HttpPost("/api/people")]        
+        [HttpPost("/api/people")]
         public async Task<ActionResult<ApiResponse<AssignedVolunteerDTO>>> SaveNewVisitor([FromBody] CreatePeopleDto createPeopleDto)
         {
             try
@@ -61,6 +61,8 @@ namespace RM_CMS.Controllers.Peoples
             }
         }
 
+
+
         [HttpGet("/api/people")]
         public async Task<ActionResult<ApiResponse<List<People>>>> GetPeopleAsync([FromQuery] PeoplesFilterDTO filter)
         {
@@ -77,6 +79,49 @@ namespace RM_CMS.Controllers.Peoples
                     ResponseType.Error,
                     "An error occurred while retrieving people",
                     new List<People>()
+                ));
+            }
+        }
+
+
+
+        [HttpGet("/api/GetBasicPeopleAsync")]
+        public async Task<ActionResult<ApiResponse<List<People>>>> GetBasicPeopleAsync()
+        {
+            try
+            {
+                var result = await _peoplesBLL.GetBasicPeopleAsync();
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving person by ID");
+                return StatusCode(500, new ApiResponse<People>(
+                    ResponseType.Error,
+                    "An error occurred while retrieving person",
+                    new People()
+                ));
+            }
+        }
+
+
+        [HttpPut("/api/UpdateVisitor")]
+        public async Task<ActionResult<ApiResponse<People>>> UpdateVisitor([FromBody] CreatePeopleDto updateDto)
+        {
+            try
+            {
+                var result = await _peoplesBLL.UpdateVisitorAsync(updateDto);
+
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating visitor");
+
+                return StatusCode(500, new ApiResponse<People>(
+                    ResponseType.Error,
+                    "An error occurred while updating visitor",
+                    new People()
                 ));
             }
         }

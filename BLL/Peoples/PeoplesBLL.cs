@@ -14,7 +14,9 @@ namespace RM_CMS.BLL.Peoples
         public Task<ApiResponse<People>> SaveNewVisitorAsync(CreatePeopleDto createDto);
         public Task<ApiResponse<AssignedVolunteerDTO>> SaveAndAssignePeople(CreatePeopleDto createDto);
         Task<ApiResponse<People>> GetPersonByIdAsync(string personId);
+        Task<ApiResponse<List<People>>> GetBasicPeopleAsync();
         Task<ApiResponse<List<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter);
+        Task<ApiResponse<People>> UpdateVisitorAsync(CreatePeopleDto updateDto);
     }
     public class PeoplesBLL : IPeoplesBLL
     {
@@ -167,6 +169,34 @@ namespace RM_CMS.BLL.Peoples
                 return new ApiResponse<People>(ResponseType.Error, $"Error retrieving person: {ex.Message}", new People());
             }
         }
+
+
+        public async Task<ApiResponse<List<People>>> GetBasicPeopleAsync()
+        {
+            try
+            {
+                var result = await _peoplesDAL.GetBasicPeopleAsync();
+
+                if (result.ResponseType != ResponseType.Success)
+                {
+                    return new ApiResponse<List<People>>(
+                        ResponseType.Error,
+                        $"Error retrieving people: {result.Message}",
+                        null
+                    );
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<People>>(
+                    ResponseType.Error,
+                    $"Error retrieving people: {ex.Message}",
+                    null
+                );
+            }
+        }
         public async Task<ApiResponse<List<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter)
         {
             try
@@ -200,5 +230,92 @@ namespace RM_CMS.BLL.Peoples
                 );
             }
         }
+
+
+        public async Task<ApiResponse<People>> UpdateVisitorAsync(CreatePeopleDto updateDto)
+        {
+            try
+            {
+                // 1. Mandatory validations
+                if (string.IsNullOrWhiteSpace(updateDto.person_id))
+                {
+                    return new ApiResponse<People>(
+                        ResponseType.Error,
+                        "person_id is required",
+                        new People()
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(updateDto.first_name))
+                {
+                    return new ApiResponse<People>(
+                        ResponseType.Error,
+                        "first_name is required",
+                        new People()
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(updateDto.last_name))
+                {
+                    return new ApiResponse<People>(
+                        ResponseType.Error,
+                        "last_name is required",
+                        new People()
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(updateDto.email) && string.IsNullOrWhiteSpace(updateDto.phone))
+                {
+                    return new ApiResponse<People>(
+                        ResponseType.Error,
+                        "Either email or phone is required",
+                        new People()
+                    );
+                }
+
+                // 2. Map DTO → Entity (direct mapping)
+                var person = new People
+                {
+                    PersonId = updateDto.person_id,
+                    FirstName = updateDto.first_name,
+                    LastName = updateDto.last_name,
+                    Email = updateDto.email,
+                    Phone = updateDto.phone,
+                    AgeRange = updateDto.age_range,
+                    HouseholdType = updateDto.household_type,
+                    ZipCode = updateDto.zip_code,
+                    VisitType = updateDto.visit_type,
+                    ConnectionSource = updateDto.connection_source,
+                    Campus = updateDto.campus,
+                    FollowUpStatus = string.IsNullOrWhiteSpace(updateDto.follow_up_status)
+                        ? "NEW"
+                        : updateDto.follow_up_status,
+                    FollowUpPriority = string.IsNullOrWhiteSpace(updateDto.follow_up_priority)
+                        ? DeterminePriority(updateDto)
+                        : updateDto.follow_up_priority,
+                    InterestedIn = updateDto.interested_in,
+                    PrayerRequests = updateDto.prayer_requests,
+                    SpecificNeeds = updateDto.specific_needs,
+
+                    // Important
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                // 3. Direct DAL call
+                return await _peoplesDAL.UpdatePersonAsync(person);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<People>(
+                    ResponseType.Error,
+                    $"Error updating visitor: {ex.Message}",
+                    new People()
+                );
+            }
+        }
+
+
+
+
     }
 }

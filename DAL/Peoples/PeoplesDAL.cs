@@ -19,6 +19,10 @@ namespace RM_CMS.DAL.Peoples
         Task<ApiResponse<bool>> IncrementVisitCountAsync(string personId);
         Task<ApiResponse<People>> GetPersonByIdAsync(string personId);
         Task<ApiResponse<IEnumerable<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter);
+
+        Task<ApiResponse<List<People>>> GetBasicPeopleAsync();
+
+        Task<ApiResponse<People>> UpdatePersonAsync(People person);
         //Task<ApiResponse<bool>> UpdatePersonAssignmentAsync(string personId, string volunteerId, DateTime nextActionDate);
         //Task<ApiResponse<bool>> UpdateCurrentAssignmentsAsync(string volunteerId);
     }
@@ -462,7 +466,143 @@ WHERE person_id = @PersonId";
             }
         }
 
-       
+
+        public async Task<ApiResponse<List<People>>> GetBasicPeopleAsync()
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+SELECT 
+    person_id AS PersonId,
+    first_name AS FirstName,
+    last_name AS LastName,
+    phone AS Phone,
+follow_up_status AS FollowupStatus,
+next_action_date AS NextActionDate
+FROM people";
+
+                    var people = (await connection.QueryAsync<People>(query)).ToList();
+
+                    if (people == null || !people.Any())
+                    {
+                        return new ApiResponse<List<People>>(
+                            ResponseType.Error,
+                            "No people found",
+                            null
+                        );
+                    }
+
+                    return new ApiResponse<List<People>>(
+                        ResponseType.Success,
+                        "People retrieved successfully",
+                        people
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<People>>(
+                    ResponseType.Error,
+                    $"Error retrieving people: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+
+        public async Task<ApiResponse<People>> UpdatePersonAsync(People person)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+UPDATE people SET
+    first_name = @FirstName,
+    last_name = @LastName,
+    email = @Email,
+    phone = @Phone,
+    age_range = @AgeRange,
+    household_type = @HouseholdType,
+    zip_code = @ZipCode,
+    visit_type = @VisitType,
+    first_visit_date = @FirstVisitDate,
+    last_visit_date = @LastVisitDate,
+    visit_count = @VisitCount,
+    connection_source = @ConnectionSource,
+    campus = @Campus,
+    follow_up_status = @FollowUpStatus,
+    follow_up_priority = @FollowUpPriority,
+    assigned_volunteer = @AssignedVolunteer,
+    assigned_date = @AssignedDate,
+    last_contact_date = @LastContactDate,
+    next_action_date = @NextActionDate,
+    interested_in = @InterestedIn,
+    prayer_requests = @PrayerRequests,
+    specific_needs = @SpecificNeeds,
+    updated_at = @UpdatedAt
+WHERE person_id = @PersonId;
+";
+
+                    var affectedRows = await connection.ExecuteAsync(query, new
+                    {
+                        person.PersonId,
+                        person.FirstName,
+                        person.LastName,
+                        person.Email,
+                        person.Phone,
+                        person.AgeRange,
+                        person.HouseholdType,
+                        person.ZipCode,
+                        person.VisitType,
+                        person.FirstVisitDate,
+                        person.LastVisitDate,
+                        person.VisitCount,
+                        person.ConnectionSource,
+                        person.Campus,
+                        person.FollowUpStatus,
+                        person.FollowUpPriority,
+                        person.AssignedVolunteer,
+                        person.AssignedDate,
+                        person.LastContactDate,
+                        person.NextActionDate,
+                        person.InterestedIn,
+                        person.PrayerRequests,
+                        person.SpecificNeeds,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+
+                    if (affectedRows == 0)
+                    {
+                        return new ApiResponse<People>(
+                            ResponseType.Error,
+                            $"Person with ID '{person.PersonId}' not found",
+                            null
+                        );
+                    }
+
+                    person.UpdatedAt = DateTime.UtcNow;
+
+                    return new ApiResponse<People>(
+                        ResponseType.Success,
+                        "Person updated successfully",
+                        person
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<People>(
+                    ResponseType.Error,
+                    $"Error updating person: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+
 
         //public async Task<ApiResponse<bool>> UpdatePersonAssignmentAsync(string personId, string volunteerId, DateTime nextActionDate)
         //{
@@ -560,6 +700,10 @@ WHERE person_id = @PersonId";
         //        );
         //    }
         //}
+
+
+
+
     }
 
 

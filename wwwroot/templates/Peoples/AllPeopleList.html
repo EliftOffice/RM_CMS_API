@@ -1,0 +1,176 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>All People - RM_CMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../assets/css/styles.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/utils.js"></script>
+    <script src="../assets/js/allpeople.js"></script>
+    <style>
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>All People</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="peopleTable">
+                            <thead>
+                                <tr>
+                                    <th>Person ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Campus</th>
+                                    <th>Status</th>
+                                    <th>Next Action</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal (reuse fields from PeopleEntry) -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Person</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+          <form id="editForm">
+              <input type="hidden" id="person_id">
+              <div class="row">
+                  <div class="col-md-6 mb-3">
+                      <label class="form-label">First Name</label>
+                      <input id="first_name" class="form-control" readonly />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                      <label class="form-label">Last Name</label>
+                      <input id="last_name" class="form-control" readonly />
+                  </div>
+              </div>
+
+              <div class="row">
+                  <div class="col-md-6 mb-3">
+                      <label class="form-label">Email</label>
+                      <input id="email" class="form-control" />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                      <label class="form-label">Phone</label>
+                      <input id="phone" class="form-control" readonly />
+                  </div>
+              </div>
+
+              <div class="row">
+                  <div class="col-md-6 mb-3">
+                      <label class="form-label">Campus</label>
+                      <input id="campus" class="form-control" />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                      <label class="form-label">Visit Type</label>
+                      <select id="visit_type" class="form-select">
+                          <option>First-Time Visitor</option>
+                          <option>Returning Visitor</option>
+                          <option>New Member</option>
+                          <option>Guest</option>
+                      </select>
+                  </div>
+              </div>
+
+              <div class="row">
+                  <div class="col-md-4 mb-3">
+                      <label class="form-label">Follow-up Status</label>
+                      <select id="follow_up_status" class="form-select">
+                          <option>NEW</option>
+                          <option>ASSIGNED</option>
+                          <option>CONTACTED</option>
+                          <option>RETRY PENDING</option>
+                          <option>ESCALATED</option>
+                          <option>COMPLETE</option>
+                          <option>UNRESPONSIVE</option>
+                      </select>
+                  </div>
+                  <div class="col-md-4 mb-3">
+                      <label class="form-label">Priority</label>
+                      <select id="follow_up_priority" class="form-select">
+                          <option>Normal</option>
+                          <option>High</option>
+                          <option>Urgent</option>
+                      </select>
+                  </div>
+                  <div class="col-md-4 mb-3">
+                      <label class="form-label">Assigned Volunteer</label>
+                      <input id="assigned_volunteer" class="form-control" />
+                  </div>
+              </div>
+
+              <div class="form-card no_display">
+                  <div class="form-card-header">
+                      <div class="form-card-icon">❤️</div>
+                      <h2 class="form-card-title">Interested In</h2>
+                  </div>
+                  <div class="form-card-body">
+                      <div class="form-group" style="margin-bottom:0;">
+                          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                              <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+                                  <input class="form-check-input" type="checkbox" value="Membership" id="interest_membership">
+                                  <span>Membership</span>
+                              </label>
+                              <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+                                  <input class="form-check-input" type="checkbox" value="Volunteering" id="interest_volunteering">
+                                  <span>Volunteering</span>
+                              </label>
+                              <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+                                  <input class="form-check-input" type="checkbox" value="Small Groups" id="interest_groups">
+                                  <span>Small Groups</span>
+                              </label>
+                              <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+                                  <input class="form-check-input" type="checkbox" value="Counseling" id="Counseling">
+                                  <span>Counseling</span>
+                              </label>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+           
+              <div class="mb-3">
+                  <label class="form-label">Prayer Requests</label>
+                  <textarea id="prayer_requests" class="form-control" rows="2"></textarea>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label">Specific Needs</label>
+                  <textarea id="specific_needs" class="form-control" rows="2"></textarea>
+              </div>
+          </form>
+        <div id="modalResponse" class="mt-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" id="savePerson" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
