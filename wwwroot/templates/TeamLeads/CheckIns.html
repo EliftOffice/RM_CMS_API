@@ -144,16 +144,19 @@
     <div class="card">
 
         <p id="message"></p>
+        <!-- Hidden IDs -->
+        <input type="hidden" id="volunteer_id" />
+        <input type="hidden" id="team_lead_id" />
 
-        <!-- Meeting Details -->
+        <!-- Visible Names -->
         <div class="form-group">
-            <label>Volunteer ID *</label>
-            <input type="text" id="volunteer_id" placeholder="e.g. V001" />
+            <label for="volunteer_name">Volunteer</label>
+            <input type="text" id="volunteer_name" readonly />
         </div>
 
         <div class="form-group">
-            <label>Team Lead ID *</label>
-            <input type="text" id="team_lead_id" placeholder="e.g. TL001" />
+            <label for="team_lead_name" >Team Lead</label>
+            <input type="text" id="team_lead_name" readonly />
         </div>
 
         <div class="form-group">

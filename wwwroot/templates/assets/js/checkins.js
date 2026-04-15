@@ -1,10 +1,9 @@
-﻿
-function setMessage(text, color) {
+﻿function setMessage(text, color) {
     $("#message").text(text).css("color", color);
 }
 
 function resetForm() {
-    $("#volunteer_id, #team_lead_id, #duration_min, #concerns_noted, #training_needs, #action_items").val("");
+    $("#duration_min, #concerns_noted, #training_needs, #action_items").val("");
     $("#meeting_type").val("Monthly");
     $("#emotional_tone").val("");
     $("#new_capacity_band").val("");
@@ -17,22 +16,45 @@ function resetForm() {
 // ── INIT ──────────────────────────────────────────────────
 $(document).ready(function () {
 
-    // Set today as default check-in date
+    // ✅ GET DATA FROM URL
+    const params = new URLSearchParams(window.location.search);
+
+    const volunteerId = params.get("id");
+    const teamLeadId = params.get("teamLeadId");
+    const volunteerName = params.get("vName");
+    const teamLeadName = params.get("tName");
+
+    // ✅ SET IDs (hidden)
+    if (volunteerId) $("#volunteer_id").val(volunteerId);
+    if (teamLeadId) $("#team_lead_id").val(teamLeadId);
+
+    // ✅ SET NAMES (UI)
+    if (volunteerName) $("#volunteer_name").val(decodeURIComponent(volunteerName));
+    if (teamLeadName) $("#team_lead_name").val(decodeURIComponent(teamLeadName));
+
+    console.log("INIT DATA:", {
+        volunteerId,
+        teamLeadId,
+        volunteerName,
+        teamLeadName
+    });
+
+    // Set today as default
     $("#check_in_date").val(new Date().toISOString().split("T")[0]);
 
-    // Show/hide capacity band when checkbox toggled
+    // Toggle capacity
     $("#capacity_adjustment").on("change", function () {
         $("#capBandWrap").toggle(this.checked);
         if (!this.checked) $("#new_capacity_band").val("");
     });
 
-    // ── SAVE  →  POST /api/check-ins ─────────────────────
+    // ── SAVE ───────────────────────────────────────────────
     $("#saveBtn").click(function () {
         setMessage("", "");
 
         const data = {
-            volunteerId: $("#volunteer_id").val().trim(),
-            teamLeadId: $("#team_lead_id").val().trim(),
+            volunteerId: $("#volunteer_id").val(),   // ✅ ID
+            teamLeadId: $("#team_lead_id").val(),    // ✅ ID
             checkInDate: $("#check_in_date").val() || null,
             durationMin: parseInt($("#duration_min").val()) || null,
             meetingType: $("#meeting_type").val(),
@@ -51,9 +73,8 @@ $(document).ready(function () {
 
         console.log("FINAL DATA:", JSON.stringify(data));
 
-        // Required validation
         if (!data.volunteerId || !data.teamLeadId || !data.emotionalTone) {
-            setMessage("Volunteer ID, Team Lead ID and Emotional Tone are required.", "red");
+            setMessage("Volunteer, Team Lead and Emotional Tone are required.", "red");
             return;
         }
 

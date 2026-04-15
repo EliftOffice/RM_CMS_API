@@ -47,7 +47,6 @@ $(function () {
             error: function (err) {
                 console.error("ERROR FULL:", err);
 
-                // ?? IMPORTANT DEBUG
                 if (err.status === 404) {
                     $("#message").text("API route not found (404)").addClass("error");
                 }
@@ -70,7 +69,7 @@ $(function () {
                     $('#alerts').html('<div class="alert alert-warning">No data</div>');
                     return;
                 }
-                renderMetrics(res.data);
+                renderMetrics(res.data, teamLeadId);
             },
             error: function () {
                 $('#alerts').html('<div class="alert alert-danger">Error loading metrics</div>');
@@ -78,12 +77,10 @@ $(function () {
         });
     }
 
-    function renderMetrics(data) {
-        // Header
+    function renderMetrics(data, teamLeadId) {
         $('#dashboardTitle').text(`TEAM LEAD DASHBOARD - ${data.teamLeadName || data.TeamLeadName || ''}`);
         $('#dashboardSubtitle').text(data.weekOf || data.WeekOf || '');
 
-        // Team Performance
         const tp = data.teamPerformance || data.TeamPerformance;
         $('#teamPerformance').html(`
             <div>Total Follow-ups: <strong>${tp.total_follow_ups}</strong></div>
@@ -94,35 +91,21 @@ $(function () {
             <div>Avg Duration: <strong>${tp.avg_duration}</strong> min</div>
         `);
 
-        // Volunteers (handle different casing)
         const volunteers = data.volunteers || data.Volunteers || [];
         const rows = volunteers.map(v => `
             <tr>
                 <td class='v-name' data-id='${v.VolunteerId || v.volunteerId}'>${v.name || v.Name}</td>
                 <td>${v.capacityBand || v.CapacityBand}</td>
                 <td>${v.thisWeek || v.ThisWeek}</td>
-               
                 <td>${v.trend || v.Trend}</td>
                 <td>${v.flag || v.Flag}</td>
             </tr>
         `).join('');
         $('#volunteersTable tbody').html(rows);
 
-        // Attention
         const attention = data.attentionNeeded || data.AttentionNeeded || [];
         const att = attention.map(a => `<li class="list-group-item">${a.volunteer || a.Volunteer} - ${a.message || a.Message} <span class="badge bg-secondary ms-2">${a.priority || a.Priority}</span></li>`).join('');
         $('#attentionList').html(att);
-
-       
-        // Checkins Section
-    //    const cis = (data.upcomingCheckIns || data.UpcomingCheckIns || [])
-    //        .map(c => `
-    //    <dt>${c.first_name} ${c.last_name}</dt>
-    //    <dd>
-    //        Date: ${new Date(c.next_check_in).toDateString()} <br/>
-    //        Day: ${c.day_of_week}
-    //    </dd>
-    //`).join('');
 
         const cis = (data.upcomingCheckIns || data.UpcomingCheckIns || [])
             .map(c => {
@@ -141,7 +124,12 @@ $(function () {
                 }
 
                 return `
-        <dt class='checkin-ele'  data-id='${c.volunteer_id }' style="cursor:pointer;">
+        <dt class='checkin-ele'  
+            data-id='${c.volunteer_id}' 
+            data-teamLeadId='${teamLeadId}'
+            data-volunteerName='${c.first_name} ${c.last_name}'
+            data-teamLeadName='${data.teamLeadName || data.TeamLeadName}'
+            style="cursor:pointer;">
             ${message}
         </dt>
         <dd>
@@ -151,48 +139,54 @@ $(function () {
             }).join('');
 
         const escalationsData = (data.escalationsPending || data.EscalationsPending || []);
+        const escalations = escalationsData.map(e => {
+            const day = new Date(e.escalationDate)
+                .toLocaleDateString('en-US', { weekday: 'short' });
 
-        const escalations = escalationsData
-            .map(e => {
-                const day = new Date(e.escalationDate)
-                    .toLocaleDateString('en-US', { weekday: 'short' });
+            const reason = e.escalationReason || e.reason || e.description || 'no details';
 
-                const reason = e.escalationReason || e.reason || e.description || 'no details';
-
-                return `
+            return `
             <div class="escalation-item"
                  data-id="${e.escalationId}"
                  style="cursor:pointer; padding:6px; border-radius:5px;">
-                 
                 - ${e.personName} (escalated ${day}, ${reason})
-            
             </div>
         `;
-            })
-            .join('');
+        }).join('');
 
-        // ✅ Count
         const escalationCount = escalationsData.length;
 
-        // Final HTML
         const finalHtml = `
-    <h5>Check-ins</h5>
-    <dl class="mb-3">
-        ${cis || '<dd>No upcoming check-ins</dd>'}
-    </dl>
+        <h5>Check-ins</h5>
+        <dl class="mb-3">
+            ${cis || '<dd>No upcoming check-ins</dd>'}
+        </dl>
 
-    <h5>Escalations Pending</h5>
-    <h6 class="text-muted">
-        ${escalationCount} case${escalationCount !== 1 ? 's' : ''} need Team Lead Follow-up:
-    </h6>
+        <h5>Escalations Pending</h5>
+        <h6 class="text-muted">
+            ${escalationCount} case${escalationCount !== 1 ? 's' : ''} need Team Lead Follow-up:
+        </h6>
 
-    <div>
-        ${escalations || 'No pending escalations'}
-    </div>
-`;
+        <div>
+            ${escalations || 'No pending escalations'}
+        </div>
+        `;
 
-        // Render
         $('#checkinsList').html(finalHtml);
+    }
+
+    $(document).on('click', '.checkin-ele', function () {
+        const id = $(this).data('id');
+        const teamLeadId = $(this).data('teamLeadId');
+        const vName = $(this).data('volunteername');
+        const tName = $(this).data('teamleadname');
+
+        goToCheckIns(id, teamLeadId, vName, tName);
+    });
+
+    function goToCheckIns(id, teamLeadId, vName, tName) {
+        window.location.href =
+            `CheckIns.html?id=${id}&teamLeadId=${teamLeadId}&vName=${encodeURIComponent(vName)}&tName=${encodeURIComponent(tName)}`;
     }
 
     function openEscalation(id) {
@@ -212,16 +206,4 @@ $(function () {
         const id = $(this).data('id');
         openVolunteerDashboard(id);
     });
-
-    $(document).on('click', '.checkin-ele', function () {
-        const id = $(this).data('id');
-        goToCheckIns(id);
-    });
-
-    function goToCheckIns(id) {
-        window.location.href = "CheckIns.html?id="+id;
-    }
-
-
-    
 });
