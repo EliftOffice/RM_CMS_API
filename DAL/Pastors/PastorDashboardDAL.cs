@@ -2,20 +2,21 @@
 using RM_CMS.Data;
 using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Pastors;
-using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
 
 namespace RM_CMS.DAL.Pastors
 {
-    public interface IPastorDashboardDAL
+   public interface IPastorDashboardDAL
     {
         Task<ApiResponse<SystemHealthDTO>> GetSystemHealthAsync();
-        Task<ApiResponse<KPIsDataDTO>> GetKPIsAsync();
+        Task<ApiResponse<KPIDTO>> GetKpisAsync();
         Task<ApiResponse<List<TeamLeadPerformanceDTO>>> GetTeamLeadPerformanceAsync();
-        Task<ApiResponse<PipelineHealthDTO>> GetPipelineHealthAsync();
-        Task<ApiResponse<EscalationMetricsDTO>> GetEscalationMetricsAsync();
+        Task<ApiResponse<List<PipelineHealthDTO>>> GetPipelineHealthAsync();
+        Task<ApiResponse<EscalationSummaryDTO>> GetEscalationsAsync();
+        Task<ApiResponse<List<EscalationReasonDTO>>> GetTopEscalationReasonsAsync();
         Task<ApiResponse<List<TrendDTO>>> GetTrendsAsync();
-
+        Task<ApiResponse<ImpactDTO>> GetImpactAsync();
+        Task<ApiResponse<DevelopmentPipelineDTO>> GetDevelopmentPipelineAsync();
     }
 
     public class PastorDashboardDAL : IPastorDashboardDAL
@@ -27,434 +28,634 @@ namespace RM_CMS.DAL.Pastors
             _dbConnectionFactory = dbConnectionFactory;
         }
 
+        // 1. SYSTEM HEALTH
         public async Task<ApiResponse<SystemHealthDTO>> GetSystemHealthAsync()
         {
             try
             {
-                using (var connection = _dbConnectionFactory.GetConnection())
-                {
-                    // Query to get all system health metrics
-                    const string query = @"
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                const string query = @"
                     SELECT 
-                        -- Active Volunteers
-                        (SELECT COUNT(*) FROM volunteers WHERE status = 'Active') as active_volunteers,
-
-                        -- Active Team Leads
-                        (SELECT COUNT(*) FROM team_leads WHERE status = 'Active') as active_team_leads,
-
-                        -- First-Time Visitors MTD
+                        (SELECT COUNT(*) FROM volunteers WHERE status = 'Active') as ActiveVolunteers,
+                        (SELECT COUNT(*) FROM team_leads WHERE status = 'Active') as ActiveTeamLeads,
                         (SELECT COUNT(*) FROM people 
                          WHERE visit_type = 'First-Time Visitor'
                            AND DATE_FORMAT(first_visit_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-                        ) as first_time_visitors_mtd,
-
-                        -- Follow-Ups Completed MTD
-                        (SELECT COUNT(*) FROM follow_ups 
-                         WHERE contact_status = 'Contacted'
-                           AND DATE_FORMAT(attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-                        ) as follow_ups_completed_mtd,
-
-                        -- System vNPS (average - using vnps_score from volunteer table)
-                        COALESCE((SELECT AVG(vnps_score) FROM volunteers WHERE vnps_score IS NOT NULL), 0) as system_vnps,
-
-                        -- Volunteer Retention (% of volunteers from 3 months ago still active)
-                        COALESCE((SELECT 
-                            (COUNT(CASE WHEN status = 'Active' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0))
+                        ) as VisitorsMTD,
+                        (SELECT COUNT(DISTINCT person_id) FROM follow_ups 
+                        WHERE contact_status = 'Contacted' 
+                        AND DATE_FORMAT(attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m') 
+                        AND (response_type != 'No Response'OR next_action = 'Mark Unresponsive')
+                        ) as FollowUpsCompletedMTD,
+                        (SELECT AVG(vnps_score) FROM vnps_surveys 
+                         WHERE quarter = CONCAT('Q', QUARTER(CURDATE()))
+                           AND year = YEAR(CURDATE())
+                        ) as SystemVNPS,
+                        (SELECT 
+                            (COUNT(CASE WHEN status = 'Active' THEN 1 END) * 100.0 / COUNT(*))
                          FROM volunteers
-                         WHERE start_date <= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)), 0) as volunteer_retention,
-
-                        -- Completion Rate MTD
-                        COALESCE((SELECT 
-                            (SUM(CASE WHEN contact_status = 'Contacted' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0))
-                         FROM follow_ups
-                         WHERE DATE_FORMAT(attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')), 0) as completion_rate_mtd
+                         WHERE start_date <= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+                        ) as VolunteerRetention,
+                        ( SELECT 
+                                COUNT(DISTINCT CASE 
+                                    WHEN contact_status = 'Contacted'
+                                     AND (
+                                            response_type != 'No Response'
+                                            OR next_action = 'Mark Unresponsive'
+                                         )
+                                    THEN person_id 
+                                END
+                                ) * 100.0 
+                                /
+                                COUNT(DISTINCT person_id)
+                            FROM follow_ups
+                            WHERE DATE_FORMAT(attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
+                        ) AS CompletionRateMTD,
+                        (SELECT AVG(TIMESTAMPDIFF(HOUR, p.assigned_date, f.attempt_date) / 24)
+                         FROM follow_ups f
+                         JOIN people p ON f.person_id = p.person_id
+                         WHERE f.attempt_number = 1
+                           AND DATE_FORMAT(f.attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
+                        ) as AvgResponseTimeDays
                 ";
 
-                    var result = await connection.QueryFirstOrDefaultAsync<SystemHealthDTO>(query);
+                var result = await connection.QueryFirstOrDefaultAsync<SystemHealthDTO>(query);
 
-                    if (result == null)
-                        result = new SystemHealthDTO();
-
-                    return new ApiResponse<SystemHealthDTO>(
-                        ResponseType.Success,
-                        "System health metrics retrieved successfully",
-                        result
-                    );
-                }
-            }
-            catch (Exception ex)
-            {
                 return new ApiResponse<SystemHealthDTO>(
-                    ResponseType.Error,
-                    $"Error retrieving system health: {ex.Message}",
-                    null
+                    result != null ? ResponseType.Success : ResponseType.Warning,
+                    result != null ? "System health retrieved successfully" : "No data found",
+                    result ?? new SystemHealthDTO()
                 );
-            }
-        }
-
-        public async Task<ApiResponse<KPIsDataDTO>> GetKPIsAsync()
-        {
-            try
-            {
-                using (var connection = _dbConnectionFactory.GetConnection())
-                {
-                    const string query = @"
-                SELECT 
-                    -- Current Month Completion Rate
-                    COALESCE((
-                        SELECT 
-                            (SUM(CASE WHEN contact_status = 'Contacted' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*),0))
-                        FROM follow_ups
-                        WHERE DATE_FORMAT(attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-                    ), 0) as completion_rate_current,
-
-                    -- Last Month Completion Rate
-                    COALESCE((
-                        SELECT 
-                            (SUM(CASE WHEN contact_status = 'Contacted' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*),0))
-                        FROM follow_ups
-                        WHERE DATE_FORMAT(attempt_date, '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')
-                    ), 0) as completion_rate_last,
-
-                    -- First Contact <48h
-                    COALESCE((
-                        SELECT 
-                            (SUM(CASE 
-                                WHEN TIMESTAMPDIFF(HOUR, p.assigned_date, f.attempt_date) <= 48 
-                                THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*),0))
-                        FROM follow_ups f
-                        JOIN people p ON f.person_id = p.person_id
-                        WHERE f.attempt_number = 1
-                          AND DATE_FORMAT(f.attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-                    ), 0) as first_contact_48h,
-
-                    -- Escalation Rate
-                    COALESCE((
-                        SELECT 
-                            (COUNT(*) * 100.0 / NULLIF((
-                                SELECT COUNT(*) FROM follow_ups 
-                                WHERE DATE_FORMAT(attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-                            ),0))
-                        FROM escalations
-                        WHERE DATE_FORMAT(escalation_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-                    ), 0) as escalation_rate,
-
-                    -- Crisis handled safely
-                    COALESCE((
-                        SELECT 
-                            (SUM(CASE WHEN crisis_protocol_followed = TRUE THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*),0))
-                        FROM escalations
-                        WHERE escalation_tier = 'Emergency'
-                          AND DATE_FORMAT(escalation_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-                    ), 0) as crisis_handled_safely
-            ";
-
-                    var result = await connection.QueryFirstOrDefaultAsync<KPIsDataDTO>(query);
-
-                    if (result == null)
-                        result = new KPIsDataDTO();
-
-                    return new ApiResponse<KPIsDataDTO>(
-                        ResponseType.Success,
-                        "KPIs retrieved successfully",
-                        result
-                    );
-                }
             }
             catch (Exception)
             {
-                return new ApiResponse<KPIsDataDTO>(
+                return new ApiResponse<SystemHealthDTO>(
                     ResponseType.Error,
-                    "Error retrieving KPIs",
-                    null
+                    "Error retrieving system health",
+                    new SystemHealthDTO()
                 );
             }
         }
+
+        // 2. KPIs
+        public async Task<ApiResponse<KPIDTO>> GetKpisAsync()
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                const string query = @"
+                    SELECT 
+
+                        -- ✅ Completion Rate (MTD - PERSON BASED)
+                        (
+                            SELECT 
+                                COUNT(DISTINCT CASE 
+                                    WHEN contact_status = 'Contacted'
+                                     AND (
+                                            response_type != 'No Response'
+                                            OR next_action = 'Mark Unresponsive'
+                                         )
+                                    THEN person_id
+                                END) * 100.0 
+                                / NULLIF(COUNT(DISTINCT person_id), 0)
+                            FROM follow_ups
+                            WHERE attempt_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                              AND attempt_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                        ) as CompletionRateCurrent,
+
+                        -- ✅ Completion Rate (Last Month)
+                        (
+                            SELECT 
+                                COUNT(DISTINCT CASE 
+                                    WHEN contact_status = 'Contacted'
+                                     AND (
+                                            response_type != 'No Response'
+                                            OR next_action = 'Mark Unresponsive'
+                                         )
+                                    THEN person_id
+                                END) * 100.0 
+                                / NULLIF(COUNT(DISTINCT person_id), 0)
+                            FROM follow_ups
+                            WHERE attempt_date >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01')
+                              AND attempt_date < DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                        ) as CompletionRateLast,
+
+                        -- ✅ First Contact <48h (correct)
+                        (
+                            SELECT 
+                                SUM(CASE 
+                                    WHEN TIMESTAMPDIFF(HOUR, p.assigned_date, f.attempt_date) <= 48 THEN 1 
+                                    ELSE 0 
+                                END) * 100.0 
+                                / NULLIF(COUNT(*), 0)
+                            FROM follow_ups f
+                            JOIN people p ON f.person_id = p.person_id
+                            WHERE f.attempt_number = 1
+                              AND f.attempt_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                              AND f.attempt_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                        ) as FirstContact48h,
+
+                        -- ✅ Escalation Rate (MTD)
+                        (
+                            SELECT 
+                                COUNT(*) * 100.0 /
+                                NULLIF((
+                                    SELECT COUNT(*) 
+                                    FROM follow_ups 
+                                    WHERE attempt_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                                      AND attempt_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                                ), 0)
+                            FROM escalations
+                            WHERE escalation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                              AND escalation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                        ) as EscalationRate,
+
+                        -- ✅ Crisis Handled Safely
+                        (
+                            SELECT 
+                                SUM(CASE 
+                                    WHEN crisis_protocol_followed = TRUE THEN 1 
+                                    ELSE 0 
+                                END) * 100.0 
+                                / NULLIF(COUNT(*), 0)
+                            FROM escalations
+                            WHERE escalation_tier = 'Emergency'
+                              AND escalation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                              AND escalation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                        ) as CrisisHandledSafely
+                    ";
+
+                var result = await connection.QueryFirstOrDefaultAsync<KPIDTO>(query);
+
+                return new ApiResponse<KPIDTO>(
+                    result != null ? ResponseType.Success : ResponseType.Warning,
+                    result != null ? "KPI data retrieved successfully" : "No data found",
+                    result ?? new KPIDTO()
+                );
+            }
+            catch (Exception)
+            {
+                return new ApiResponse<KPIDTO>(
+                    ResponseType.Error,
+                    "Error retrieving KPI data",
+                    new KPIDTO()
+                );
+            }
+        }
+
+        // 3. TEAM LEAD PERFORMANCE
         public async Task<ApiResponse<List<TeamLeadPerformanceDTO>>> GetTeamLeadPerformanceAsync()
         {
             try
             {
-                using (var connection = _dbConnectionFactory.GetConnection())
-                {
-                    const string query = @"
-                SELECT 
-                    tl.team_lead_id,
-                    CONCAT(tl.first_name, ' ', tl.last_name) as team_lead_name,
-                    tl.current_volunteers as team_size,
+                using var connection = _dbConnectionFactory.GetConnection();
 
-                    -- Completion Rate
-                    COALESCE((
-                        SELECT 
-                            (SUM(CASE WHEN f.contact_status = 'Contacted' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*),0))
-                        FROM follow_ups f
-                        JOIN volunteers v ON f.volunteer_id = v.volunteer_id
-                        WHERE v.team_lead = tl.team_lead_id
-                          AND DATE_FORMAT(f.attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-                    ),0) as completion_rate,
+                const string query = @"
+                                    SELECT 
+                                        tl.team_lead_id AS TeamLeadId,
+                                        CONCAT(tl.first_name, ' ', tl.last_name) AS TeamLeadName,
+                                        tl.current_volunteers AS TeamSize,
 
-                    -- Team vNPS
-                    COALESCE((
-                        SELECT AVG(vn.vnps_score)
-                        FROM vnps_surveys vn
-                        JOIN volunteers v ON vn.volunteer_id = v.volunteer_id
-                        WHERE v.team_lead = tl.team_lead_id
-                          AND vn.quarter = CONCAT('Q', QUARTER(CURDATE()))
-                          AND vn.year = YEAR(CURDATE())
-                    ),0) as team_vnps,
+                                        -- ✅ Completion Rate (PERSON-BASED LOGIC)
+                                        (
+                                            SELECT 
+                                                COUNT(DISTINCT CASE 
+                                                    WHEN f.contact_status = 'Contacted'
+                                                     AND (
+                                                            f.response_type != 'No Response'
+                                                            OR f.next_action = 'Mark Unresponsive'
+                                                         )
+                                                    THEN f.person_id
+                                                END) * 100.0 
+                                                / NULLIF(COUNT(DISTINCT f.person_id), 0)
+                                            FROM follow_ups f
+                                            JOIN volunteers v ON f.volunteer_id = v.volunteer_id
+                                            WHERE v.team_lead = tl.team_lead_id
+                                              AND f.attempt_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                                              AND f.attempt_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                                        ) AS CompletionRate,
 
-                    -- Retention
-                    COALESCE((
-                        SELECT 
-                            (COUNT(CASE WHEN v.status = 'Active' THEN 1 END) * 100.0 / NULLIF(COUNT(*),0))
-                        FROM volunteers v
-                        WHERE v.team_lead = tl.team_lead_id
-                          AND v.start_date <= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
-                    ),0) as retention_rate
+                                        -- ✅ Team vNPS (NULL SAFE)
+                                        (
+                                            SELECT IFNULL(ROUND(AVG(vn.vnps_score), 0), 0)
+                                            FROM vnps_surveys vn
+                                            JOIN volunteers v ON vn.volunteer_id = v.volunteer_id
+                                            WHERE v.team_lead = tl.team_lead_id
+                                        ) AS TeamVNPS,
 
-                FROM team_leads tl
-                WHERE tl.status = 'Active'
-                ORDER BY completion_rate DESC;
-            ";
+                                        -- ✅ Retention Rate (SAFE DIVISION)
+                                        (
+                                            SELECT 
+                                                COUNT(CASE WHEN v.status = 'Active' THEN 1 END) * 100.0 
+                                                / NULLIF(COUNT(*), 0)
+                                            FROM volunteers v
+                                            WHERE v.team_lead = tl.team_lead_id
+                                        ) AS RetentionRate
 
-                    var result = (await connection.QueryAsync<TeamLeadPerformanceDTO>(query)).ToList();
+                                    FROM team_leads tl
+                                    WHERE tl.status = 'Active';
+                                    ";
 
-                    // Flag logic
-                    foreach (var tl in result)
-                    {
-                        int belowTargetCount =
-                            (tl.completion_rate < 85 ? 1 : 0) +
-                            (tl.team_vnps < 50 ? 1 : 0) +
-                            (tl.retention_rate < 90 ? 1 : 0);
+                var result = (await connection.QueryAsync<TeamLeadPerformanceDTO>(query)).ToList();
 
-                        tl.below_target_count = belowTargetCount;
-
-                        if (belowTargetCount >= 2) tl.flag = "🔴";
-                        else if (belowTargetCount == 1) tl.flag = "🟡";
-                        else tl.flag = "🟢";
-                    }
-
-                    return new ApiResponse<List<TeamLeadPerformanceDTO>>(
-                        ResponseType.Success,
-                        "Team lead performance retrieved",
-                        result
-                    );
-                }
+                return new ApiResponse<List<TeamLeadPerformanceDTO>>(
+                    result.Any() ? ResponseType.Success : ResponseType.Warning,
+                    result.Any() ? "Team lead performance retrieved" : "No data found",
+                    result
+                );
             }
             catch (Exception)
             {
                 return new ApiResponse<List<TeamLeadPerformanceDTO>>(
                     ResponseType.Error,
                     "Error retrieving team lead performance",
-                    null
+                    new List<TeamLeadPerformanceDTO>()
                 );
             }
         }
 
-        public async Task<ApiResponse<PipelineHealthDTO>> GetPipelineHealthAsync()
+        // 4. PIPELINE HEALTH
+        public async Task<ApiResponse<List<PipelineHealthDTO>>> GetPipelineHealthAsync()
         {
             try
             {
-                using (var connection = _dbConnectionFactory.GetConnection())
-                {
-                    const string query = @"
-                SELECT 
-                    follow_up_status,
-                    COUNT(*) as count,
-                    AVG(DATEDIFF(CURDATE(), 
-                        CASE 
-                            WHEN follow_up_status = 'NEW' THEN created_at
-                            WHEN follow_up_status = 'ASSIGNED' THEN assigned_date
-                            ELSE last_contact_date
-                        END
-                    )) as avg_days_in_stage
-                FROM people
-                WHERE DATE_FORMAT(first_visit_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-                GROUP BY follow_up_status;
-            ";
+                using var connection = _dbConnectionFactory.GetConnection();
 
-                    var data = (await connection.QueryAsync<PipelineStageDTO>(query)).ToList();
+                const string query = @"
+                    SELECT 
+                        follow_up_status as FollowUpStatus,
+                        COUNT(*) as Count,
+                        AVG(DATEDIFF(CURDATE(), created_at)) as AvgDaysInStage
+                    FROM people
+                    GROUP BY follow_up_status
+                ";
 
-                    var totalVisitors = data.Sum(x => x.count);
+                var result = (await connection.QueryAsync<PipelineHealthDTO>(query)).ToList();
 
-                    foreach (var stage in data)
-                    {
-                        stage.percentage = totalVisitors == 0 ? 0 :
-                            Math.Round((stage.count * 100.0) / totalVisitors, 0);
-                    }
-
-                    // Success rate (COMPLETE)
-                    var contacted = data.FirstOrDefault(x => x.follow_up_status == "COMPLETE")?.count ?? 0;
-                    var successRate = totalVisitors == 0 ? 0 :
-                        Math.Round((contacted * 100.0) / totalVisitors, 0);
-
-                    var result = new PipelineHealthDTO
-                    {
-                        Stages = data,
-                        SuccessRate = successRate
-                    };
-
-                    return new ApiResponse<PipelineHealthDTO>(
-                        ResponseType.Success,
-                        "Pipeline health retrieved",
-                        result
-                    );
-                }
+                return new ApiResponse<List<PipelineHealthDTO>>(
+                    result.Any() ? ResponseType.Success : ResponseType.Warning,
+                    "Pipeline health retrieved",
+                    result
+                );
             }
             catch (Exception)
             {
-                return new ApiResponse<PipelineHealthDTO>(
+                return new ApiResponse<List<PipelineHealthDTO>>(
                     ResponseType.Error,
                     "Error retrieving pipeline health",
-                    null
+                    new List<PipelineHealthDTO>()
                 );
             }
         }
 
-        public async Task<ApiResponse<EscalationMetricsDTO>> GetEscalationMetricsAsync()
+        // 5. ESCALATIONS
+        public async Task<ApiResponse<EscalationSummaryDTO>> GetEscalationsAsync()
         {
             try
             {
-                using (var connection = _dbConnectionFactory.GetConnection())
-                {
-                    // 1. Main Escalation Metrics
-                    const string mainQuery = @"
-                SELECT 
-                    COUNT(*) as total_escalations,
+                using var connection = _dbConnectionFactory.GetConnection();
 
-                    SUM(CASE WHEN escalation_tier = 'Standard' THEN 1 ELSE 0 END) as standard_count,
-                    SUM(CASE WHEN escalation_tier = 'Urgent' THEN 1 ELSE 0 END) as urgent_count,
-                    SUM(CASE WHEN escalation_tier = 'Emergency' THEN 1 ELSE 0 END) as emergency_count,
+                const string query = @"
+            SELECT 
+                -- Totals
+                COUNT(*) as TotalEscalations,
+                SUM(CASE WHEN escalation_tier = 'Standard' THEN 1 ELSE 0 END) as StandardCount,
+                SUM(CASE WHEN escalation_tier = 'Urgent' THEN 1 ELSE 0 END) as UrgentCount,
+                SUM(CASE WHEN escalation_tier = 'Emergency' THEN 1 ELSE 0 END) as EmergencyCount,
 
-                    AVG(CASE WHEN escalation_tier = 'Standard' 
-                        THEN TIMESTAMPDIFF(HOUR, escalation_date, COALESCE(resolved_date, CURDATE())) / 24 
-                    END) as avg_resolution_standard,
+                -- Resolution Times (days)
+                AVG(CASE 
+                    WHEN escalation_tier = 'Standard' 
+                    THEN TIMESTAMPDIFF(HOUR, escalation_date, COALESCE(resolved_date, NOW())) / 24 
+                END) as AvgResolutionStandard,
 
-                    AVG(CASE WHEN escalation_tier = 'Urgent' 
-                        THEN TIMESTAMPDIFF(HOUR, escalation_date, COALESCE(resolved_date, CURDATE())) / 24 
-                    END) as avg_resolution_urgent,
+                AVG(CASE 
+                    WHEN escalation_tier = 'Urgent' 
+                    THEN TIMESTAMPDIFF(HOUR, escalation_date, COALESCE(resolved_date, NOW())) / 24 
+                END) as AvgResolutionUrgent,
 
-                    SUM(CASE WHEN status IN ('New','In Progress') AND escalation_tier = 'Standard' THEN 1 ELSE 0 END) as pending_standard,
-                    SUM(CASE WHEN status IN ('New','In Progress') AND escalation_tier = 'Urgent' THEN 1 ELSE 0 END) as pending_urgent,
-                    SUM(CASE WHEN status IN ('New','In Progress') AND escalation_tier = 'Emergency' THEN 1 ELSE 0 END) as pending_emergency
+                -- Pending
+                SUM(CASE 
+                    WHEN status IN ('New','In Progress') AND escalation_tier = 'Standard' 
+                    THEN 1 ELSE 0 
+                END) as PendingStandard,
 
-                FROM escalations
-                WHERE DATE_FORMAT(escalation_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m');
-            ";
+                SUM(CASE 
+                    WHEN status IN ('New','In Progress') AND escalation_tier = 'Urgent' 
+                    THEN 1 ELSE 0 
+                END) as PendingUrgent,
 
-                    var metrics = await connection.QueryFirstOrDefaultAsync<EscalationMetricsDTO>(mainQuery);
+                SUM(CASE 
+                    WHEN status IN ('New','In Progress') AND escalation_tier = 'Emergency' 
+                    THEN 1 ELSE 0 
+                END) as PendingEmergency
 
-                    if (metrics == null)
-                        metrics = new EscalationMetricsDTO();
+            FROM escalations
+            WHERE escalation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+              AND escalation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01');
+        ";
 
-                    // 2. Top Reasons
-                    const string reasonQuery = @"
-                SELECT 
-                    escalation_reason,
-                    COUNT(*) as count
-                FROM escalations
-                WHERE DATE_FORMAT(escalation_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-                GROUP BY escalation_reason
-                ORDER BY count DESC
-                LIMIT 5;
-            ";
+                var result = await connection.QueryFirstOrDefaultAsync<EscalationSummaryDTO>(query);
 
-                    var reasons = (await connection.QueryAsync<EscalationReasonDTO>(reasonQuery)).ToList();
-
-                    metrics.top_reasons = reasons;
-
-                    return new ApiResponse<EscalationMetricsDTO>(
-                        ResponseType.Success,
-                        "Escalation metrics retrieved",
-                        metrics
-                    );
-                }
+                return new ApiResponse<EscalationSummaryDTO>(
+                    ResponseType.Success,
+                    "Escalation summary retrieved",
+                    result ?? new EscalationSummaryDTO()
+                );
             }
             catch (Exception)
             {
-                return new ApiResponse<EscalationMetricsDTO>(
+                return new ApiResponse<EscalationSummaryDTO>(
                     ResponseType.Error,
-                    "Error retrieving escalation metrics",
-                    null
+                    "Error retrieving escalations",
+                    new EscalationSummaryDTO()
                 );
             }
         }
+
+        // 6. TOP ESCALATION REASONS       
+        public async Task<ApiResponse<List<EscalationReasonDTO>>> GetTopEscalationReasonsAsync()
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                const string query = @"
+            SELECT 
+                escalation_reason as Reason, 
+                COUNT(*) as Count
+            FROM escalations
+            WHERE escalation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+              AND escalation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+            GROUP BY escalation_reason
+            ORDER BY Count DESC
+            LIMIT 5;
+        ";
+
+                var result = (await connection.QueryAsync<EscalationReasonDTO>(query)).ToList();
+
+                return new ApiResponse<List<EscalationReasonDTO>>(
+                    ResponseType.Success,
+                    "Top escalation reasons retrieved",
+                    result
+                );
+            }
+            catch (Exception)
+            {
+                return new ApiResponse<List<EscalationReasonDTO>>(
+                    ResponseType.Error,
+                    "Error retrieving escalation reasons",
+                    new List<EscalationReasonDTO>()
+                );
+            }
+        }
+
+        // 7. TRENDS
         public async Task<ApiResponse<List<TrendDTO>>> GetTrendsAsync()
         {
             try
             {
-                using (var connection = _dbConnectionFactory.GetConnection())
-                {
-                    const string query = @"
-                SELECT 
-                    DATE_FORMAT(month_date, '%b') as month_name,
+                using var connection = _dbConnectionFactory.GetConnection();
 
-                    -- Visitors
-                    COALESCE((
-                        SELECT COUNT(*) FROM people 
-                        WHERE visit_type = 'First-Time Visitor'
-                          AND DATE_FORMAT(first_visit_date, '%Y-%m') = DATE_FORMAT(month_date, '%Y-%m')
-                    ),0) as visitors,
+                const string query = @"
+            SELECT 
+                DATE_FORMAT(month_date, '%b') as MonthName,
 
-                    -- Completion Rate
-                    COALESCE((
-                        SELECT 
-                            (SUM(CASE WHEN contact_status = 'Contacted' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*),0))
-                        FROM follow_ups
-                        WHERE DATE_FORMAT(attempt_date, '%Y-%m') = DATE_FORMAT(month_date, '%Y-%m')
-                    ),0) as completion_rate,
+                -- First-Time Visitors
+                (
+                    SELECT COUNT(*) 
+                    FROM people 
+                    WHERE visit_type = 'First-Time Visitor'
+                      AND DATE_FORMAT(first_visit_date, '%Y-%m') = DATE_FORMAT(month_date, '%Y-%m')
+                ) as Visitors,
 
-                    -- vNPS
-                    COALESCE((
-                        SELECT AVG(vnps_score) FROM vnps_surveys 
-                        WHERE quarter = CONCAT('Q', QUARTER(month_date))
-                          AND year = YEAR(month_date)
-                    ),0) as vnps,
+                -- Completion Rate 
+                (
+                    SELECT 
+                        COUNT(DISTINCT CASE 
+                            WHEN contact_status = 'Contacted'
+                             AND (
+                                    response_type != 'No Response'
+                                    OR next_action = 'Mark Unresponsive'
+                                 )
+                            THEN person_id
+                        END) * 100.0
+                        / NULLIF(COUNT(DISTINCT person_id), 0)
+                    FROM follow_ups
+                    WHERE attempt_date >= DATE_FORMAT(month_date, '%Y-%m-01')
+                      AND attempt_date < DATE_FORMAT(DATE_ADD(month_date, INTERVAL 1 MONTH), '%Y-%m-01')
+                ) as CompletionRate,
 
-                    -- Volunteer Count
-                    COALESCE((
-                        SELECT COUNT(*) FROM volunteers 
-                        WHERE status = 'Active'
-                          AND start_date <= LAST_DAY(month_date)
-                          AND (end_date IS NULL OR end_date > LAST_DAY(month_date))
-                    ),0) as volunteer_count,
+                -- vNPS
+                (
+                    SELECT IFNULL(ROUND(AVG(vnps_score),0),0)
+                    FROM vnps_surveys 
+                    WHERE quarter = CONCAT('Q', QUARTER(month_date))
+                      AND year = YEAR(month_date)
+                ) as VNPS,
 
-                    -- Crisis Count
-                    COALESCE((
-                        SELECT COUNT(*) FROM escalations 
-                        WHERE escalation_tier = 'Emergency'
-                          AND DATE_FORMAT(escalation_date, '%Y-%m') = DATE_FORMAT(month_date, '%Y-%m')
-                    ),0) as crisis_count,
+                -- Volunteer Count
+                (
+                    SELECT COUNT(*) 
+                    FROM volunteers 
+                    WHERE status = 'Active'
+                      AND start_date <= LAST_DAY(month_date)
+                      AND (end_date IS NULL OR end_date > LAST_DAY(month_date))
+                ) as VolunteerCount,
 
-                    -- Turnover
-                    COALESCE((
-                        SELECT COUNT(*) FROM volunteers 
-                        WHERE status = 'Exited'
-                          AND DATE_FORMAT(end_date, '%Y-%m') = DATE_FORMAT(month_date, '%Y-%m')
-                    ),0) as turnover_count
+                -- Crisis Cases
+                (
+                    SELECT COUNT(*) 
+                    FROM escalations 
+                    WHERE escalation_tier = 'Emergency'
+                      AND escalation_date >= DATE_FORMAT(month_date, '%Y-%m-01')
+                      AND escalation_date < DATE_FORMAT(DATE_ADD(month_date, INTERVAL 1 MONTH), '%Y-%m-01')
+                ) as CrisisCount,
 
-                FROM (
-                    SELECT DATE_SUB(CURDATE(), INTERVAL 2 MONTH) as month_date
-                    UNION SELECT DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
-                    UNION SELECT CURDATE()
-                ) months
-                ORDER BY month_date;
-            ";
+                -- Turnover
+                (
+                    SELECT COUNT(*) 
+                    FROM volunteers 
+                    WHERE status = 'Exited'
+                      AND end_date >= DATE_FORMAT(month_date, '%Y-%m-01')
+                      AND end_date < DATE_FORMAT(DATE_ADD(month_date, INTERVAL 1 MONTH), '%Y-%m-01')
+                ) as TurnoverCount
 
-                    var result = (await connection.QueryAsync<TrendDTO>(query)).ToList();
+            FROM (
+                SELECT DATE_SUB(CURDATE(), INTERVAL 2 MONTH) as month_date
+                UNION
+                SELECT DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+                UNION
+                SELECT CURDATE()
+            ) months
+            ORDER BY month_date;
+        ";
 
-                    return new ApiResponse<List<TrendDTO>>(
-                        ResponseType.Success,
-                        "Trend data retrieved",
-                        result
-                    );
-                }
+                var result = (await connection.QueryAsync<TrendDTO>(query)).ToList();
+
+                return new ApiResponse<List<TrendDTO>>(
+                    ResponseType.Success,
+                    "Trends retrieved",
+                    result
+                );
             }
             catch (Exception)
             {
                 return new ApiResponse<List<TrendDTO>>(
                     ResponseType.Error,
                     "Error retrieving trends",
-                    null
+                    new List<TrendDTO>()
+                );
+            }
+        }
+
+        public async Task<ApiResponse<ImpactDTO>> GetImpactAsync()
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                const string query = @"
+            SELECT 
+                -- Total Conversations (ONLY CONTACTED)
+                COUNT(*) as TotalConversations,
+
+                -- Small Group Connections
+                (
+                    SELECT COUNT(*) 
+                    FROM notes 
+                    WHERE entity_type = 'Follow-Up'
+                      AND (
+                            note_text LIKE '%small group%' 
+                            OR tags LIKE '%small-group%'
+                          )
+                      AND created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                      AND created_at < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                ) as SmallGroupConnections,
+
+                -- Prayer Requests
+                (
+                    SELECT COUNT(*) 
+                    FROM people 
+                    WHERE prayer_requests IS NOT NULL 
+                      AND prayer_requests != ''
+                      AND first_visit_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                      AND first_visit_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                ) as PrayerCount,
+
+                -- Benevolence Connections
+                (
+                    SELECT COUNT(*) 
+                    FROM escalations 
+                    WHERE escalation_reason = 'Financial Crisis'
+                      AND escalation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                      AND escalation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                ) as BenevolenceCount,
+
+                -- Counseling Referrals
+                (
+                    SELECT COUNT(*) 
+                    FROM escalations 
+                    WHERE outcome = 'Counseling Referral'
+                      AND escalation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                      AND escalation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                ) as CounselingCount,
+
+                -- Serve Team Connections
+                (
+                    SELECT COUNT(*) 
+                    FROM notes 
+                    WHERE entity_type = 'Follow-Up'
+                      AND (
+                            note_text LIKE '%serving%' 
+                            OR tags LIKE '%serve%'
+                          )
+                      AND created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                      AND created_at < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                ) as ServeConnections
+
+            FROM follow_ups
+            WHERE contact_status = 'Contacted'
+              AND attempt_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+              AND attempt_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01');
+        ";
+
+                var result = await connection.QueryFirstOrDefaultAsync<ImpactDTO>(query);
+
+                return new ApiResponse<ImpactDTO>(
+                    ResponseType.Success,
+                    "Impact data retrieved",
+                    result ?? new ImpactDTO()
+                );
+            }
+            catch (Exception)
+            {
+                return new ApiResponse<ImpactDTO>(
+                    ResponseType.Error,
+                    "Error retrieving impact data",
+                    new ImpactDTO()
+                );
+            }
+        }
+
+        // 9. DEVELOPMENT PIPELINE
+        public async Task<ApiResponse<DevelopmentPipelineDTO>> GetDevelopmentPipelineAsync()
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                const string query = @"
+                                    SELECT 
+                                        -- Level 0
+                                        (SELECT COUNT(*) 
+                                         FROM volunteers 
+                                         WHERE level = 'Level 0') as Level0,
+
+                                        -- Level 1 Active
+                                        (SELECT COUNT(*) 
+                                         FROM volunteers 
+                                         WHERE level = 'Level 1' 
+                                           AND status = 'Active') as Level1Active,
+
+                                        -- Level 1 Care Path
+                                        (SELECT COUNT(*) 
+                                         FROM volunteers 
+                                         WHERE level = 'Level 1' 
+                                           AND status = 'Care Path') as Level1CarePath,
+
+                                        -- Promotion Ready
+                                        (SELECT COUNT(*) 
+                                         FROM volunteers 
+                                         WHERE level = 'Level 1'
+                                           AND status = 'Active'
+                                           AND DATEDIFF(CURDATE(), start_date) >= 180
+                                           AND completion_rate >= 85
+                                        ) as PromotionReady,
+
+                                        -- Level 2
+                                        (SELECT COUNT(*) 
+                                         FROM volunteers 
+                                         WHERE level = 'Level 2' 
+                                           AND status = 'Active') as Level2
+                                ";
+
+                var result = await connection.QueryFirstOrDefaultAsync<DevelopmentPipelineDTO>(query);
+
+                return new ApiResponse<DevelopmentPipelineDTO>(
+                    ResponseType.Success,
+                    "Development pipeline retrieved",
+                    result ?? new DevelopmentPipelineDTO()
+                );
+            }
+            catch (Exception)
+            {
+                return new ApiResponse<DevelopmentPipelineDTO>(
+                    ResponseType.Error,
+                    "Error retrieving development pipeline",
+                    new DevelopmentPipelineDTO()
                 );
             }
         }
