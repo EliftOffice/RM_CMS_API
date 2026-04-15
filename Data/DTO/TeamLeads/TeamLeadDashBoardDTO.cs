@@ -158,4 +158,17 @@
         public int crisis_count { get; set; }
         public int turnover_count { get; set; }
     }
+
+    public class TeamHuddleFollowUpDTO
+    {
+        public string VolunteerId { get; set; }
+        public string PersonId { get; set; }
+        public string PersonFirstName { get; set; }
+        public string PersonLastName { get; set; }
+        public string FollowUpId { get; set; }
+        public string ContactStatus { get; set; }
+        public string ResponseType { get; set; }
+        public DateTime AttemptDate { get; set; }
+        public string? Notes { get; set; }
+    }
 }

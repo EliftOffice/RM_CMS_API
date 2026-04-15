@@ -2,14 +2,14 @@
 using RM_CMS.Data;
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
-using System.Data;
 using System.Globalization;
+using RM_CMS.Data.Models;
 
 namespace RM_CMS.DAL.TeamLeads
 {
     public interface ITeamLeadDashBoardDAL
     {
-        Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsyncV1(string teamLeadId);
+        Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsync(string teamLeadId);
 
 
         Task<(int Green, int Yellow, int Red)> GetThresholdsAsync();
@@ -28,6 +28,10 @@ namespace RM_CMS.DAL.TeamLeads
         //Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsync(string teamLeadId);
 
         Task<ApiResponse<bool>> SaveTeamLeadAsync(TeamLeadDTO teamLead);
+
+        Task<ApiResponse<IEnumerable<FollowUp>>> GetTeamHuddleFollowUpsAsync(string teamLeadId, int? week = null);
+
+        Task<ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>> GetTeamHuddleFollowUpsDtoAsync(string teamLeadId, int? week = null);
     }
 
     public class TeamLeadDashBoardDAL : ITeamLeadDashBoardDAL
@@ -38,7 +42,7 @@ namespace RM_CMS.DAL.TeamLeads
         {
             _dbConnectionFactory = dbConnectionFactory;
         }
-        public async Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsyncV1(string teamLeadId)
+        public async Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsync(string teamLeadId)
         {
             try
             {
@@ -569,5 +573,65 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
         }
 
 
+        public async Task<ApiResponse<IEnumerable<FollowUp>>> GetTeamHuddleFollowUpsAsync(string teamLeadId, int? week = null)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                var targetWeek = week ?? ISOWeek.GetWeekOfYear(DateTime.Now);
+
+                const string query = @"
+                    SELECT f.*
+                    FROM follow_ups f
+                    WHERE f.week_number = @Week
+                      AND f.volunteer_id IN (
+                        SELECT volunteer_id FROM volunteers WHERE team_lead = @TeamLeadId
+                      )
+                    ORDER BY f.volunteer_id, f.attempt_date DESC, f.attempt_time DESC
+                ";
+
+                var list = await connection.QueryAsync<FollowUp>(query, new { Week = targetWeek, TeamLeadId = teamLeadId });
+
+                return new ApiResponse<IEnumerable<FollowUp>>(ResponseType.Success, "Team huddle follow-ups retrieved", list);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<IEnumerable<FollowUp>>(ResponseType.Error, $"Error retrieving team huddle follow-ups: {ex.Message}", null);
+            }
+        }
+
+        public async Task<ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>> GetTeamHuddleFollowUpsDtoAsync(string teamLeadId, int? week = null)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                var targetWeek = week ?? ISOWeek.GetWeekOfYear(DateTime.Now);
+
+                const string q = @"
+                SELECT f.follow_up_id FollowUpId, f.person_id PersonId, p.first_name PersonFirstName, p.last_name PersonLastName,
+                       f.volunteer_id VolunteerId, f.contact_status ContactStatus, f.response_type ResponseType,
+                       f.attempt_date AttemptDate, f.notes Notes
+                FROM follow_ups f
+                JOIN people p ON p.person_id = f.person_id
+                WHERE f.week_number = @Week
+                  AND f.volunteer_id IN (
+                        SELECT volunteer_id FROM volunteers WHERE team_lead = @TeamLeadId
+                      )
+                ORDER BY f.volunteer_id, f.attempt_date DESC, f.attempt_time DESC
+                ";
+
+                var list = await connection.QueryAsync<TeamHuddleFollowUpDTO>(q, new { Week = targetWeek, TeamLeadId = teamLeadId });
+
+                return new ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>(ResponseType.Success, "Team huddle follow-ups retrieved", list);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>(ResponseType.Error, $"Error retrieving team huddle follow-ups DTO: {ex.Message}", null);
+            }
+        }
+
+        // rest of class unchanged...
     }
 }

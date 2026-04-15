@@ -3,6 +3,13 @@ $(function () {
         const teamLeadId = $('#teamLeadId').val();
         if (!teamLeadId) { alert('Enter team lead id'); return; }
         loadMetrics(teamLeadId);
+        // show huddle button if today is Friday
+        const today = new Date();
+        if (today.getDay() === 5) { // Friday (0=Sun,5=Fri)
+            $('#teamHuddleBtn').show();
+        } else {
+            $('#teamHuddleBtn').hide();
+        }
     });
 
     //----TeamLeads Screen
@@ -205,5 +212,38 @@ $(function () {
     $(document).on('click', '.v-name', function () {
         const id = $(this).data('id');
         openVolunteerDashboard(id);
+    });
+
+    $(document).on('click', '#teamHuddleBtn', function () {
+        const teamLeadId = $('#teamLeadId').val();
+        if (!teamLeadId) return alert('TeamLeadId required');
+        // call DTO endpoint to get rich data
+        $.ajax({
+            url: API_BASE_URL + '/TeamLeadDashBoards/team-huddle/dto?teamLeadId=' + encodeURIComponent(teamLeadId),
+            method: 'GET',
+            success: function (res) {
+                if (!res || !res.data) {
+                    $('#huddleTable tbody').html('<tr><td colspan="8">No data</td></tr>');
+                } else {
+                    const rows = res.data.map(r => `
+                        <tr>
+                            <td>${r.volunteerId || r.VolunteerId}</td>
+                            <td>${r.personId || r.PersonId}</td>
+                            <td>${r.personFirstName || r.PersonFirstName} ${r.personLastName || r.PersonLastName}</td>
+                            <td>${r.followUpId || r.FollowUpId}</td>
+                            <td>${r.contactStatus || r.ContactStatus}</td>
+                            <td>${r.responseType || r.ResponseType}</td>
+                            <td>${new Date(r.attemptDate || r.AttemptDate).toLocaleString()}</td>
+                            <td>${r.notes || r.Notes || ''}</td>
+                        </tr>
+                    `).join('');
+                    $('#huddleTable tbody').html(rows);
+                }
+
+                var modal = new bootstrap.Modal(document.getElementById('teamHuddleModal'));
+                modal.show();
+            },
+            error: function () { alert('Error loading team huddle follow-ups'); }
+        });
     });
 });

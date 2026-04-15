@@ -10,7 +10,7 @@ namespace RM_CMS.DAL.TeamLeads
     {
         Task<ApiResponse<string>> CreateCheckInAsync(CreateCheckInDTO dto);
     }
-    public class CheckInDAL: ICheckInDAL
+    public class CheckInDAL : ICheckInDAL
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
         public CheckInDAL(IDbConnectionFactory dbConnectionFactory)
@@ -70,12 +70,14 @@ namespace RM_CMS.DAL.TeamLeads
             NOW()
         );";
 
+                var checkInDate = dto.CheckInDate ?? DateTime.UtcNow;
+                var nextCheckInDate = checkInDate.AddDays(30);
                 await connection.ExecuteAsync(insertQuery, new
                 {
                     CheckInId = checkInId,
                     dto.VolunteerId,
                     dto.TeamLeadId,
-                    CheckInDate = dto.CheckInDate ?? DateTime.UtcNow,
+                    CheckInDate = checkInDate,
                     dto.DurationMin,
                     MeetingType = dto.MeetingType ?? "Monthly",
                     dto.EmotionalTone,
@@ -87,7 +89,7 @@ namespace RM_CMS.DAL.TeamLeads
                     dto.BoundaryIssues,
                     dto.TrainingNeeds,
                     dto.ActionItems,
-                    dto.NextCheckInDate
+                    nextCheckInDate
                 }, transaction);
 
                 // 🔹 3. Update volunteer
@@ -101,7 +103,7 @@ namespace RM_CMS.DAL.TeamLeads
                 await connection.ExecuteAsync(updateVolunteerQuery, new
                 {
                     CheckInDate = dto.CheckInDate ?? DateTime.UtcNow,
-                    dto.NextCheckInDate,
+                    nextCheckInDate,
                     dto.EmotionalTone,
                     dto.VolunteerId
                 }, transaction);

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using RM_CMS.BLL.TeamLeads;
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
+using RM_CMS.Data.Models; // FollowUp model
 
 namespace RM_CMS.Controllers.TeamLeads
 {
@@ -44,6 +45,42 @@ namespace RM_CMS.Controllers.TeamLeads
             }
         }
 
+        [HttpGet("team-huddle")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<FollowUp>>>> GetTeamHuddleFollowUps([FromQuery] string teamLeadId, [FromQuery] int? week)
+        {
+            try
+            {
+                _logger.LogInformation("Fetching team huddle follow-ups for TeamLead: {TeamLeadId} week: {Week}", teamLeadId, week);
+
+                var result = await _bll.GetTeamHuddleFollowUpsAsync(teamLeadId, week);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching team huddle follow-ups");
+
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<IEnumerable<FollowUp>>(ResponseType.Error, "Error retrieving follow-ups", null));
+            }
+        }
+
+        [HttpGet("team-huddle/dto")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>>> GetTeamHuddleFollowUpsDto([FromQuery] string teamLeadId, [FromQuery] int? week)
+        {
+            try
+            {
+                _logger.LogInformation("Fetching team huddle follow-ups DTO for TeamLead: {TeamLeadId} week: {Week}", teamLeadId, week);
+
+                var result = await _bll.GetTeamHuddleFollowUpsDtoAsync(teamLeadId, week);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching team huddle follow-ups DTO");
+
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>(ResponseType.Error, "Error retrieving follow-ups", null));
+            }
+        }
+
 
         [HttpPost("save-team-lead")]
         public async Task<ActionResult<ApiResponse<bool>>> SaveTeamLead(
@@ -60,7 +97,7 @@ namespace RM_CMS.Controllers.TeamLeads
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving team lead");
-                    
+
                 return HttpResponseHelper.CreateHttpResponse(new ApiResponse<bool>(
                     ResponseType.Error,
                     "Error saving team lead",

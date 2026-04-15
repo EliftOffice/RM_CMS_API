@@ -2,6 +2,7 @@
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
 using System.Globalization;
+using RM_CMS.Data.Models; // added to reference FollowUp
 
 namespace RM_CMS.BLL.TeamLeads
 {
@@ -11,6 +12,10 @@ namespace RM_CMS.BLL.TeamLeads
         Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsyncV1(string teamLeadId);
         Task<ApiResponse<bool>> SaveTeamLeadAsync(TeamLeadDTO teamLead);
         Task<ApiResponse<List<TeamLeadDTO>>> GetTeamLeadsAsync();
+
+        // New: team huddle follow-ups
+        Task<ApiResponse<IEnumerable<FollowUp>>> GetTeamHuddleFollowUpsAsync(string teamLeadId, int? week = null);
+        Task<ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>> GetTeamHuddleFollowUpsDtoAsync(string teamLeadId, int? week = null);
     }
 
     public class TeamLeadDashBoardBLL : ITeamLeadDashBoardBLL
@@ -22,15 +27,16 @@ namespace RM_CMS.BLL.TeamLeads
             _dal = dal;
         }
 
-
         public async Task<ApiResponse<TeamLeadMetricsDTO>> GetTeamHealthMetricsAsyncV1(string teamLeadId)
-        { 
-            try 
-            { 
-                return await _dal.GetTeamHealthMetricsAsyncV1(teamLeadId); }
-            catch (Exception) { 
-                return new ApiResponse<TeamLeadMetricsDTO>(ResponseType.Error, "Error processing team metrics", null); 
-            } 
+        {
+            try
+            {
+                return await _dal.GetTeamHealthMetricsAsync(teamLeadId);
+            }
+            catch (Exception)
+            {
+                return new ApiResponse<TeamLeadMetricsDTO>(ResponseType.Error, "Error processing team metrics", null);
+            }
         }
 
 
@@ -366,6 +372,30 @@ namespace RM_CMS.BLL.TeamLeads
                     $"DAL Error fetching TeamLeads: {ex.Message}",
                     null
                 );
+            }
+        }
+
+        public async Task<ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>> GetTeamHuddleFollowUpsDtoAsync(string teamLeadId, int? week = null)
+        {
+            try
+            {
+                return await _dal.GetTeamHuddleFollowUpsDtoAsync(teamLeadId, week);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>(ResponseType.Error, $"Error retrieving team huddle follow-ups DTO: {ex.Message}", null);
+            }
+        }
+
+        public async Task<ApiResponse<IEnumerable<FollowUp>>> GetTeamHuddleFollowUpsAsync(string teamLeadId, int? week = null)
+        {
+            try
+            {
+                return await _dal.GetTeamHuddleFollowUpsAsync(teamLeadId, week);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<IEnumerable<FollowUp>>(ResponseType.Error, $"Error retrieving team huddle follow-ups: {ex.Message}", null);
             }
         }
     }
