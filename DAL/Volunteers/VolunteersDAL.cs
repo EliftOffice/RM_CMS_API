@@ -21,13 +21,17 @@ namespace RM_CMS.DAL.Volunteers
 
     public class VolunteersDAL : IVolunteersDAL
     {
+
+        private readonly IConfiguration _configuration;
+       
         private readonly IDbConnectionFactory _dbConnectionFactory;
 
-        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory)
+        public VolunteersDAL(IConfiguration configuration,IDbConnectionFactory dbConnectionFactory)
         {
             _dbConnectionFactory = dbConnectionFactory;
+            _configuration = configuration;
         }
-        public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
+        public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsyncv1(string personId)
         {
             try
             {
@@ -158,6 +162,152 @@ namespace RM_CMS.DAL.Volunteers
                     $"Error assigning volunteer: {ex.Message}",
                     null
                 );
+            }
+        }
+
+
+        public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    // Open connection
+                    if (connection is System.Data.Common.DbConnection dbConn)
+                        await dbConn.OpenAsync();
+                    else
+                        connection.Open();
+
+                    // 1. Get person
+                    var response = await new PeoplesDAL(_dbConnectionFactory)
+                        .GetPersonByIdAsync(personId);
+
+                    if (response.Data == null)
+                    {
+                        return new ApiResponse<AssignedVolunteerDTO>(
+                            ResponseType.Error,
+                            "Person not found",
+                            null
+                        );
+                    }
+
+                    var campus = response.Data.Campus;
+
+                    AssignedVolunteerDTO volunteer;
+
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        // 2. Find volunteer
+                        const string volunteerQuery = @"
+                    SELECT volunteer_id, first_name, last_name, capacity_max, current_assignments, telegram_chat_id
+                    FROM volunteers
+                    WHERE status = 'Active'
+                      AND current_assignments < capacity_max
+                      AND campus = @Campus
+                    ORDER BY current_assignments ASC, RAND()
+                    LIMIT 1
+                    FOR UPDATE;
+                ";
+
+                        volunteer = await connection.QueryFirstOrDefaultAsync<AssignedVolunteerDTO>(
+                            volunteerQuery,
+                            new { Campus = campus },
+                            transaction
+                        );
+
+                        if (volunteer == null)
+                        {
+                            transaction.Rollback();
+
+                            return new ApiResponse<AssignedVolunteerDTO>(
+                                ResponseType.Warning,
+                                "No available volunteers",
+                                null
+                            );
+                        }
+
+                        // 3. Update person
+                        const string updatePerson = @"
+                    UPDATE people SET
+                        assigned_volunteer = @VolunteerId,
+                        assigned_date = NOW(),
+                        follow_up_status = 'ASSIGNED',
+                        next_action_date = NOW() + INTERVAL 48 HOUR
+                    WHERE person_id = @PersonId;
+                ";
+
+                        await connection.ExecuteAsync(updatePerson, new
+                        {
+                            VolunteerId = volunteer.volunteer_id,
+                            PersonId = personId
+                        }, transaction);
+
+                        // 4. Update volunteer
+                        const string updateVolunteer = @"
+                    UPDATE volunteers SET
+                        current_assignments = current_assignments + 1,
+                        updated_at = NOW()
+                    WHERE volunteer_id = @VolunteerId;
+                ";
+
+                        await connection.ExecuteAsync(updateVolunteer,
+                            new { VolunteerId = volunteer.volunteer_id },
+                            transaction);
+
+                        transaction.Commit();
+                    }
+
+                    // 🔥 5. Send Telegram AFTER commit
+                    if (volunteer.telegram_chat_id > 0)
+                    {
+                        var message = $@"
+👋 Hi {volunteer.first_name},
+
+📌 A new follow-up has been assigned to you.
+
+👉 Please check your dashboard:
+https://your-frontend-url.com
+
+🙏 Thank you!
+";
+
+                        _ = SendTelegramMessageAsync(volunteer.telegram_chat_id, message);
+                    }
+
+                    return new ApiResponse<AssignedVolunteerDTO>(
+                        ResponseType.Success,
+                        "Volunteer assigned successfully",
+                        volunteer
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<AssignedVolunteerDTO>(
+                    ResponseType.Error,
+                    $"Error assigning volunteer: {ex.Message}",
+                    null
+                );
+            }
+        }
+        private async Task SendTelegramMessageAsync(long chatId, string message)
+        {
+            try
+            {
+                using var client = new HttpClient();
+
+                var token = _configuration["Telegram:BotToken"];
+
+                if (string.IsNullOrEmpty(token)) return;
+
+                var url = $"https://api.telegram.org/bot{token}/sendMessage" +
+                          $"?chat_id={chatId}&text={Uri.EscapeDataString(message)}";
+
+                await client.GetAsync(url);
+            }
+            catch
+            {
+                // Optional: log error (don't break main flow)
             }
         }
         public async Task<ApiResponse<Volunteer>> GetAvailableVolunteerAsync(string campus)

@@ -10,6 +10,8 @@
 
         public string people_id { get; set; } = string.Empty;
         public string people_name { get;set; } = string.Empty;  
+        public string people_contact { get;set; } = string.Empty;  
+        public long telegram_chat_id { get;set; } = 0;  
 
     }
 }
