@@ -585,10 +585,7 @@ namespace RM_CMS.DAL.Followups
                     null
                 );
             }
-        }
-
-
-       
+        }      
 
 
 
