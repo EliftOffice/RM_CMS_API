@@ -527,22 +527,13 @@ UPDATE people SET
     age_range = @AgeRange,
     household_type = @HouseholdType,
     zip_code = @ZipCode,
-    visit_type = @VisitType,
-    first_visit_date = @FirstVisitDate,
-    last_visit_date = @LastVisitDate,
-    visit_count = @VisitCount,
+  
     connection_source = @ConnectionSource,
     campus = @Campus,
-    follow_up_status = @FollowUpStatus,
     follow_up_priority = @FollowUpPriority,
-    assigned_volunteer = @AssignedVolunteer,
-    assigned_date = @AssignedDate,
-    last_contact_date = @LastContactDate,
-    next_action_date = @NextActionDate,
     interested_in = @InterestedIn,
     prayer_requests = @PrayerRequests,
-    specific_needs = @SpecificNeeds,
-    updated_at = @UpdatedAt
+    specific_needs = @SpecificNeeds
 WHERE person_id = @PersonId;
 ";
 
@@ -555,23 +546,13 @@ WHERE person_id = @PersonId;
                         person.Phone,
                         person.AgeRange,
                         person.HouseholdType,
-                        person.ZipCode,
-                        person.VisitType,
-                        person.FirstVisitDate,
-                        person.LastVisitDate,
-                        person.VisitCount,
+                        person.ZipCode,                     
                         person.ConnectionSource,
                         person.Campus,
-                        person.FollowUpStatus,
                         person.FollowUpPriority,
-                        person.AssignedVolunteer,
-                        person.AssignedDate,
-                        person.LastContactDate,
-                        person.NextActionDate,
                         person.InterestedIn,
                         person.PrayerRequests,
-                        person.SpecificNeeds,
-                        UpdatedAt = DateTime.UtcNow
+                        person.SpecificNeeds
                     });
 
                     if (affectedRows == 0)

@@ -18,7 +18,7 @@ $(function(){
                         <td>${p.followUpStatus}</td>
                         <td>${p.nextActionDate ? new Date(p.nextActionDate).toLocaleString() : ''}</td>
                         <td>
-                            <button class="btn btn-sm btn-primary action-btn edit" data-id="${p.personId}">Edit</button>
+                            <button class="btn btn-sm btn-primary action-btn edit_btn_css edit" data-id="${p.personId}">Edit</button>
                             <button class="btn btn-sm btn-danger action-btn delete" data-id="${p.personId}">Delete</button>
                         </td>
                     </tr>
@@ -44,25 +44,21 @@ $(function(){
             $('#email').val(p.email);
             $('#phone').val(p.phone);
             $('#campus').val(p.campus);
-            $('#visit_type').val(p.visitType);
-            $('#follow_up_status').val(p.followUpStatus);
-            $('#follow_up_priority').val(p.followUpPriority);
-            $('#assigned_volunteer').val(p.assignedVolunteer);
-            // Clear all first
+
+            // Interests
             $('input[id^="interest_"], #Counseling').prop('checked', false);
 
-            // Split values
             const interests = (p.interestedIn || "").split(',');
 
-            // Set checked
             interests.forEach(val => {
                 val = val.trim();
 
                 if (val === "Membership") $('#interest_membership').prop('checked', true);
                 if (val === "Volunteering") $('#interest_volunteering').prop('checked', true);
                 if (val === "Small Groups") $('#interest_groups').prop('checked', true);
-                if (val === "Counseling") $('#Counseling').prop('checked', true);
+                if (val === "Counseling") $('#interest_counseling').prop('checked', true);
             });
+
             $('#prayer_requests').val(p.prayerRequests);
             $('#specific_needs').val(p.specificNeeds);
 
@@ -77,7 +73,7 @@ $(function(){
         if ($('#interest_membership').is(':checked')) interests.push("Membership");
         if ($('#interest_volunteering').is(':checked')) interests.push("Volunteering");
         if ($('#interest_groups').is(':checked')) interests.push("Small Groups");
-        if ($('#Counseling').is(':checked')) interests.push("Counseling");
+        if ($('#interest_counseling').is(':checked')) interests.push("Counseling");
 
         const interestedInValue = interests.join(',');
 
@@ -88,10 +84,6 @@ $(function(){
             email: $('#email').val(),
             phone: $('#phone').val(),
             campus: $('#campus').val(),
-            visit_type: $('#visit_type').val(),
-            follow_up_status: $('#follow_up_status').val(),
-            follow_up_priority: $('#follow_up_priority').val(),
-            assigned_volunteer: $('#assigned_volunteer').val(),
             interested_in: interestedInValue,
             prayer_requests: $('#prayer_requests').val(),
             specific_needs: $('#specific_needs').val()
