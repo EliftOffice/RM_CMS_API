@@ -5,7 +5,7 @@ $(function () {
         loadMetrics(teamLeadId);
         // show huddle button if today is Friday
         const today = new Date();
-        if (today.getDay() === 5) { // Friday (0=Sun,5=Fri)
+        if (today.getDay() === 4) { // Friday (0=Sun,5=Fri)
             $('#teamHuddleBtn').show();
         } else {
             $('#teamHuddleBtn').hide();
@@ -227,10 +227,9 @@ $(function () {
                 } else {
                     const rows = res.data.map(r => `
                         <tr>
-                            <td>${r.volunteerId || r.VolunteerId}</td>
-                            <td>${r.personId || r.PersonId}</td>
+                            <td>${r.volunteerId || r.VolunteerId}</td>                        
                             <td>${r.personFirstName || r.PersonFirstName} ${r.personLastName || r.PersonLastName}</td>
-                            <td>${r.followUpId || r.FollowUpId}</td>
+                         
                             <td>${r.contactStatus || r.ContactStatus}</td>
                             <td>${r.responseType || r.ResponseType}</td>
                             <td>${new Date(r.attemptDate || r.AttemptDate).toLocaleString()}</td>
