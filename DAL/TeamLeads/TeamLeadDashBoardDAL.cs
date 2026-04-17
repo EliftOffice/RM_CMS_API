@@ -548,7 +548,7 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
                     const string query = @"
-                SELECT id,team_lead_id, CONCAT(first_name, ' ', last_name) AS name
+                SELECT team_lead_id, CONCAT(first_name, ' ', last_name) AS name
                 FROM team_leads
                 WHERE status = 'Active'
                 ORDER BY first_name, last_name;";
