@@ -54,6 +54,23 @@ namespace RM_CMS.BLL.Followups
             }
         }
 
+
+        public async Task<ApiResponse<bool>> HandleNotContactedFollowUpAsync(FollowUpRequestDTO dto)
+        {
+            try
+            {
+                return await _followupsDAL.HandleNotContactedResponseAsync(dto);
+            }
+            catch (Exception)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    "Error processing needs follow-up",
+                    false
+                );
+            }
+        }
+
         // ✅ CRISIS
         public async Task<ApiResponse<bool>> HandleCrisisResponseAsync(FollowUpRequestDTO dto)
         {
@@ -120,6 +137,7 @@ namespace RM_CMS.BLL.Followups
 
                     "no response" => await HandleNoResponseAsync(data),
                     "noresponse" => await HandleNoResponseAsync(data),
+                    "not contacted" => await HandleNotContactedFollowUpAsync(data),
 
                     _ => new ApiResponse<bool>(
                         ResponseType.Error,

@@ -170,6 +170,7 @@
         public string ContactStatus { get; set; }
         public string ResponseType { get; set; }
         public DateTime AttemptDate { get; set; }
+        public string AttemptDate2 { get; set; }
         public string? Notes { get; set; }
     }
 }

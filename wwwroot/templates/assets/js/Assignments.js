@@ -197,13 +197,17 @@
     // ── Submit follow-up ──────────────────────────────────────────────────────
     $('#submitFollowupBtn').on('click', function () {
         const contactStatus = $('input[name="contact_status"]:checked').val();
-        const responseType = $('input[name="response_type"]:checked').val() || '';
+        let responseType = $('input[name="response_type"]:checked').val() || '';
 
         if (contactStatus === 'Contacted' && !responseType) {
             $('#modalResponse').html(
                 '<div class="alert alert-warning mt-2">Please select a Response Type.</div>'
             );
             return;
+        }
+
+        if (contactStatus === 'Not Contacted') {
+            responseType = 'Not Contacted';
         }
 
         const payload = {

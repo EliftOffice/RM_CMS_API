@@ -17,6 +17,8 @@ namespace RM_CMS.DAL.Followups
 
         Task<ApiResponse<string>> LogFollowUpAttemptAsync(FollowUpRequestDTO data);
         Task<ApiResponse<IEnumerable<FollowUp>>> GetFollowUpsAsync(FollowUpsFilterDTO filter);
+
+        Task<ApiResponse<bool>> HandleNotContactedResponseAsync(FollowUpRequestDTO dto);
     }
 
     public class FollowupsDAL : IFollowupsDAL
@@ -585,8 +587,78 @@ namespace RM_CMS.DAL.Followups
                     null
                 );
             }
-        }      
+        }
 
+        public async Task<ApiResponse<bool>> HandleNotContactedResponseAsync(FollowUpRequestDTO dto)
+        {
+            using (var connection = _dbConnectionFactory.GetConnection())
+            {
+                try
+                {
+                    if (connection.State == System.Data.ConnectionState.Closed)
+                        connection.Open();
+
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            const string updateFollowUp = @"
+                    UPDATE follow_ups SET
+                        next_action = 'Not Contacted',
+                        next_action_date = NULL
+                    WHERE follow_up_id = @FollowUpId;
+                    ";
+
+                            await connection.ExecuteAsync(updateFollowUp,
+                                new { FollowUpId = dto.follow_up_id }, transaction);
+
+                            const string updatePerson = @"
+                    UPDATE people SET
+                        follow_up_status = 'Not Contacted',
+                        next_action_date = NULL
+                    WHERE person_id = @PersonId;
+                    ";
+
+                            await connection.ExecuteAsync(updatePerson,
+                                new { PersonId = dto.person_id }, transaction);
+
+                            const string updateOnResolve = @"
+                    UPDATE volunteers
+                    SET
+                        current_assignments = current_assignments - 1,
+                        total_completed = total_completed + 1
+                    WHERE volunteer_id = @VolunteerId;
+
+                    UPDATE volunteers
+                    SET
+                        completion_rate = 
+                            CASE 
+                                WHEN total_assigned = 0 THEN 0
+                                ELSE ROUND((total_completed * 100.0) / (total_assigned), 2)
+                            END
+                    WHERE volunteer_id = @VolunteerId;
+                    ";
+
+                            await connection.ExecuteAsync(updateOnResolve,
+                                new { VolunteerId = dto.volunteer_id }, transaction);
+
+                            transaction.Commit();
+
+                            return new ApiResponse<bool>(ResponseType.Success, "Follow-up marked as Not Contacted", true);
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            return new ApiResponse<bool>(ResponseType.Error, $"Transaction failed: {ex.Message}", false);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return new ApiResponse<bool>(ResponseType.Error, $"Error handling normal response: {ex.Message}", false);
+                }
+            }
+        }
 
 
         #region [Unused FUNCTIONS]
