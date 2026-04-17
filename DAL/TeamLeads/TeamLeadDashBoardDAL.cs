@@ -612,7 +612,7 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
                 const string q = @"
                 SELECT f.follow_up_id FollowUpId, f.person_id PersonId, p.first_name PersonFirstName, p.last_name PersonLastName,
                        f.volunteer_id VolunteerId, f.contact_status ContactStatus, f.response_type ResponseType,
-                       f.attempt_date AttemptDate, f.notes Notes
+                      DATE_FORMAT(f.attempt_date, '%d-%m-%Y') AS AttemptDate, f.notes Notes
                 FROM follow_ups f
                 JOIN people p ON p.person_id = f.person_id
                 WHERE f.week_number = @Week

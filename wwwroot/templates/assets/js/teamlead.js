@@ -5,7 +5,7 @@ $(function () {
         loadMetrics(teamLeadId);
         // show huddle button if today is Friday
         const today = new Date();
-        if (today.getDay() === 4) { // Friday (0=Sun,5=Fri)
+        if (today.getDay() === 5) { // Friday (0=Sun,5=Fri)
             $('#teamHuddleBtn').show();
         } else {
             $('#teamHuddleBtn').hide();
@@ -232,7 +232,7 @@ $(function () {
                          
                             <td>${r.contactStatus || r.ContactStatus}</td>
                             <td>${r.responseType || r.ResponseType}</td>
-                            <td>${new Date(r.attemptDate || r.AttemptDate).toLocaleString()}</td>
+                        <td>${formatDate(r.attemptDate || r.AttemptDate)}</td>
                             <td>${r.notes || r.Notes || ''}</td>
                         </tr>
                     `).join('');
@@ -245,4 +245,12 @@ $(function () {
             error: function () { alert('Error loading team huddle follow-ups'); }
         });
     });
+
+    function formatDate(date) {
+        const d = new Date(date);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}-${month}-${year}`;
+    }
 });
