@@ -54,7 +54,7 @@ $(document).ready(function () {
         });
     });
 
-    // 🔹 LOAD TEAM LEADS (FIXED)
+    // 🔹 LOAD TEAM LEADS (robust)
     function loadTeamLeads() {
         $.ajax({
             url: API_BASE_URL + "/TeamLeadDashBoards/team-leads",
@@ -65,10 +65,22 @@ $(document).ready(function () {
                 dropdown.empty();
                 dropdown.append('<option value="">Select TeamLead</option>');
 
-                if (res.data && res.data.length > 0) {
+                if (res && res.data && res.data.length > 0) {
                     res.data.forEach(function (tl) {
+                        // handle different casings / shapes
+                        const id = tl.team_lead_id || tl.teamLeadId || tl.TeamLeadId || tl.team_lead_id || tl.team_lead || tl.teamLead || '';
+                        let name = tl.name || tl.team_lead_name || tl.teamLeadName || tl.TeamLeadName || '';
+
+                        if (!name) {
+                            const first = tl.first_name || tl.FirstName || tl.firstName || '';
+                            const last = tl.last_name || tl.LastName || tl.lastName || '';
+                            name = (first + ' ' + last).trim();
+                        }
+
+                        if (!name) name = tl.email || tl.Email || id || 'TeamLead';
+
                         dropdown.append(
-                            `<option value="${tl.team_lead_id}">${tl.name}</option>`
+                            `<option value="${id}">${name}</option>`
                         );
                     });
                 }
