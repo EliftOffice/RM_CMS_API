@@ -497,7 +497,7 @@ ORDER BY p.next_action_date;";
                         last_check_in,        
                         next_check_in,       
                         created_at,
-                        updated_at
+                        updated_at,level
                     )
                     VALUES (
                         @VolunteerId,
@@ -514,7 +514,7 @@ ORDER BY p.next_action_date;";
                         CURRENT_DATE,         
                         CURRENT_DATE,         
                         NOW(),
-                        NOW()
+                        NOW(),'Level 1'
                     );";
 
                     await connection.ExecuteAsync(insertQuery, new
