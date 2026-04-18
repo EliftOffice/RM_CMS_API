@@ -6,7 +6,7 @@ $(function () {
         loadMetrics(teamLeadId);
         // show huddle button if today is Friday
         const today = new Date();
-        if (today.getDay() === 6) { // Friday (0=Sun,5=Fri)
+        if (today.getDay() === 5) { // Friday (0=Sun,5=Fri)
             $('#teamHuddleBtn').show();
         } else {
             $('#teamHuddleBtn').hide();
