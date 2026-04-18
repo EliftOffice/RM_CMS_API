@@ -146,5 +146,29 @@ namespace RM_CMS.Controllers.Followups
         }
 
         #endregion
+
+
+        [HttpPut("update-escalation")]
+        public async Task<ActionResult<ApiResponse<bool>>> UpdateEscalationAsync([FromBody] UpdateEscalationDTO dto)
+        {
+            try
+            {
+              
+
+                var result = await _escalationsBLL.UpdateEscalationApprAsync(dto);
+
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating escalation_appropriate");
+
+                return StatusCode(500, new ApiResponse<bool>(
+                    ResponseType.Error,
+                    "An error occurred while updating escalation",
+                    false
+                ));
+            }
+        }
     }
 }

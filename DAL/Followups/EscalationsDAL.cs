@@ -7,7 +7,7 @@ using System.Text;
 
 namespace RM_CMS.DAL.Followups
 {
-   public interface IEscalationsDAL
+    public interface IEscalationsDAL
     {
         Task<ApiResponse<IEnumerable<EscalationResponseDTO>>> GetEscalationsAsync(EscalationsFilterDTO filter);
         Task<ApiResponse<bool>> UpdateEscalationAsync(string escalationId, UpdateEscalationDTO dto);
@@ -25,10 +25,11 @@ namespace RM_CMS.DAL.Followups
         Task<ApiResponse<string>> GetTeamLeadByVolunteerAsync(string volunteerId);
         // ✅ UPDATE PERSON STATUS (POST RESOLUTION)
         Task<ApiResponse<bool>> UpdatePersonStatusAsync(string personId, string status);
-         // ✅ CREATE ESCALATION (AUTO ROUTING)
-         Task<ApiResponse<string>> CreateEscalationAsync(EscalationDTO escalation);
+        // ✅ CREATE ESCALATION (AUTO ROUTING)
+        Task<ApiResponse<string>> CreateEscalationAsync(EscalationDTO escalation);
+        Task<ApiResponse<bool>> UpdateEscalationAsync(UpdateEscalationDTO dto);
     }
-     public class EscalationsDAL:IEscalationsDAL
+    public class EscalationsDAL : IEscalationsDAL
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
 
@@ -488,5 +489,40 @@ namespace RM_CMS.DAL.Followups
         }
 
         #endregion
+
+
+
+        public async Task<ApiResponse<bool>> UpdateEscalationAsync(UpdateEscalationDTO dto)
+        {
+            try
+            {
+                const string query = @"
+            UPDATE follow_ups
+            SET escalation_appropriate = @EscalationAppropriate
+            WHERE follow_up_id = @FollowUpId;";
+
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                var rows = await connection.ExecuteAsync(query, new
+                {
+                    dto.FollowUpId,
+                    dto.EscalationAppropriate
+                });
+
+                return new ApiResponse<bool>(
+                    ResponseType.Success,
+                    "Escalation updated",
+                    rows > 0
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    $"Error updating escalation: {ex.Message}",
+                    false
+                );
+            }
+        }
     }
 }

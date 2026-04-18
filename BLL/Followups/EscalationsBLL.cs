@@ -17,11 +17,12 @@ namespace RM_CMS.BLL.Followups
         Task<ApiResponse<bool>> AcknowledgeEscalationAsync(string escalationId);
         // ✅ STEP 6: RESOLVE / REFER / CLOSE
         Task<ApiResponse<bool>> ResolveEscalationAsync(ResolveEscalationDTO dto);
+        Task<ApiResponse<bool>> UpdateEscalationApprAsync(UpdateEscalationDTO dto);
     }
-    public class EscalationsBLL:IEscalationsBLL
+    public class EscalationsBLL : IEscalationsBLL
     {
         private readonly IEscalationsDAL _escalationsDAL;
-        public EscalationsBLL( IEscalationsDAL escalationsDAL)
+        public EscalationsBLL(IEscalationsDAL escalationsDAL)
         {
             _escalationsDAL = escalationsDAL;
         }
@@ -184,5 +185,31 @@ namespace RM_CMS.BLL.Followups
         }
 
         #endregion
+
+        public async Task<ApiResponse<bool>> UpdateEscalationApprAsync(UpdateEscalationDTO dto)
+        {
+            try
+            {
+                if (dto == null || string.IsNullOrEmpty(dto.FollowUpId) || string.IsNullOrEmpty(dto.EscalationAppropriate))
+                {
+                    return new ApiResponse<bool>(
+                        ResponseType.Error,
+                        "Invalid  Inputs",
+                        false
+                    );
+                }
+                return await _escalationsDAL.UpdateEscalationAsync(dto);
+
+
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    ex.Message,
+                    false
+                );
+            }
+        }
     }
 }

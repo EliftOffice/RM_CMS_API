@@ -607,7 +607,9 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
             {
                 using var connection = _dbConnectionFactory.GetConnection();
 
-                var targetWeek = week ?? ISOWeek.GetWeekOfYear(DateTime.Now);
+                // var targetWeek = week ?? ISOWeek.GetWeekOfYear(DateTime.Now);
+                // f.week_number = @Week
+               // AND
 
                 const string q = @"
                 SELECT f.follow_up_id FollowUpId, f.person_id PersonId, p.first_name PersonFirstName, p.last_name PersonLastName,
@@ -615,14 +617,13 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
                       f.attempt_date AS AttemptDate, f.notes Notes
                 FROM follow_ups f
                 JOIN people p ON p.person_id = f.person_id
-                WHERE f.week_number = @Week
-                  AND f.volunteer_id IN (
+                WHERE f.escalation_appropriate='Not-Assessed' and f.volunteer_id IN (
                         SELECT volunteer_id FROM volunteers WHERE team_lead = @TeamLeadId
                       )
                 ORDER BY f.volunteer_id, f.attempt_date DESC, f.attempt_time DESC
                 ";
 
-                var list = await connection.QueryAsync<TeamHuddleFollowUpDTO>(q, new { Week = targetWeek, TeamLeadId = teamLeadId });
+                var list = await connection.QueryAsync<TeamHuddleFollowUpDTO>(q, new {  TeamLeadId = teamLeadId });
 
                 return new ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>(ResponseType.Success, "Team huddle follow-ups retrieved", list);
             }

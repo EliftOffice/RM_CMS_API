@@ -1,3 +1,4 @@
+var TLID = "";
 $(function () {
     $('#loadMetrics').on('click', function () {
         const teamLeadId = $('#teamLeadId').val();
@@ -5,7 +6,7 @@ $(function () {
         loadMetrics(teamLeadId);
         // show huddle button if today is Friday
         const today = new Date();
-        if (today.getDay() === 5) { // Friday (0=Sun,5=Fri)
+        if (today.getDay() === 6) { // Friday (0=Sun,5=Fri)
             $('#teamHuddleBtn').show();
         } else {
             $('#teamHuddleBtn').hide();
@@ -218,6 +219,11 @@ $(function () {
         const teamLeadId = $('#teamLeadId').val();
         if (!teamLeadId) return alert('TeamLeadId required');
         // call DTO endpoint to get rich data
+        TLID = teamLeadId;
+        TeamHuddleFollowsDataAjax(teamLeadId);
+    });
+
+    function TeamHuddleFollowsDataAjax(teamLeadId) {
         $.ajax({
             url: API_BASE_URL + '/TeamLeadDashBoards/team-huddle/dto?teamLeadId=' + encodeURIComponent(teamLeadId),
             method: 'GET',
@@ -225,17 +231,38 @@ $(function () {
                 if (!res || !res.data) {
                     $('#huddleTable tbody').html('<tr><td colspan="8">No data</td></tr>');
                 } else {
+                    const escalationOptions = `
+    <option value="Correct">Correct</option>
+    <option value="Under-Escalation">Under-Escalation</option>
+    <option value="Over-Escalation">Over-Escalation</option>
+    <option value="Not-Assessed">Not-Assessed</option>
+`;
+
                     const rows = res.data.map(r => `
-                        <tr>
-                            <td>${r.volunteerId || r.VolunteerId}</td>                        
-                            <td>${r.personFirstName || r.PersonFirstName} ${r.personLastName || r.PersonLastName}</td>
-                         
-                            <td>${r.contactStatus || r.ContactStatus}</td>
-                            <td>${r.responseType || r.ResponseType}</td>
-                        <td>${formatDate(r.attemptDate || r.AttemptDate)}</td>
-                            <td>${r.notes || r.Notes || ''}</td>
-                        </tr>
-                    `).join('');
+    <tr>
+        <td>${r.volunteerId || r.VolunteerId}</td>                        
+        <td>${r.personFirstName || r.PersonFirstName} ${r.personLastName || r.PersonLastName}</td>
+        <td>${r.contactStatus || r.ContactStatus}</td>
+        <td>${r.responseType || r.ResponseType}</td>
+        <td>${formatDate(r.attemptDate || r.AttemptDate)}</td>
+        <td>${r.notes || r.Notes || ''}</td>
+
+        <!-- Dropdown -->
+        <td>
+            <select class="form-select escalation-dropdown" data-id="${r.followUpId || r.FollowUpId}">
+                ${escalationOptions}
+            </select>
+        </td>
+
+        <!-- Update Button -->
+        <td>
+            <button class="btn btn-sm btn-primary update-escalation"
+                data-id="${r.followUpId || r.FollowUpId}">
+                Update
+            </button>
+        </td>
+    </tr>
+`).join('');
                     $('#huddleTable tbody').html(rows);
                 }
 
@@ -243,6 +270,48 @@ $(function () {
                 modal.show();
             },
             error: function () { alert('Error loading team huddle follow-ups'); }
+        });
+    }
+    $(document).on('click', '.update-escalation', function () {
+
+        const followUpId = $(this).data('id');
+
+        const selectedValue = $(`.escalation-dropdown[data-id="${followUpId}"]`).val();
+
+        if (!selectedValue) {
+            alert('Please select escalation value');
+            return;
+        }
+
+        $.ajax({
+            url: API_BASE_URL + '/escalations/update-escalation',
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                followUpId: followUpId,
+                escalationAppropriate: selectedValue
+            }),
+            success: function (res) {
+
+                // handle both camelCase & PascalCase
+                const isSuccess = res?.data ?? res?.Data;
+
+                if (isSuccess === true) {
+                    $('#huddleTable tbody').empty(); // clear first
+
+                    TeamHuddleFollowsDataAjax(TLID);
+                    alert(res.message || res.Message || 'Updated successfully');
+                } else {
+                    alert(res.message || res.Message || 'Update failed');
+                }
+            },
+            error: function (xhr) {
+
+                // optional: show backend error message if available
+                const errMsg = xhr?.responseJSON?.message || xhr?.responseJSON?.Message;
+
+                alert(errMsg || 'Error updating escalation');
+            }
         });
     });
 
