@@ -22,8 +22,7 @@ namespace RM_CMS.Controllers.TeamLeads
         }
 
         [HttpGet("team-metrics")]
-        public async Task<ActionResult<ApiResponse<TeamLeadMetricsDTO>>> GetTeamMetrics(
-            [FromQuery] string teamLeadId)
+        public async Task<ActionResult<ApiResponse<TeamLeadMetricsDTO>>> GetTeamMetrics([FromQuery] string teamLeadId)
         {
             try
             {
@@ -83,8 +82,7 @@ namespace RM_CMS.Controllers.TeamLeads
 
 
         [HttpPost("save-team-lead")]
-        public async Task<ActionResult<ApiResponse<bool>>> SaveTeamLead(
-[FromBody] TeamLeadDTO teamLead)
+        public async Task<ActionResult<ApiResponse<bool>>> SaveTeamLead([FromBody] TeamLeadDTO teamLead)
         {
             try
             {
