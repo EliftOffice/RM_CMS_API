@@ -38,6 +38,10 @@ namespace RM_CMS.Data.Models
         public string? ConnectionSource { get; set; }
         
         public string? Campus { get; set; }
+        public string? RefName { get; set; }
+        public string? refPhone { get; set; }
+
+
 
         // Follow-Up Status
         

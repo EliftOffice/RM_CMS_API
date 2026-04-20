@@ -4,13 +4,7 @@ $(function () {
         const teamLeadId = $('#teamLeadId').val();
         if (!teamLeadId) { alert('Enter team lead id'); return; }
         loadMetrics(teamLeadId);
-        // show huddle button if today is Friday
-        const today = new Date();
-        if (today.getDay() === 6) { // Friday (0=Sun,5=Fri)
-            $('#teamHuddleBtn').show();
-        } else {
-            $('#teamHuddleBtn').hide();
-        }
+        
     });
 
     //----TeamLeads Screen
@@ -86,6 +80,16 @@ $(function () {
     }
 
     function renderMetrics(data, teamLeadId) {
+
+        //Show or hide Team Huddle button based on IsTeamHurdleDay flag
+        if (data.isTeamHurdleDay) {
+            $('#teamHuddleBtn').show();
+
+        } else {
+            $('#teamHuddleBtn').hide();
+        }
+
+
         $('#dashboardTitle').text(`TEAM LEAD DASHBOARD - ${data.teamLeadName || data.TeamLeadName || ''}`);
         $('#dashboardSubtitle').text(data.weekOf || data.WeekOf || '');
 
@@ -232,11 +236,12 @@ $(function () {
                     $('#huddleTable tbody').html('<tr><td colspan="8">No data</td></tr>');
                 } else {
                     const escalationOptions = `
-    <option value="Correct">Correct</option>
-    <option value="Under-Escalation">Under-Escalation</option>
-    <option value="Over-Escalation">Over-Escalation</option>
-    <option value="Not-Assessed">Not-Assessed</option>
-`;
+                    <option value="Not-Assessed">Not-Assessed</option>
+                    <option value="Correct">Correct</option>
+                    <option value="Under-Escalation">Under-Escalation</option>
+                    <option value="Over-Escalation">Over-Escalation</option>
+    
+                `;
 
                     const rows = res.data.map(r => `
     <tr>

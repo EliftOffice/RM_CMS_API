@@ -1,14 +1,19 @@
 ﻿namespace RM_CMS.Data.DTO.Peoples
 {
-    public class PeoplesDTO
+    public class CreatePersonDto
     {
-        public string first_name { get; set; }
-        public string last_name { get; set; }
-        public string email { get; set; }
-        public string phone { get; set; }
-        public string prayer_requests { get; set; }
-        public string specific_needs { get; set; }
-        public string interested_in { get; set; }
+        public string FirstName { get; set; } = null!;
+        public string LastName { get; set; } = null!;
+        public string Phone { get; set; } = null!;
+        public string? Email { get; set; }
+        public string? AgeRange { get; set; }
+        public string? Address { get; set; }
+        public string? HouseholdType { get; set; }
+        public string? ConnectionSource { get; set; }
+        public string? RefName { get; set; }
+        public string? RefPhone { get; set; }
+        public string? PrayerRequests { get; set; }
+       
     }
     public class CreatePeopleDto
     {

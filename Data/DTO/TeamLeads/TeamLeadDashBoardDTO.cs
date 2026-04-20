@@ -4,6 +4,7 @@
     {
         public string TeamLeadName { get; set; } = string.Empty;
         public string WeekOf { get; set; } = string.Empty;
+        public bool IsTeamHurdleDay { get; set; }= false;
         public List<VolunteerMetricsDTO> Volunteers { get; set; } = new();
         public TeamPerformanceDTO TeamPerformance { get; set; }
         public List<AttentionDTO> AttentionNeeded { get; set; } = new();

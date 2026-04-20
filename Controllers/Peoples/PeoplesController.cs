@@ -21,65 +21,29 @@ namespace RM_CMS.Controllers.Peoples
             _logger = logger;
         }
 
-        [HttpPost("/api/people")]        
-        public async Task<ActionResult<ApiResponse<AssignedVolunteerDTO>>> SaveNewVisitor([FromBody] CreatePeopleDto createPeopleDto)
+        [HttpPost("/api/people")]
+        public async Task<ActionResult<ApiResponse<AssignedVolunteerDTO>>> SaveNewVisitor([FromBody] CreatePersonDto createPersonDto)
         {
             try
             {
-                var result = await _peoplesBLL.SaveAndAssignePeople(createPeopleDto);
+                var result = await _peoplesBLL.SaveAndAssignPeople(createPersonDto);             
 
-                // _logger.LogInformation($"Processed save new visitor request for {createDto?.email ?? createDto?.phone}");
                 return HttpResponseHelper.CreateHttpResponse(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving new visitor");
+
                 return StatusCode(500, new ApiResponse<AssignedVolunteerDTO>(
                     ResponseType.Error,
                     "An error occurred while saving visitor",
-                    new AssignedVolunteerDTO()
+                    null
                 ));
             }
         }
+       
 
-        [HttpGet("/api/people/{personId}")]
-        public async Task<ActionResult<ApiResponse<People>>> GetPersonByIdAsync(string personId)
-        {
-            try
-            {
-                var result = await _peoplesBLL.GetPersonByIdAsync(personId);
-                return HttpResponseHelper.CreateHttpResponse(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving person by ID");
-                return StatusCode(500, new ApiResponse<People>(
-                    ResponseType.Error,
-                    "An error occurred while retrieving person",
-                    new People()
-                ));
-            }
-        }
-
-        [HttpGet("/api/people")]
-        public async Task<ActionResult<ApiResponse<List<People>>>> GetPeopleAsync([FromQuery] PeoplesFilterDTO filter)
-        {
-            try
-            {
-                var result = await _peoplesBLL.GetPeopleByFilterAsync(filter);
-                return HttpResponseHelper.CreateHttpResponse(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving people with filters");
-
-                return StatusCode(500, new ApiResponse<IEnumerable<People>>(
-                    ResponseType.Error,
-                    "An error occurred while retrieving people",
-                    new List<People>()
-                ));
-            }
-        }
+       
 
 
     }

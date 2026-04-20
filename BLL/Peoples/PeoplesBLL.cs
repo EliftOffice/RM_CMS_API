@@ -11,10 +11,9 @@ namespace RM_CMS.BLL.Peoples
 {
     public interface IPeoplesBLL
     {
-        public Task<ApiResponse<People>> SaveNewVisitorAsync(CreatePeopleDto createDto);
-        public Task<ApiResponse<AssignedVolunteerDTO>> SaveAndAssignePeople(CreatePeopleDto createDto);
-        Task<ApiResponse<People>> GetPersonByIdAsync(string personId);
-        Task<ApiResponse<List<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter);
+       
+        public Task<ApiResponse<AssignedVolunteerDTO>> SaveAndAssignPeople(CreatePersonDto createDto);
+      
     }
     public class PeoplesBLL : IPeoplesBLL
     {
@@ -27,17 +26,12 @@ namespace RM_CMS.BLL.Peoples
             _peoplesDAL = peoplesDAL;
             _volunteersBLL = volunteersBLL;
 
-        }
-        public async Task<ApiResponse<AssignedVolunteerDTO>> SaveAndAssignePeople(CreatePeopleDto createDto)
+        }       
+
+        public async Task<ApiResponse<AssignedVolunteerDTO>> SaveAndAssignPeople(CreatePersonDto createDto)
         {
             try
-            {
-                //default Values                
-                if (string.IsNullOrWhiteSpace(createDto.campus))
-                    createDto.campus = "Ongole";              
-                if (string.IsNullOrWhiteSpace(createDto.visit_type))
-                    createDto.visit_type = "First-Time Visitor";
-
+            {               
                 var result = await SaveNewVisitorAsync(createDto);
                 if (result.ResponseType != ResponseType.Success)
                     return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"Error saving visitor: {result.Message}", new AssignedVolunteerDTO());
@@ -48,7 +42,7 @@ namespace RM_CMS.BLL.Peoples
                     {
                         return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"People Saved Succefully But Error assigning volunteer: {res.Message}", new AssignedVolunteerDTO());
                     }
-                        
+
 
                     else
                     {
@@ -64,141 +58,86 @@ namespace RM_CMS.BLL.Peoples
             {
                 return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"Error retrieving person: {ex.Message}", new AssignedVolunteerDTO());
             }
-        }
+        }       
 
-        public async Task<ApiResponse<People>> SaveNewVisitorAsync(CreatePeopleDto createDto)
+        public async Task<ApiResponse<People>> SaveNewVisitorAsync(CreatePersonDto dto)
         {
             try
             {
-                // 1. Validate
-                if (string.IsNullOrWhiteSpace(createDto.first_name))
+                // 1. Basic Validation
+                if (string.IsNullOrWhiteSpace(dto.FirstName))
+                    return new ApiResponse<People>(ResponseType.Error, "First name is required", null);
+
+                if (string.IsNullOrWhiteSpace(dto.LastName))
+                    return new ApiResponse<People>(ResponseType.Error, "Last name is required", null);
+
+                if (string.IsNullOrWhiteSpace(dto.Phone))
+                    return new ApiResponse<People>(ResponseType.Error, "Phone is required", null);
+
+                // 2. Phone format validation (10 digits)
+                if (!System.Text.RegularExpressions.Regex.IsMatch(dto.Phone, @"^\d{10}$"))
+                    return new ApiResponse<People>(ResponseType.Error, "Invalid phone number", null);
+
+                // 3. Conditional Ref Validation
+                if (dto.ConnectionSource == "Friend_Family_Invite")
                 {
-                    return new ApiResponse<People>(ResponseType.Error, "Missing required fields: first_name", new People());
-                }
-
-                if (string.IsNullOrWhiteSpace(createDto.last_name))
-                {
-                    return new ApiResponse<People>(ResponseType.Error, "Missing required fields:  last_name", new People());
-                }
-
-                if (string.IsNullOrWhiteSpace(createDto.email) && string.IsNullOrWhiteSpace(createDto.phone))
-                {
-                    return new ApiResponse<People>(ResponseType.Error, "Must provide at least email or phone", new People());
-                }
-
-                // 2. Check duplicates
-                var response = await _peoplesDAL.FindByEmailOrPhoneAsync(createDto.email, createDto.phone);
-
-
-                if (response.ResponseType == ResponseType.Success)
-                {
-
-                    await _peoplesDAL.IncrementVisitCountAsync(response.Data.PersonId);
-                    return response;
-
-                }
-
-
-                else
-                {
-                    var newPerson = new People
+                    if (string.IsNullOrWhiteSpace(dto.RefName) || string.IsNullOrWhiteSpace(dto.RefPhone))
                     {
-                        FirstName = createDto.first_name,
-                        LastName = createDto.last_name,
-                        Email = createDto.email,
-                        Phone = createDto.phone,
-                        AgeRange = createDto.age_range,
-                        HouseholdType = createDto.household_type,
-                        ZipCode = createDto.zip_code,
-                        VisitType = string.IsNullOrWhiteSpace(createDto.visit_type) ? "First-Time Visitor" : createDto.visit_type,
-                        FirstVisitDate = DateTime.UtcNow,
-                        LastVisitDate = DateTime.UtcNow,
-                        VisitCount = 1,
-                        ConnectionSource = createDto.connection_source,
-                        Campus = createDto.campus,
-                        FollowUpStatus = string.IsNullOrWhiteSpace(createDto.follow_up_status) ? "NEW" : createDto.follow_up_status,
-                        FollowUpPriority = string.IsNullOrWhiteSpace(createDto.follow_up_priority) ? DeterminePriority(createDto) : createDto.follow_up_priority,
-                        InterestedIn = createDto.interested_in,
-                        PrayerRequests = createDto.prayer_requests,
-                        SpecificNeeds = createDto.specific_needs,
+                        return new ApiResponse<People>(ResponseType.Error, "Reference details are required", null);
+                    }
 
-                    };
-
-                    return await _peoplesDAL.CreatePersonAsync(newPerson);
-
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(dto.RefPhone, @"^\d{10}$"))
+                    {
+                        return new ApiResponse<People>(ResponseType.Error, "Invalid reference phone number", null);
+                    }
                 }
 
-            }
-            catch (Exception ex)
-            {
-                return new ApiResponse<People>(ResponseType.Error, $"Error saving visitor: {ex.Message}", new People());
-            }
-        }
+                // 4. Check duplicates (based on phone or email)
+                var existing = await _peoplesDAL.FindByEmailOrPhoneAsync(dto.Email, dto.Phone);
 
-        private string DeterminePriority(CreatePeopleDto dto)
-        {
-            if (!string.IsNullOrWhiteSpace(dto.interested_in) && dto.interested_in.Contains("Counseling", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Urgent";
-            }
-
-            if (!string.IsNullOrWhiteSpace(dto.specific_needs) || !string.IsNullOrWhiteSpace(dto.prayer_requests))
-            {
-                return "High";
-            }
-
-            
-
-            return "Normal";
-        }
-
-        public async Task<ApiResponse<People>> GetPersonByIdAsync(string personId)
-        {
-            try
-            {
-                var result = await _peoplesDAL.GetPersonByIdAsync(personId);
-                if (result.ResponseType != ResponseType.Success)
-                    return new ApiResponse<People>(ResponseType.Error, $"Error retrieving person: {result.Message}", new People());
-                else
-                    return result;
-            }
-            catch (Exception ex)
-            {
-                return new ApiResponse<People>(ResponseType.Error, $"Error retrieving person: {ex.Message}", new People());
-            }
-        }
-        public async Task<ApiResponse<List<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter)
-        {
-            try
-            {
-                var result = await _peoplesDAL.GetPeopleByFilterAsync(filter);
-
-                if (result.ResponseType != ResponseType.Success)
+                if (existing.ResponseType == ResponseType.Success && existing.Data != null)
                 {
-                    return new ApiResponse<List<People>>(
-                        ResponseType.Error,
-                        result.Message,
-                        new List<People>()
-                    );
+                    await _peoplesDAL.IncrementVisitCountAsync(existing.Data.PersonId);
+                    return existing;
                 }
 
-                // ✅ Convert IEnumerable → List
-                var peopleList = result.Data?.ToList() ?? new List<People>();
+                // 5. Create new person
+                var newPerson = new People
+                {
+                    FirstName = dto.FirstName,
+                    LastName = dto.LastName,
+                    Email = dto.Email,
+                    Phone = dto.Phone,
+                    AgeRange = dto.AgeRange,
+                    ConnectionSource = dto.ConnectionSource,
+                    InterestedIn = null,
+                    PrayerRequests = dto.PrayerRequests,
+                    SpecificNeeds = null,
+                    VisitType = "First-Time Visitor",
+                    FirstVisitDate = DateTime.UtcNow,
+                    LastVisitDate = DateTime.UtcNow,
+                    VisitCount = 1,
+                    FollowUpStatus = "NEW",
+                    FollowUpPriority = "Normal",
+                    Campus= "Ongole",
+                    HouseholdType = dto.HouseholdType,
+                    RefName=dto.RefName,
+                    refPhone=dto.RefPhone
 
-                return new ApiResponse<List<People>>(
-                    ResponseType.Success,
-                    result.Message,
-                    peopleList
-                );
+                };
+
+                return await _peoplesDAL.CreatePersonAsync(newPerson);
             }
             catch (Exception ex)
             {
-                return new ApiResponse<List<People>>(
+                return new ApiResponse<People>(
                     ResponseType.Error,
-                    $"Error retrieving people: {ex.Message}",
-                    new List<People>()
+                    $"Error saving visitor: {ex.Message}",
+                    null
                 );
             }
         }
+
+       
     }
 }

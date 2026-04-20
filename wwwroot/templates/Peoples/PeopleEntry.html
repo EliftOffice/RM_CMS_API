@@ -360,12 +360,12 @@
 
         <p class="page-eyebrow">Connection Card</p>
         <h1 class="page-title">Welcome!</h1>
-        
+
         <div class="page-divider"></div>
 
         <form id="visitorForm">
 
-            <!-- Personal Information Card -->
+            <!-- Personal Information -->
             <div class="form-card">
                 <div class="form-card-header">
                     <div class="form-card-icon">👤</div>
@@ -373,30 +373,28 @@
                 </div>
                 <div class="form-card-body">
 
-                    <!-- CHANGE 1: Single column — each field full width, same textbox length -->
                     <div class="form-group">
-                        <label class="form-label" for="first_name">First Name <span class="required-star">*</span></label>
+                        <label class="form-label">First Name <span class="required-star">*</span></label>
                         <input type="text" class="form-control" id="first_name" placeholder="First name" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="last_name">Last Name <span class="required-star">*</span></label>
+                        <label class="form-label">Last Name <span class="required-star">*</span></label>
                         <input type="text" class="form-control" id="last_name" placeholder="Last name" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="phone">Phone <span class="required-star">*</span></label>
-                        <input type="tel" class="form-control mobile-input" id="phone" placeholder="Your phone number" inputmode="tel" maxlength="10">
+                        <label class="form-label">Phone <span class="required-star">*</span></label>
+                        <input type="tel" class="form-control mobile-input" id="phone" placeholder="Your phone number" maxlength="10">
                     </div>
 
-                    <!-- CHANGE: Email hidden -->
-                    <div class="no_display">
-                        <label class="form-label" for="email">Email</label>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
                         <input type="email" class="form-control" id="email" placeholder="Your email address">
                     </div>
 
-                    <!-- Hidden fields — logic preserved -->
-                    <div class="no_display">
+                    <div class="form-group">
+                        <label class="form-label">Age</label>
                         <select class="form-select" id="age_range">
                             <option value="">Select...</option>
                             <option value="18-25">18-25</option>
@@ -406,76 +404,63 @@
                             <option value="56+">56+</option>
                         </select>
                     </div>
-                    <div class="no_display">
+
+                    <div class="form-group">
+                        <label class="form-label">Household Type</label>
                         <select class="form-select" id="household_type">
                             <option value="">Select...</option>
                             <option value="Single">Single</option>
                             <option value="Married">Married</option>
-                            <option value="Family">Family with Children</option>
+                            <option value="Family_with_Kids">Family with Kids</option>
+                            <option value="Empty_Nest">Empty Nest</option>
                         </select>
                     </div>
-                    <div class="no_display"><input type="text" id="zip_code"></div>
-                    <div class="no_display"><input type="text" id="campus"></div>
-                    <div class="no_display">
-                        <select id="visit_type">
-                            <option value="First-Time Visitor">First-Time Visitor</option>
-                            <option value="Returning Visitor">Returning Visitor</option>
+
+                    <div class="form-group">
+                        <label class="form-label">Address</label>
+                        <textarea class="form-control" id="address" rows="2" placeholder="Enter Address..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Connection Source</label>
+                        <select class="form-select" id="connection_source">
+                            <option value="">Select...</option>
+                            <option value="Friend_Family_Invite">Friend/Family Invite</option>
+                            <option value="Event">Event</option>
+                            <option value="Social_Media">Social Media</option>
+                            <option value="Other">Other</option>
                         </select>
                     </div>
-                    <div class="no_display"><input type="text" id="connection_source"></div>
 
-                </div>
-            </div>
-
-            <!-- Interests Card — hidden -->
-            <div class="form-card no_display">
-                <div class="form-card-header">
-                    <div class="form-card-icon">❤️</div>
-                    <h2 class="form-card-title">Interested In</h2>
-                </div>
-                <div class="form-card-body">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
-                                <input class="form-check-input" type="checkbox" value="Membership" id="interest_membership">
-                                <span>Membership</span>
-                            </label>
-                            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
-                                <input class="form-check-input" type="checkbox" value="Volunteering" id="interest_volunteering">
-                                <span>Volunteering</span>
-                            </label>
-                            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
-                                <input class="form-check-input" type="checkbox" value="Small Groups" id="interest_groups">
-                                <span>Small Groups</span>
-                            </label>
-                            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
-                                <input class="form-check-input" type="checkbox" value="Counseling" id="Counseling">
-                                <span>Counseling</span>
-                            </label>
+                    <!-- Ref Section -->
+                    <div class="ref_div" style="display:none">
+                        <div class="form-group">
+                            <label class="form-label">Ref: Name</label>
+                            <input type="text" class="form-control" id="ref_name" placeholder="Ref: Name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Ref: Phone</label>
+                            <input type="tel" class="form-control mobile-input" id="ref_phone" placeholder="Ref: phone number" maxlength="10">
                         </div>
                     </div>
+
                 </div>
             </div>
 
-            <!-- CHANGE 2: Prayer & Needs — hidden -->
-            <div class="form-card no_display">
+            <!-- Prayer -->
+            <div class="form-card">
                 <div class="form-card-header">
                     <div class="form-card-icon">🙏</div>
                     <h2 class="form-card-title">Prayer &amp; Needs</h2>
                 </div>
                 <div class="form-card-body">
                     <div class="form-group">
-                        <label class="form-label" for="prayer_requests">Prayer Requests</label>
+                        <label class="form-label">Prayer Requests</label>
                         <textarea class="form-control" id="prayer_requests" rows="2" placeholder="Share any prayer requests..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="specific_needs">Specific Needs</label>
-                        <textarea class="form-control" id="specific_needs" rows="2" placeholder="Any specific needs we can help with?"></textarea>
                     </div>
                 </div>
             </div>
 
-            <!-- CHANGE 3: Only Submit button, centered -->
             <div class="btn-row-actions">
                 <button type="submit" class="btn-submit" id="submitBtn">
                     Submit
@@ -488,85 +473,109 @@
 
     </div>
 
-    <!-- ORIGINAL JQUERY LOGIC — UNTOUCHED -->
     <script>
         $(document).ready(function () {
+
+            // Toggle Ref Section
+            $('#connection_source').on('change', function () {
+                const isRef = $(this).val() === 'Friend_Family_Invite';
+                $('.ref_div').toggle(isRef);
+
+                // Clear ref fields when hidden
+                if (!isRef) {
+                    $('#ref_name, #ref_phone').val('');
+                }
+            });
+
             $('#visitorForm').on('submit', function (e) {
                 e.preventDefault();
 
-                // Collect "Interested In" values
-                let interests = [];
-                if ($('#interest_membership').is(':checked')) interests.push('Membership');
-                if ($('#interest_volunteering').is(':checked')) interests.push('Volunteering');
-                if ($('#interest_groups').is(':checked')) interests.push('Small Groups');
-                if ($('#Counseling').is(':checked')) interests.push('Counseling');
+                const phone = $('#phone').val();
+                const connection = $('#connection_source').val();
+                const refName = $('#ref_name').val();
+                const refPhone = $('#ref_phone').val();
 
-                const formData = {
-                    first_name: $('#first_name').val(),
-                    last_name: $('#last_name').val(),
-                    email: $('#email').val(),
-                    phone: $('#phone').val(),
-                    age_range: $('#age_range').val(),
-                    household_type: $('#household_type').val(),
-                    zip_code: $('#zip_code').val(),
-                    campus: $('#campus').val(),
-                    visit_type: $('#visit_type').val(),
-                    connection_source: $('#connection_source').val(),
-                    interested_in: interests.join(', '),
-                    prayer_requests: $('#prayer_requests').val(),
-                    specific_needs: $('#specific_needs').val(),
-                    follow_up_status: 'NEW',
-                    follow_up_priority: determinePriority()
-                };
-
-                function determinePriority() {
-                    if (interests.includes('Counseling')) return 'Urgent';
-                    if ($('#specific_needs').val() || $('#prayer_requests').val()) return 'High';
-                    return 'Normal';
-                }
-
-                // 🔹 Validate phone number (10 digits only)
-                if (formData.phone && !isValidMobileNumber(formData.phone)) {
-                    $('#responseMessage')
-                        .removeClass('text-success')
-                        .addClass('text-danger')
-                        .text('Phone number must be exactly 10 digits')
-                        .show();
+                // ✅ Main phone validation (required + 10 digits)
+                if (!phone || !/^\d{10}$/.test(phone)) {
+                    showError('Enter valid 10-digit phone number');
                     return;
                 }
 
-                const btn = document.getElementById('submitBtn');
-                btn.disabled = true;
-                btn.innerHTML = '⏳ Submitting...';
+                // ✅ Ref validation (only for Friend/Family)
+                if (connection === 'Friend_Family_Invite') {
+
+                    if (!refName) {
+                        showError('Reference name is required');
+                        return;
+                    }
+
+                    if (!refPhone || !/^\d{10}$/.test(refPhone)) {
+                        showError('Enter valid 10-digit reference phone number');
+                        return;
+                    }
+                }
+
+                const formData = {
+                    firstName: $('#first_name').val(),
+                    lastName: $('#last_name').val(),
+                    phone: phone,
+                    email: $('#email').val(),
+                    ageRange: $('#age_range').val(),
+                    address: $('#address').val(),
+                    connectionSource: connection,
+                    refName: refName,
+                    refPhone: refPhone,
+                    prayerRequests: $('#prayer_requests').val(),
+                    householdType: $('#household_type').val()
+                };
+
+                const btn = $('#submitBtn');
+                btn.prop('disabled', true).text('⏳ Submitting...');
 
                 $.ajax({
                     url: API_BASE_URL + "/people",
                     type: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify(formData),
-                    success: function (response) {
-                        $('#responseMessage')
-                            .removeClass('text-danger')
-                            .addClass('text-success')
-                            .text('✓ Success! Welcome to our community.')
-                            .show();
+
+                    success: function () {
+                        showSuccess('✓ Success! Welcome to our community.');
                         $('#visitorForm')[0].reset();
-                        btn.disabled = false;
-                        btn.innerHTML = 'Submit';
+                        $('.ref_div').hide();
                     },
+
                     error: function (xhr) {
-                        $('#responseMessage')
-                            .removeClass('text-success')
-                            .addClass('text-danger')
-                            .text('Error: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Something went wrong'))
-                            .show();
-                        btn.disabled = false;
-                        btn.innerHTML = 'Submit';
+                        showError(xhr.responseJSON?.message || 'Something went wrong');
+                    },
+
+                    complete: function () {
+                        btn.prop('disabled', false).text('Submit');
                     }
                 });
+
             });
+
+            // Helper functions
+            function showError(msg) {
+                $('#responseMessage')
+                    .removeClass('text-success')
+                    .addClass('text-danger')
+                    .text(msg)
+                    .show();
+            }
+
+            function showSuccess(msg) {
+                $('#responseMessage')
+                    .removeClass('text-danger')
+                    .addClass('text-success')
+                    .text(msg)
+                    .show();
+            }
+
         });
     </script>
 
 </body>
+
+
 </html>

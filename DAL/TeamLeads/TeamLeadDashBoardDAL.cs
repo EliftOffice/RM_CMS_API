@@ -245,7 +245,7 @@ namespace RM_CMS.DAL.TeamLeads
 
                     }
 
-                    // 5. Escalations Pending
+                   
                     // 5. Escalations Pending
                     const string EscalationsPendingQuery = @"
 SELECT 
@@ -270,6 +270,29 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
                         EscalationsPendingQuery,
                         new { TeamLeadId = teamLeadId }
                     )).ToList();
+
+                    // Team Hurdle Day
+                    const string query = @"SELECT config_value 
+                       FROM system_config 
+                       WHERE config_key = 'team_hurdle';";
+
+                    var value = await connection.ExecuteScalarAsync<int>(query);
+
+                    // Map int → DayOfWeek
+                    var hurdleDay = value switch
+                    {
+                        1 => DayOfWeek.Monday,
+                        2 => DayOfWeek.Tuesday,
+                        3 => DayOfWeek.Wednesday,
+                        4 => DayOfWeek.Thursday,
+                        5 => DayOfWeek.Friday,
+                        6 => DayOfWeek.Saturday,
+                        7 => DayOfWeek.Sunday,
+                        _ => throw new Exception("Invalid team_hurdle config value")
+                    };
+
+                    // Set flag
+                    metrics.IsTeamHurdleDay = DateTime.Today.DayOfWeek == hurdleDay;
 
 
                     return new ApiResponse<TeamLeadMetricsDTO>(
@@ -306,6 +329,31 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
                 data.First(x => x.Key == "yellow_threshold").Value,
                 data.First(x => x.Key == "red_threshold").Value
             );
+        }
+
+        public async Task<DayOfWeek> GetTeamHurdleDayAsync()
+        {
+            using var connection = _dbConnectionFactory.GetConnection();
+
+            const string query = @"
+                                    SELECT config_value 
+                                    FROM system_config 
+                                    WHERE config_key = 'team_hurdle';";
+
+            var value = await connection.ExecuteScalarAsync<int>(query);
+
+            // Assuming 1 = Monday ... 7 = Sunday
+            return value switch
+            {
+                1 => DayOfWeek.Monday,
+                2 => DayOfWeek.Tuesday,
+                3 => DayOfWeek.Wednesday,
+                4 => DayOfWeek.Thursday,
+                5 => DayOfWeek.Friday,
+                6 => DayOfWeek.Saturday,
+                7 => DayOfWeek.Sunday,
+                _ => throw new Exception("Invalid team_hurdle config value")
+            };
         }
 
         public async Task<string> GetTeamLeadNameAsync(string teamLeadId)
