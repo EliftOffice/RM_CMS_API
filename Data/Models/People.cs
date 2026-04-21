@@ -24,9 +24,10 @@ namespace RM_CMS.Data.Models
         public string? HouseholdType { get; set; }
         
         public string? ZipCode { get; set; }
+        public string? Address { get; set; }
 
         // Church Context
-        
+
         public string VisitType { get; set; } = string.Empty;
         
         public DateTime FirstVisitDate { get; set; }
@@ -62,6 +63,7 @@ namespace RM_CMS.Data.Models
         public string? InterestedIn { get; set; }
         
         public string? PrayerRequests { get; set; }
+       
         
         public string? SpecificNeeds { get; set; }
 

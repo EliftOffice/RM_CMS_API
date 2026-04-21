@@ -43,13 +43,13 @@ namespace RM_CMS.DAL.Peoples
                     visit_type, first_visit_date, last_visit_date, visit_count,
                     follow_up_status, follow_up_priority, campus, connection_source,
                     interested_in, prayer_requests, specific_needs,
-                    created_at, created_by, age_range, zip_code, household_type,reference_name, reference_phone
+                    created_at, created_by, age_range, zip_code, household_type,reference_name, reference_phone,address
                 ) VALUES (
                     @PersonId,@FirstName, @LastName, @Email, @Phone,
                     @VisitType, @FirstVisitDate, @LastVisitDate, @VisitCount,
                     @FollowUpStatus, @FollowUpPriority, @Campus, @ConnectionSource,
                     @InterestedIn, @PrayerRequests, @SpecificNeeds,
-                    @CreatedAt, @CreatedBy,@AgeRange, @ZipCode, @HouseholdType,@RefName, @RefPhone
+                    @CreatedAt, @CreatedBy,@AgeRange, @ZipCode, @HouseholdType,@RefName, @RefPhone, @Address
                 );
                 SELECT LAST_INSERT_ID();";  // Get auto-increment id of the inserted row
 
@@ -77,7 +77,8 @@ namespace RM_CMS.DAL.Peoples
                         person.ZipCode,
                         person.HouseholdType,
                         person.refPhone,
-                        person.RefName
+                        person.RefName,
+                        person.Address
                     };
 
                     // 2. Insert and get the new auto-increment ID

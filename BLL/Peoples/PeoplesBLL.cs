@@ -122,7 +122,8 @@ namespace RM_CMS.BLL.Peoples
                     Campus= "Ongole",
                     HouseholdType = dto.HouseholdType,
                     RefName=dto.RefName,
-                    refPhone=dto.RefPhone
+                    refPhone=dto.RefPhone,
+                    Address= dto.Address
 
                 };
 
