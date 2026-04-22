@@ -26,7 +26,7 @@ namespace RM_CMS.Controllers.Peoples
         {
             try
             {
-                var result = await _peoplesBLL.SaveAndAssignPeople(createPersonDto);             
+                var result = await _peoplesBLL.SaveAndAssignPeople(createPersonDto);
 
                 return HttpResponseHelper.CreateHttpResponse(result);
             }
@@ -84,9 +84,47 @@ namespace RM_CMS.Controllers.Peoples
         }
 
 
+        [HttpGet("/api/GetBasicPeopleAsync")]
+        public async Task<ActionResult<ApiResponse<List<People>>>> GetBasicPeopleAsync()
+        {
+            try
+            {
+                var result = await _peoplesBLL.GetBasicPeopleAsync();
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving person by ID");
+                return StatusCode(500, new ApiResponse<People>(
+                    ResponseType.Error,
+                    "An error occurred while retrieving person",
+                    new People()
+                ));
+            }
+        }
 
 
+        [HttpPut("/api/UpdateVisitor")]
+        public async Task<ActionResult<ApiResponse<People>>> UpdateVisitor([FromBody] CreatePeopleDto updateDto)
+        {
+            try
+            {
+                var result = await _peoplesBLL.UpdateVisitorAsync(updateDto);
+
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating visitor");
+
+                return StatusCode(500, new ApiResponse<People>(
+                    ResponseType.Error,
+                    "An error occurred while updating visitor",
+                    new People()
+                ));
+            }
 
 
+        }
     }
 }

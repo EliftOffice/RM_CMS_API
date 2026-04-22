@@ -10,6 +10,7 @@ namespace RM_CMS.Data.Models
         // Basic Information
         
         public string FirstName { get; set; } = string.Empty;
+        public string volunteerId { get; set; } = string.Empty;
         
         public string LastName { get; set; } = string.Empty;
         

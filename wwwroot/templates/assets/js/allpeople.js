@@ -16,7 +16,16 @@
                         <td>${p.phone || ''}</td>
                         <td>${p.campus || ''}</td>
                         <td>${p.followUpStatus}</td>
-                        <td>${p.nextActionDate ? new Date(p.nextActionDate).toLocaleString() : ''}</td>
+                      <td>
+  ${p.nextActionDate
+                        ? new Date(p.nextActionDate).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                        })
+                        : ''
+  }
+</td>
                         <td>
                             <button class="btn btn-sm btn-primary action-btn edit" data-id="${p.personId}">Edit</button>
                             <button class="btn btn-sm btn-danger action-btn delete" data-id="${p.personId}">Delete</button>
@@ -48,7 +57,8 @@
                 $('#visit_type').val(p.visitType);
                 $('#follow_up_status').val(p.followUpStatus);
                 $('#follow_up_priority').val(p.followUpPriority);
-                $('#assigned_volunteer').val(p.assignedVolunteer);
+                const volunteer = p.assignedVolunteer?.trim() || 'Not Assigned';
+                $('#assigned_volunteer').val(volunteer);
                 // Clear all first
                 $('input[id^="interest_"], #Counseling').prop('checked', false);
 

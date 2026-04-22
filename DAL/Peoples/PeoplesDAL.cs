@@ -19,6 +19,8 @@ namespace RM_CMS.DAL.Peoples
         Task<ApiResponse<bool>> IncrementVisitCountAsync(string personId);
         Task<ApiResponse<People>> GetPersonByIdAsync(string personId);
         Task<ApiResponse<IEnumerable<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter);
+        Task<ApiResponse<List<People>>> GetBasicPeopleAsync();
+        Task<ApiResponse<People>> UpdatePersonAsync(People person);
     }
 
     public class PeoplesDAL : IPeoplesDAL
@@ -257,10 +259,10 @@ namespace RM_CMS.DAL.Peoples
                     const string query = @"
 SELECT 
     person_id AS PersonId,
-    first_name AS FirstName,
-    last_name AS LastName,
-    email AS Email,
-    phone AS Phone,
+    p.first_name AS FirstName,
+    p.last_name AS LastName,
+    p.email AS Email,
+    p.phone AS Phone,
     age_range AS AgeRange,
     household_type AS HouseholdType,
     zip_code AS ZipCode,
@@ -269,21 +271,22 @@ SELECT
     last_visit_date AS LastVisitDate,
     visit_count AS VisitCount,
     connection_source AS ConnectionSource,
-    campus AS Campus,
+    p.campus AS Campus,
     follow_up_status AS FollowUpStatus,
     follow_up_priority AS FollowUpPriority,
-    assigned_volunteer AS AssignedVolunteer,
+    assigned_volunteer AS volunteerId,
     assigned_date AS AssignedDate,
     last_contact_date AS LastContactDate,
     next_action_date AS NextActionDate,
     interested_in AS InterestedIn,
     prayer_requests AS PrayerRequests,
     specific_needs AS SpecificNeeds,
-    created_at AS CreatedAt,
-    updated_at AS UpdatedAt,
-    created_by AS CreatedBy
-FROM people
-WHERE person_id = @PersonId";
+    p.created_at AS CreatedAt,
+    p.updated_at AS UpdatedAt,
+    p.created_by AS CreatedBy,
+    concat(v.first_name, ' ',v.last_name) AssignedVolunteer
+FROM people p left join volunteers v on v.volunteer_id=p.assigned_volunteer
+WHERE p.person_id = @PersonId";
 
                     var person = await connection.QueryFirstOrDefaultAsync<People>(
                         query,
@@ -369,6 +372,142 @@ WHERE person_id = @PersonId";
                 return new ApiResponse<IEnumerable<People>>(
                     ResponseType.Error,
                     $"Error retrieving people: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+
+        public async Task<ApiResponse<List<People>>> GetBasicPeopleAsync()
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+SELECT 
+    person_id AS PersonId,
+    first_name AS FirstName,
+    last_name AS LastName,
+    phone AS Phone,
+follow_up_status AS FollowupStatus,
+next_action_date AS NextActionDate
+FROM people";
+
+                    var people = (await connection.QueryAsync<People>(query)).ToList();
+
+                    if (people == null || !people.Any())
+                    {
+                        return new ApiResponse<List<People>>(
+                            ResponseType.Error,
+                            "No people found",
+                            null
+                        );
+                    }
+
+                    return new ApiResponse<List<People>>(
+                        ResponseType.Success,
+                        "People retrieved successfully",
+                        people
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<People>>(
+                    ResponseType.Error,
+                    $"Error retrieving people: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+
+        public async Task<ApiResponse<People>> UpdatePersonAsync(People person)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+UPDATE people SET
+    first_name = @FirstName,
+    last_name = @LastName,
+    email = @Email,
+    phone = @Phone,
+    age_range = @AgeRange,
+    household_type = @HouseholdType,
+    zip_code = @ZipCode,
+    visit_type = @VisitType,
+    first_visit_date = @FirstVisitDate,
+    last_visit_date = @LastVisitDate,
+    visit_count = @VisitCount,
+    connection_source = @ConnectionSource,
+    campus = @Campus,
+    follow_up_status = @FollowUpStatus,
+    follow_up_priority = @FollowUpPriority,
+    assigned_volunteer = @AssignedVolunteer,
+    assigned_date = @AssignedDate,
+    last_contact_date = @LastContactDate,
+    next_action_date = @NextActionDate,
+    interested_in = @InterestedIn,
+    prayer_requests = @PrayerRequests,
+    specific_needs = @SpecificNeeds,
+    updated_at = @UpdatedAt
+WHERE person_id = @PersonId;
+";
+
+                    var affectedRows = await connection.ExecuteAsync(query, new
+                    {
+                        person.PersonId,
+                        person.FirstName,
+                        person.LastName,
+                        person.Email,
+                        person.Phone,
+                        person.AgeRange,
+                        person.HouseholdType,
+                        person.ZipCode,
+                        person.VisitType,
+                        person.FirstVisitDate,
+                        person.LastVisitDate,
+                        person.VisitCount,
+                        person.ConnectionSource,
+                        person.Campus,
+                        person.FollowUpStatus,
+                        person.FollowUpPriority,
+                        person.AssignedVolunteer,
+                        person.AssignedDate,
+                        person.LastContactDate,
+                        person.NextActionDate,
+                        person.InterestedIn,
+                        person.PrayerRequests,
+                        person.SpecificNeeds,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+
+                    if (affectedRows == 0)
+                    {
+                        return new ApiResponse<People>(
+                            ResponseType.Error,
+                            $"Person with ID '{person.PersonId}' not found",
+                            null
+                        );
+                    }
+
+                    person.UpdatedAt = DateTime.UtcNow;
+
+                    return new ApiResponse<People>(
+                        ResponseType.Success,
+                        "Person updated successfully",
+                        person
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<People>(
+                    ResponseType.Error,
+                    $"Error updating person: {ex.Message}",
                     null
                 );
             }
