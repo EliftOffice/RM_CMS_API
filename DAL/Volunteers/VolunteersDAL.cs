@@ -24,10 +24,12 @@ namespace RM_CMS.DAL.Volunteers
     public class VolunteersDAL : IVolunteersDAL
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
+        private readonly IConfiguration _configuration;
 
-        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory)
+        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory,IConfiguration config)
         {
             _dbConnectionFactory = dbConnectionFactory;
+            _configuration = config;
         }
         public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
         {
@@ -88,7 +90,7 @@ namespace RM_CMS.DAL.Volunteers
                     {
                         // 2. Find & lock volunteer (prevents race condition)
                         const string volunteerQuery = @"
-                    SELECT volunteer_id, first_name, last_name, capacity_max, current_assignments
+                    SELECT volunteer_id, first_name, last_name, capacity_max, current_assignments, telegram_chat_id
                     FROM volunteers
                     WHERE status = 'Active'
                       AND current_assignments < capacity_max
@@ -158,7 +160,27 @@ namespace RM_CMS.DAL.Volunteers
                             new { VolunteerId = volunteer.volunteer_id },
                             transaction);
 
+                        // 🔥 5. Send Telegram AFTER commit
+                       
+
                         transaction.Commit();
+
+                        if (string.IsNullOrEmpty(volunteer.telegram_chat_id))
+                        {
+                            var message = $@"
+👋 Hi {volunteer.first_name},
+
+📌 A new follow-up has been assigned to you.
+
+👉 Please check your dashboard:
+https://rmoffice.online/templates/Volunteers/Login.html
+🙏 Thank you!
+";
+
+
+
+                            _ = SendTelegramMessageAsync(volunteer.telegram_chat_id, message);
+                        }
 
                         return new ApiResponse<AssignedVolunteerDTO>(
                             ResponseType.Success,
@@ -671,7 +693,6 @@ WHERE LOWER(email) = @Email;";
             }
         }
 
-
         public async Task<ApiResponse<string>> UpdateVolunteerMobileAsync(string volunteerId, string mobile)
         {
             try
@@ -724,6 +745,30 @@ WHERE LOWER(email) = @Email;";
                     null
                 );
             }
+        }      
+        
+        private async Task SendTelegramMessageAsync(string chatId, string message)
+        {
+            try
+            {
+                using var client = new HttpClient();
+
+                var token = _configuration["Telegram:BotToken"];
+
+                if (string.IsNullOrEmpty(token)) return;
+
+                var url = $"https://api.telegram.org/bot{token}/sendMessage" +
+                          $"?chat_id={chatId}&text={Uri.EscapeDataString(message)}";
+
+                await client.GetAsync(url);
+            }
+            catch
+            {
+                // Optional: log error (don't break main flow)
+            }
         }
+
+
+
     }
 }

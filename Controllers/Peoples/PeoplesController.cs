@@ -41,9 +41,51 @@ namespace RM_CMS.Controllers.Peoples
                 ));
             }
         }
-       
 
-       
+
+
+        [HttpGet("/api/people/{personId}")]
+        public async Task<ActionResult<ApiResponse<People>>> GetPersonByIdAsync(string personId)
+        {
+            try
+            {
+                var result = await _peoplesBLL.GetPersonByIdAsync(personId);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving person by ID");
+                return StatusCode(500, new ApiResponse<People>(
+                    ResponseType.Error,
+                    "An error occurred while retrieving person",
+                    new People()
+                ));
+            }
+        }
+
+        [HttpGet("/api/people")]
+        public async Task<ActionResult<ApiResponse<List<People>>>> GetPeopleAsync([FromQuery] PeoplesFilterDTO filter)
+        {
+            try
+            {
+                var result = await _peoplesBLL.GetPeopleByFilterAsync(filter);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving people with filters");
+
+                return StatusCode(500, new ApiResponse<IEnumerable<People>>(
+                    ResponseType.Error,
+                    "An error occurred while retrieving people",
+                    new List<People>()
+                ));
+            }
+        }
+
+
+
+
 
 
     }

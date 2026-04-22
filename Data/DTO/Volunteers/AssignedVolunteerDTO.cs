@@ -3,6 +3,7 @@
     public class AssignedVolunteerDTO
     {
         public string volunteer_id { get; set; } = string.Empty;
+        public string telegram_chat_id { get; set; } = string.Empty;
         public string first_name { get; set; } = string.Empty;
         public string last_name { get; set; } = string.Empty;
         public string capacity_max { get; set; } = string.Empty;

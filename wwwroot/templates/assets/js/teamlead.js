@@ -106,7 +106,7 @@ $(function () {
         const volunteers = data.volunteers || data.Volunteers || [];
         const rows = volunteers.map(v => `
             <tr>
-                <td class='v-name' data-id='${v.VolunteerId || v.volunteerId}'>${v.name || v.Name}</td>
+                <td class='v-name' style='cursor:pointer' data-id='${v.VolunteerId || v.volunteerId}'>${v.name || v.Name}</td>
                 <td>${v.capacityBand || v.CapacityBand}</td>
                 <td>${v.thisWeek || v.ThisWeek}</td>
                 <td>${v.trend || v.Trend}</td>
@@ -187,6 +187,14 @@ $(function () {
         $('#checkinsList').html(finalHtml);
     }
 
+    function openInModal(url, title = 'Details') {
+        document.getElementById('escIframe').src = url;
+        document.getElementById('modalTitle').innerText = title;
+
+        var modal = new bootstrap.Modal(document.getElementById('esclationModel'));
+        modal.show();
+    }
+
     $(document).on('click', '.checkin-ele', function () {
         const id = $(this).data('id');
         const teamLeadId = $(this).data('teamleadid');
@@ -196,22 +204,32 @@ $(function () {
         goToCheckIns(id, teamLeadId, vName, tName);
     });
 
+    //function goToCheckIns(id, teamLeadId, vName, tName) {
+    //    window.location.href =
+    //        `CheckIns.html?id=${id}&teamLeadId=${teamLeadId}&vName=${encodeURIComponent(vName)}&tName=${encodeURIComponent(tName)}`;
+    //}
+
     function goToCheckIns(id, teamLeadId, vName, tName) {
-        window.location.href =
-            `CheckIns.html?id=${id}&teamLeadId=${teamLeadId}&vName=${encodeURIComponent(vName)}&tName=${encodeURIComponent(tName)}`;
+        const url = `CheckIns.html?id=${id}&teamLeadId=${teamLeadId}&vName=${encodeURIComponent(vName)}&tName=${encodeURIComponent(tName)}`;
+
+        openInModal(url, 'CheckIns');
     }
 
+    //function openEscalation(id) {
+    //    window.location.href = `Escalations.html?id=${id}`;
+    //}
     function openEscalation(id) {
-        window.location.href = `Escalations.html?id=${id}`;
+        const url = `Escalations.html?id=${id}`;
+        openInModal(url, 'Escalation');
     }
-
     $(document).on('click', '.escalation-item', function () {
         const id = $(this).data('id');
         openEscalation(id);
     });
 
     function openVolunteerDashboard(id) {
-        window.location.href = `../Volunteers/Assignments.html?volunteerid=${id}`;
+        const url = `../Volunteers/Assignments.html?volunteerid=${id}`;
+        openInModal(url, 'Volunteer Details..');
     }
 
     $(document).on('click', '.v-name', function () {

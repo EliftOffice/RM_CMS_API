@@ -13,7 +13,9 @@ namespace RM_CMS.BLL.Peoples
     {
        
         public Task<ApiResponse<AssignedVolunteerDTO>> SaveAndAssignPeople(CreatePersonDto createDto);
-      
+        Task<ApiResponse<People>> GetPersonByIdAsync(string personId);
+        Task<ApiResponse<List<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter);
+
     }
     public class PeoplesBLL : IPeoplesBLL
     {
@@ -139,6 +141,73 @@ namespace RM_CMS.BLL.Peoples
             }
         }
 
-       
+
+        private string DeterminePriority(CreatePeopleDto dto)
+        {
+            if (!string.IsNullOrWhiteSpace(dto.interested_in) && dto.interested_in.Contains("Counseling", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Urgent";
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.specific_needs) || !string.IsNullOrWhiteSpace(dto.prayer_requests))
+            {
+                return "High";
+            }
+
+
+
+            return "Normal";
+        }
+
+        public async Task<ApiResponse<People>> GetPersonByIdAsync(string personId)
+        {
+            try
+            {
+                var result = await _peoplesDAL.GetPersonByIdAsync(personId);
+                if (result.ResponseType != ResponseType.Success)
+                    return new ApiResponse<People>(ResponseType.Error, $"Error retrieving person: {result.Message}", new People());
+                else
+                    return result;
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<People>(ResponseType.Error, $"Error retrieving person: {ex.Message}", new People());
+            }
+        }
+        public async Task<ApiResponse<List<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter)
+        {
+            try
+            {
+                var result = await _peoplesDAL.GetPeopleByFilterAsync(filter);
+
+                if (result.ResponseType != ResponseType.Success)
+                {
+                    return new ApiResponse<List<People>>(
+                        ResponseType.Error,
+                        result.Message,
+                        new List<People>()
+                    );
+                }
+
+                // ✅ Convert IEnumerable → List
+                var peopleList = result.Data?.ToList() ?? new List<People>();
+
+                return new ApiResponse<List<People>>(
+                    ResponseType.Success,
+                    result.Message,
+                    peopleList
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<People>>(
+                    ResponseType.Error,
+                    $"Error retrieving people: {ex.Message}",
+                    new List<People>()
+                );
+            }
+        }
     }
+
+
 }

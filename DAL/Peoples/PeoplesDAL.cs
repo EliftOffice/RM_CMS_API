@@ -18,6 +18,7 @@ namespace RM_CMS.DAL.Peoples
         Task<ApiResponse<bool>> UpdatePersonVisitAsync(string personId);
         Task<ApiResponse<bool>> IncrementVisitCountAsync(string personId);
         Task<ApiResponse<People>> GetPersonByIdAsync(string personId);
+        Task<ApiResponse<IEnumerable<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter);
     }
 
     public class PeoplesDAL : IPeoplesDAL
@@ -216,7 +217,6 @@ namespace RM_CMS.DAL.Peoples
                 return new ApiResponse<bool>(ResponseType.Error, $"Error updating person visit: {ex.Message}", false);
             }
         }
-
         public async Task<ApiResponse<bool>> IncrementVisitCountAsync(string personId)
         {
             try
@@ -248,8 +248,6 @@ namespace RM_CMS.DAL.Peoples
                 return new ApiResponse<bool>(ResponseType.Error, $"Error incrementing visit count: {ex.Message}", false);
             }
         }
-
-
         public async Task<ApiResponse<People>> GetPersonByIdAsync(string personId)
         {
             try
@@ -313,6 +311,64 @@ WHERE person_id = @PersonId";
                 return new ApiResponse<People>(
                     ResponseType.Error,
                     $"Error retrieving person: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+        public async Task<ApiResponse<IEnumerable<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    var query = new StringBuilder("SELECT * FROM people WHERE 1=1");
+                    var parameters = new DynamicParameters();
+
+                    if (!string.IsNullOrEmpty(filter.Status))
+                    {
+                        query.Append(" AND follow_up_status = @Status");
+                        parameters.Add("Status", filter.Status);
+                    }
+
+                    if (!string.IsNullOrEmpty(filter.Priority))
+                    {
+                        query.Append(" AND follow_up_priority = @Priority");
+                        parameters.Add("Priority", filter.Priority);
+                    }
+
+                    if (!string.IsNullOrEmpty(filter.AssignedTo))
+                    {
+                        query.Append(" AND assigned_volunteer = @AssignedTo");
+                        parameters.Add("AssignedTo", filter.AssignedTo);
+                    }
+
+                    if (!string.IsNullOrEmpty(filter.Campus))
+                    {
+                        query.Append(" AND campus = @Campus");
+                        parameters.Add("Campus", filter.Campus);
+                    }
+
+                    query.Append(" ORDER BY created_at DESC LIMIT @Limit");
+                    parameters.Add("Limit", filter.Limit);
+
+                    var people = await connection.QueryAsync<People>(
+                        query.ToString(),
+                        parameters
+                    );
+
+                    return new ApiResponse<IEnumerable<People>>(
+                        ResponseType.Success,
+                        "People retrieved successfully",
+                        people
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<IEnumerable<People>>(
+                    ResponseType.Error,
+                    $"Error retrieving people: {ex.Message}",
                     null
                 );
             }
