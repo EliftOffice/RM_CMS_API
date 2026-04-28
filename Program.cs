@@ -91,26 +91,8 @@ namespace RM_CMS
             app.MapGet("/", async context =>
             {
                 context.Response.ContentType = "text/html";
-                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates","volunteers", "login.html"));
-            });
-
-            app.MapGet("/templates/index.html", async context =>
-            {
-                context.Response.ContentType = "text/html";
-                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates", "volunteers", "login.html"));
-            });
-
-            app.MapGet("/diagnostics", async context =>
-            {
-                context.Response.ContentType = "text/html";
-                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates", "diagnostics.html"));
-            });
-
-            app.MapGet("/templates/diagnostics.html", async context =>
-            {
-                context.Response.ContentType = "text/html";
-                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates", "diagnostics.html"));
-            });
+                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates","Volunteers", "Login.html"));
+            });          
 
             app.Run();
         }
