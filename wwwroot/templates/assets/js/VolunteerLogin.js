@@ -21,7 +21,7 @@
 
                 // Redirect to Assignments.html with volunteerId parameter
                 setTimeout(() => {
-                    window.location.href = `../../templates/volunteers/Assignments.html?volunteerid=${volunteerId}`;
+                    window.location.href = `../../templates/Volunteers/Assignments.html?volunteerid=${volunteerId}`;
                 }, 500); // Small delay to show success message
 
             } else {
