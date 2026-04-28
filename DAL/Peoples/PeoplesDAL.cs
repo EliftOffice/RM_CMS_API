@@ -19,7 +19,7 @@ namespace RM_CMS.DAL.Peoples
         Task<ApiResponse<bool>> IncrementVisitCountAsync(string personId);
         Task<ApiResponse<People>> GetPersonByIdAsync(string personId);
         Task<ApiResponse<IEnumerable<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter);
-        Task<ApiResponse<List<People>>> GetBasicPeopleAsync();
+        Task<ApiResponse<List<People>>> GetBasicPeopleAsync(string? status = null);
         Task<ApiResponse<People>> UpdatePersonAsync(People person);
     }
 
@@ -378,30 +378,40 @@ WHERE p.person_id = @PersonId";
         }
 
 
-        public async Task<ApiResponse<List<People>>> GetBasicPeopleAsync()
+        public async Task<ApiResponse<List<People>>> GetBasicPeopleAsync(string? status = null)
         {
             try
             {
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
-                    const string query = @"
-SELECT 
+                    var sb = new StringBuilder();
+                    sb.Append(@"SELECT 
     person_id AS PersonId,
     first_name AS FirstName,
     last_name AS LastName,
     phone AS Phone,
-follow_up_status AS FollowupStatus,
-next_action_date AS NextActionDate
-FROM people";
+    follow_up_status AS FollowupStatus,
+    next_action_date AS NextActionDate
+FROM people");
 
-                    var people = (await connection.QueryAsync<People>(query)).ToList();
+                    var parameters = new DynamicParameters();
+
+                    if (!string.IsNullOrEmpty(status))
+                    {
+                        sb.Append(" WHERE follow_up_status = @Status");
+                        parameters.Add("Status", status);
+                    }
+
+                    sb.Append(" ORDER BY created_at DESC");
+
+                    var people = (await connection.QueryAsync<People>(sb.ToString(), parameters)).ToList();
 
                     if (people == null || !people.Any())
                     {
                         return new ApiResponse<List<People>>(
-                            ResponseType.Error,
+                            ResponseType.Success,
                             "No people found",
-                            null
+                            new List<People>()
                         );
                     }
 

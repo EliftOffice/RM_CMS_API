@@ -1,7 +1,22 @@
 ﻿$(function () {
-    function loadPeople() {
+
+    const statuses = ["", "NEW", "ASSIGNED", "CONTACTED", "RETRY PENDING", "ESCALATED", "COMPLETE", "UNRESPONSIVE"];
+
+    function buildStatusFilter() {
+        const sel = $('#statusFilter');
+        if (!sel.length) return;
+        sel.empty();
+        statuses.forEach(s => sel.append(`<option value="${s}">${s || 'All'}</option>`));
+        sel.on('change', function () { loadPeople($(this).val()); });
+    }
+
+    // 🔹 Load People (supports optional status filter)
+    function loadPeople(status) {
+        let url = API_BASE_URL + '/GetBasicPeopleAsync';
+        if (status) url += '?status=' + encodeURIComponent(status);
+
         $.ajax({
-            url: API_BASE_URL + '/GetBasicPeopleAsync',
+            url: url,
             method: 'GET',
             success: function (res) {
                 if (!res || !res.data) {
@@ -10,25 +25,16 @@
                 }
                 const rows = res.data.map(p => `
                     <tr>
-                        <td>${p.personId}</td>
-                        <td>${p.firstName} ${p.lastName}</td>
-                        <td>${p.email || ''}</td>
-                        <td>${p.phone || ''}</td>
-                        <td>${p.campus || ''}</td>
-                        <td>${p.followUpStatus}</td>
-                      <td>
-  ${p.nextActionDate
-                        ? new Date(p.nextActionDate).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric'
-                        })
-                        : ''
-  }
-</td>
+                        <td>${p.personId || p.PersonId}</td>
+                        <td>${(p.firstName || p.FirstName || '') + ' ' + (p.lastName || p.LastName || '')}</td>
+                        <td>${p.email || p.Email || ''}</td>
+                        <td>${p.phone || p.Phone || ''}</td>
+                        <td>${p.campus || p.Campus || ''}</td>
+                        <td>${p.followupStatus || p.FollowupStatus || ''}</td>
+                        <td>${p.nextActionDate || p.NextActionDate || ''}</td>
                         <td>
-                            <button class="btn btn-sm btn-primary action-btn edit" data-id="${p.personId}">Edit</button>
-                            <button class="btn btn-sm btn-danger action-btn delete" data-id="${p.personId}">Delete</button>
+                            <button class="btn btn-sm btn-primary action-btn edit" data-id="${p.personId || p.PersonId}">Edit</button>
+                            <button class="btn btn-sm btn-danger action-btn delete" data-id="${p.personId || p.PersonId}">Delete</button>
                         </td>
                     </tr>
                 `).join('');
@@ -40,42 +46,28 @@
         });
     }
 
+    // Wire up events etc.
+    buildStatusFilter();
     loadPeople();
 
     $(document).on('click', '.edit', function () {
         const id = $(this).data('id');
-        $.ajax({
-            url: API_BASE_URL + '/people/' + id, method: 'GET', success: function (res) {
+        $.ajax({ url: API_BASE_URL + '/people/' + id, method: 'GET', success: function (res) {
                 if (!res || !res.data) return alert('Person not found');
                 const p = res.data;
-                $('#person_id').val(p.personId);
-                $('#first_name').val(p.firstName);
-                $('#last_name').val(p.lastName);
-                $('#email').val(p.email);
-                $('#phone').val(p.phone);
-                $('#campus').val(p.campus);
-                $('#visit_type').val(p.visitType);
-                $('#follow_up_status').val(p.followUpStatus);
-                $('#follow_up_priority').val(p.followUpPriority);
-                const volunteer = p.assignedVolunteer?.trim() || 'Not Assigned';
-                $('#assigned_volunteer').val(volunteer);
-                // Clear all first
-                $('input[id^="interest_"], #Counseling').prop('checked', false);
-
-                // Split values
-                const interests = (p.interestedIn || "").split(',');
-
-                // Set checked
-                interests.forEach(val => {
-                    val = val.trim();
-
-                    if (val === "Membership") $('#interest_membership').prop('checked', true);
-                    if (val === "Volunteering") $('#interest_volunteering').prop('checked', true);
-                    if (val === "Small Groups") $('#interest_groups').prop('checked', true);
-                    if (val === "Counseling") $('#Counseling').prop('checked', true);
-                });
-                $('#prayer_requests').val(p.prayerRequests);
-                $('#specific_needs').val(p.specificNeeds);
+                $('#person_id').val(p.person_id || p.PersonId);
+                $('#first_name').val(p.first_name || p.FirstName);
+                $('#last_name').val(p.last_name || p.LastName);
+                $('#email').val(p.email || p.Email);
+                $('#phone').val(p.phone || p.Phone);
+                $('#campus').val(p.campus || p.Campus);
+                $('#visit_type').val(p.visit_type || p.VisitType);
+                $('#follow_up_status').val(p.follow_up_status || p.FollowUpStatus);
+                $('#follow_up_priority').val(p.follow_up_priority || p.FollowUpPriority);
+                $('#assigned_volunteer').val(p.assigned_volunteer || p.AssignedVolunteer);
+                $('#interested_in').val(p.interested_in || p.InterestedIn);
+                $('#prayer_requests').val(p.prayer_requests || p.PrayerRequests);
+                $('#specific_needs').val(p.specific_needs || p.SpecificNeeds);
 
                 var modal = new bootstrap.Modal(document.getElementById('editModal'));
                 modal.show();
@@ -84,15 +76,6 @@
     });
 
     $('#savePerson').on('click', function () {
-        const interests = [];
-
-        if ($('#interest_membership').is(':checked')) interests.push("Membership");
-        if ($('#interest_volunteering').is(':checked')) interests.push("Volunteering");
-        if ($('#interest_groups').is(':checked')) interests.push("Small Groups");
-        if ($('#Counseling').is(':checked')) interests.push("Counseling");
-
-        const interestedInValue = interests.join(',');
-
         const payload = {
             person_id: $('#person_id').val(),
             first_name: $('#first_name').val(),
@@ -104,7 +87,7 @@
             follow_up_status: $('#follow_up_status').val(),
             follow_up_priority: $('#follow_up_priority').val(),
             assigned_volunteer: $('#assigned_volunteer').val(),
-            interested_in: interestedInValue,
+            interested_in: $('#interested_in').val(),
             prayer_requests: $('#prayer_requests').val(),
             specific_needs: $('#specific_needs').val()
         };
@@ -124,8 +107,8 @@
     $(document).on('click', '.delete', function () {
         const id = $(this).data('id');
         if (!confirm('Delete this person?')) return;
-        // Implement delete endpoint later - for now simulate removal
         $.ajax({ url: API_BASE_URL + '/people/' + id, method: 'DELETE', success: function () { loadPeople(); }, error: function () { alert('Delete failed'); } });
     });
+
 });
 

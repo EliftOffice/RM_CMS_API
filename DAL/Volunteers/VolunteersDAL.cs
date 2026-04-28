@@ -5,6 +5,7 @@ using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Volunteers;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
+using System.Text.Json;
 
 namespace RM_CMS.DAL.Volunteers
 {
@@ -19,6 +20,13 @@ namespace RM_CMS.DAL.Volunteers
         Task<ApiResponse<List<Volunteer>>> GetVolunteersAsync();
         Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersAsyncByMobile(string mobile);
         Task<ApiResponse<string>> UpdateVolunteerMobileAsync(string volunteerId, string mobile);
+
+        // New DAL methods
+        Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync();
+        Task<ApiResponse<bool>> UpdateVolunteerTelegramAsync(UpdateVolunteerTelegramDto dto);
+
+        // Manual assign to specific volunteer
+        Task<ApiResponse<AssignedVolunteerDTO>> ManualAssignToVolunteerAsync(string personId, string volunteerId);
     }
 
     public class VolunteersDAL : IVolunteersDAL
@@ -184,6 +192,7 @@ https://rmoffice.online/templates/Volunteers/Login.html
 
                         return new ApiResponse<AssignedVolunteerDTO>(
                             ResponseType.Success,
+
                             "Volunteer assigned successfully",
                             volunteer
                         );
@@ -519,7 +528,7 @@ ORDER BY p.next_action_date;";
                         last_check_in,        
                         next_check_in,       
                         created_at,
-                        updated_at,level
+                        updated_at,level,telegram_chat_id
                     )
                     VALUES (
                         @VolunteerId,
@@ -536,7 +545,7 @@ ORDER BY p.next_action_date;";
                         CURRENT_DATE,         
                         CURRENT_DATE,         
                         NOW(),
-                        NOW(),'Level 1'
+                        NOW(),'Level 1',@TelegramChatId
                     );";
 
                     await connection.ExecuteAsync(insertQuery, new
@@ -550,7 +559,8 @@ ORDER BY p.next_action_date;";
                         volunteer.StartDate,
                         volunteer.CapacityBand,
                         CapacityMin = capacity.Min,
-                        CapacityMax = capacity.Max
+                        CapacityMax = capacity.Max,
+                         volunteer.TelegramChatId
                     });
 
                     // 🔥 4. Fetch FULL DATA → MAP TO DTO (NO MANUAL MAPPING)
@@ -768,7 +778,153 @@ WHERE LOWER(email) = @Email;";
             }
         }
 
+        public async Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync()
+        {
+            try
+            {
+                var token = _configuration["Telegram:BotToken"];
+                if (string.IsNullOrEmpty(token))
+                    return new ApiResponse<TelegramChatDto>(ResponseType.Error, "Bot token not configured", null);
 
+                using var client = new HttpClient();
+                var url = $"https://api.telegram.org/bot{token}/getUpdates?limit=5";
+                var resp = await client.GetAsync(url);
+                if (!resp.IsSuccessStatusCode)
+                    return new ApiResponse<TelegramChatDto>(ResponseType.Error, "Failed to fetch updates", null);
+
+                var json = await resp.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("result", out var results) && results.GetArrayLength() > 0)
+                {
+                    // find latest message with chat
+                    for (int i = results.GetArrayLength() - 1; i >= 0; i--)
+                    {
+                        var item = results[i];
+                        if (item.TryGetProperty("message", out var message))
+                        {
+                            if (message.TryGetProperty("chat", out var chat))
+                            {
+                                var chatId = chat.GetProperty("id").GetRawText().Trim('"');
+                                string name = "";
+                                if (chat.TryGetProperty("first_name", out var first)) name = first.GetString();
+                                if (string.IsNullOrEmpty(name) && chat.TryGetProperty("username", out var un)) name = un.GetString();
+
+                                return new ApiResponse<TelegramChatDto>(ResponseType.Success, "Chat found", new TelegramChatDto { ChatId = chatId, Name = name });
+                            }
+                        }
+                    }
+                }
+
+                return new ApiResponse<TelegramChatDto>(ResponseType.Warning, "No chat updates found", null);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<TelegramChatDto>(ResponseType.Error, $"Error fetching updates: {ex.Message}", null);
+            }
+        }
+
+        public async Task<ApiResponse<bool>> UpdateVolunteerTelegramAsync(UpdateVolunteerTelegramDto dto)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(dto.VolunteerId) || string.IsNullOrWhiteSpace(dto.TelegramChatId))
+                    return new ApiResponse<bool>(ResponseType.Warning, "VolunteerId and TelegramChatId required", false);
+
+                using var connection = _dbConnectionFactory.GetConnection();
+                const string q = @"UPDATE volunteers SET telegram_chat_id = @ChatId, updated_at = NOW() WHERE volunteer_id = @VolunteerId";
+                var rows = await connection.ExecuteAsync(q, new { ChatId = dto.TelegramChatId, VolunteerId = dto.VolunteerId });
+                if (rows == 0)
+                    return new ApiResponse<bool>(ResponseType.Warning, "Volunteer not found", false);
+
+                return new ApiResponse<bool>(ResponseType.Success, "Telegram ChatId updated", true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(ResponseType.Error, $"Error updating telegram id: {ex.Message}", false);
+            }
+        }
+
+        public async Task<ApiResponse<AssignedVolunteerDTO>> ManualAssignToVolunteerAsync(string personId, string volunteerId)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                if (connection is System.Data.Common.DbConnection dbConn)
+                    await dbConn.OpenAsync();
+                else
+                    connection.Open();
+
+                using var transaction = connection.BeginTransaction();
+
+                // 1. Verify person exists
+                const string personQuery = @"SELECT person_id AS PersonId, first_name AS FirstName, last_name AS LastName FROM people WHERE person_id = @PersonId FOR UPDATE";
+                var person = await connection.QueryFirstOrDefaultAsync<People>(personQuery, new { PersonId = personId }, transaction);
+                if (person == null)
+                {
+                    transaction.Rollback();
+                    return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, "Person not found", null);
+                }
+
+                // 2. Verify volunteer exists and has capacity
+                const string volQuery = @"SELECT volunteer_id AS VolunteerId, first_name AS FirstName, last_name AS LastName, capacity_max, current_assignments FROM volunteers WHERE volunteer_id = @VolunteerId FOR UPDATE";
+                var volunteer = await connection.QueryFirstOrDefaultAsync<dynamic>(volQuery, new { VolunteerId = volunteerId }, transaction);
+                if (volunteer == null)
+                {
+                    transaction.Rollback();
+                    return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, "Volunteer not found", null);
+                }
+
+                // Check capacity
+                int capacityMax = volunteer.capacity_max ?? 0;
+                int current = volunteer.current_assignments ?? 0;
+                if (current >= capacityMax)
+                {
+                    transaction.Rollback();
+                    return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Warning, "Volunteer has no capacity", null);
+                }
+
+                // 3. Update person
+                const string updatePerson = @"
+                    UPDATE people SET
+                        assigned_volunteer = @VolunteerId,
+                        assigned_date = NOW(),
+                        follow_up_status = 'ASSIGNED',
+                        next_action_date = NOW() + INTERVAL 48 HOUR
+                    WHERE person_id = @PersonId;
+                ";
+
+                await connection.ExecuteAsync(updatePerson, new { VolunteerId = volunteerId, PersonId = personId }, transaction);
+
+                // 4. Update volunteer counters
+                const string updateVolunteer = @"
+                    UPDATE volunteers
+                    SET current_assignments = current_assignments + 1,
+                        total_assigned = total_assigned + 1
+                    WHERE volunteer_id = @VolunteerId;
+                ";
+
+                await connection.ExecuteAsync(updateVolunteer, new { VolunteerId = volunteerId }, transaction);
+
+                transaction.Commit();
+
+                var assigned = new AssignedVolunteerDTO
+                {
+                    volunteer_id = volunteer.VolunteerId ?? volunteer.volunteer_id,
+                    first_name = volunteer.FirstName ?? volunteer.first_name,
+                    last_name = volunteer.LastName ?? volunteer.last_name,
+                    people_id = person.PersonId,
+                    people_name = person.FirstName + " " + person.LastName
+                };
+
+                return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Success, "Manual assignment completed", assigned);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"Error during manual assignment: {ex.Message}", null);
+            }
+        }
 
     }
 }

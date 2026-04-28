@@ -10,6 +10,7 @@ namespace RM_CMS.BLL.Volunteers
     public interface IVolunteersBLL
     {
         Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId);
+        Task<ApiResponse<AssignedVolunteerDTO>> ManualAssignToVolunteerAsync(string personId, string volunteerId);
         Task<ApiResponse<Volunteer>> GetVolunteerByIdAsync(string volunteerId);
         Task<ApiResponse<List<People>>> GetVolunteerAssignmentsAsync(string volunteerId);
 
@@ -17,6 +18,10 @@ namespace RM_CMS.BLL.Volunteers
         Task<ApiResponse<List<Volunteer>>> GetVolunteersAsync();
         Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersByMobileAsync(string mobile);
         Task<ApiResponse<string>> UpdateVolunteerMobileAsync(UpdateVolunteerMobileDto dto);
+
+        // New methods
+        Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync();
+        Task<ApiResponse<bool>> UpdateVolunteerTelegramAsync(UpdateVolunteerTelegramDto dto);
     }
     public class VolunteersBLL : IVolunteersBLL
     {
@@ -40,6 +45,18 @@ namespace RM_CMS.BLL.Volunteers
                     "Error assigning volunteer",
                     new AssignedVolunteerDTO()
                 );
+            }
+        }
+
+        public async Task<ApiResponse<AssignedVolunteerDTO>> ManualAssignToVolunteerAsync(string personId, string volunteerId)
+        {
+            try
+            {
+                return await _volunteersDAL.ManualAssignToVolunteerAsync(personId, volunteerId);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"Error performing manual assign: {ex.Message}", null);
             }
         }
 
@@ -229,6 +246,30 @@ namespace RM_CMS.BLL.Volunteers
                     $"Error updating mobile: {ex.Message}",
                     null
                 );
+            }
+        }
+
+        public async Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync()
+        {
+            try
+            {
+                return await ((VolunteersDAL)_volunteersDAL).GetLatestTelegramChatAsync();
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<TelegramChatDto>(ResponseType.Error, $"Error fetching latest telegram chat: {ex.Message}", null);
+            }
+        }
+
+        public async Task<ApiResponse<bool>> UpdateVolunteerTelegramAsync(UpdateVolunteerTelegramDto dto)
+        {
+            try
+            {
+                return await ((VolunteersDAL)_volunteersDAL).UpdateVolunteerTelegramAsync(dto);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(ResponseType.Error, $"Error updating volunteer telegram: {ex.Message}", false);
             }
         }
     }

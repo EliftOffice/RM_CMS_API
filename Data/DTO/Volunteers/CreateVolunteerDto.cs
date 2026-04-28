@@ -7,6 +7,7 @@ namespace RM_CMS.Data.DTO.Volunteers
     {
 
         public string VolunteerId { get; set; }
+        public string TelegramChatId { get; set; }
         public string FirstName { get; set; } = string.Empty;
 
         public string LastName { get; set; } = string.Empty;

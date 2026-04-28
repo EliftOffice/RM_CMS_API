@@ -12,7 +12,8 @@ $(document).ready(function () {
             email: $("#email").val().trim(),
             phone: $("#phone").val().trim(),
             teamLead: $("#teamLead").val().trim(),
-            capacityBand: $("#capacityBand").val()
+            capacityBand: $("#capacityBand").val(),
+            TelegramChatId: $("#telegramChatId").val()
         };
 
         if (!payload.firstName || !payload.email) {
@@ -32,14 +33,18 @@ $(document).ready(function () {
             data: JSON.stringify(payload),
 
             success: function (res) {
+
+
                 showMessage(res.message || "Volunteer created successfully", "success");
 
+                // Clear form only on success
                 $("#firstName").val('');
                 $("#lastName").val('');
                 $("#email").val('');
                 $("#phone").val('');
                 $("#teamLead").val('');
                 $("#capacityBand").val('');
+                $("#telegramChatId").val('');
             },
 
             error: function (xhr) {

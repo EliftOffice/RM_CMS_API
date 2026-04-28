@@ -85,11 +85,11 @@ namespace RM_CMS.Controllers.Peoples
 
 
         [HttpGet("/api/GetBasicPeopleAsync")]
-        public async Task<ActionResult<ApiResponse<List<People>>>> GetBasicPeopleAsync()
+        public async Task<ActionResult<ApiResponse<List<People>>>> GetBasicPeopleAsync([FromQuery] string? status)
         {
             try
             {
-                var result = await _peoplesBLL.GetBasicPeopleAsync();
+                var result = await _peoplesBLL.GetBasicPeopleAsync(status);
                 return HttpResponseHelper.CreateHttpResponse(result);
             }
             catch (Exception ex)

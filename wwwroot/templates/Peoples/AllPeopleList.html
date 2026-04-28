@@ -1,5 +1,6 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -498,8 +499,19 @@
                 padding: 0 16px;
             }
         }
+
+        .action-btn {
+            margin-right: 6px;
+        }
+
+        .filter-wrap {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
     </style>
 </head>
+
 <body>
 
     <!-- Navbar -->
@@ -526,8 +538,12 @@
             <div class="row mt-0">
                 <div class="col-12">
                     <div class="card">
-                        <div class="card-header">
+                        <div class="card-header d-flex justify-content-between align-items-center">
                             <h5>All Visitors</h5>
+                            <div class="filter-wrap">
+                                <label class="m-0">Status:</label>
+                                <select id="statusFilter" class="form-select" style="width:200px"></select>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">

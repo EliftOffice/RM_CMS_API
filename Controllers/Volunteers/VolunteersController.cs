@@ -173,6 +173,53 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
-    }
+        [HttpGet("get-latest-chat")]
+        public async Task<ActionResult<ApiResponse<TelegramChatDto>>> GetLatestTelegramChat()
+        {
+            try
+            {
+                var result = await _VolunteersBLL.GetLatestTelegramChatAsync();
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting latest telegram chat");
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<TelegramChatDto>(ResponseType.Error, "Error retrieving latest chat", null));
+            }
+        }
 
+        [HttpPut("update-telegram")]
+        public async Task<ActionResult<ApiResponse<bool>>> UpdateVolunteerTelegram([FromBody] UpdateVolunteerTelegramDto dto)
+        {
+            try
+            {
+                var result = await _VolunteersBLL.UpdateVolunteerTelegramAsync(dto);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating telegram id");
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<bool>(ResponseType.Error, "Error updating telegram id", false));
+            }
+        }
+
+        [HttpPost("manual-assign")]
+        public async Task<ActionResult<ApiResponse<AssignedVolunteerDTO>>> ManualAssign([FromBody] ManualAssignDto dto)
+        {
+            try
+            {
+                if (dto == null || string.IsNullOrWhiteSpace(dto.PersonId) || string.IsNullOrWhiteSpace(dto.VolunteerId))
+                    return HttpResponseHelper.CreateHttpResponse(new ApiResponse<AssignedVolunteerDTO>(ResponseType.Warning, "PersonId and VolunteerId are required", null));
+
+                var result = await _VolunteersBLL.ManualAssignToVolunteerAsync(dto.PersonId, dto.VolunteerId);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Manual assign failed");
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, "Error during manual assign", null));
+            }
+        }
+
+    }
 }

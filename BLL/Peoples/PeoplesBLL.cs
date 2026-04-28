@@ -15,7 +15,7 @@ namespace RM_CMS.BLL.Peoples
         public Task<ApiResponse<AssignedVolunteerDTO>> SaveAndAssignPeople(CreatePersonDto createDto);
         Task<ApiResponse<People>> GetPersonByIdAsync(string personId);
         Task<ApiResponse<List<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter);
-        Task<ApiResponse<List<People>>> GetBasicPeopleAsync();
+        Task<ApiResponse<List<People>>> GetBasicPeopleAsync(string? status = null);
         Task<ApiResponse<People>> UpdateVisitorAsync(CreatePeopleDto updateDto);
     }
     public class PeoplesBLL : IPeoplesBLL
@@ -208,11 +208,11 @@ namespace RM_CMS.BLL.Peoples
                 );
             }
         }
-        public async Task<ApiResponse<List<People>>> GetBasicPeopleAsync()
+        public async Task<ApiResponse<List<People>>> GetBasicPeopleAsync(string? status = null)
         {
             try
             {
-                var result = await _peoplesDAL.GetBasicPeopleAsync();
+                var result = await _peoplesDAL.GetBasicPeopleAsync(status);
 
                 if (result.ResponseType != ResponseType.Success)
                 {

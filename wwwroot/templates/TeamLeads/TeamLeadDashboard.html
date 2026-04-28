@@ -633,6 +633,10 @@
                 <label>Team Lead ID:</label>
                 <input id="teamLeadId" placeholder="Enter ID" />
                 <button id="loadMetrics">Load</button>
+                <!-- Team Huddle button (visible on Fridays via JS) -->
+                <button id="teamHuddleBtn" class="btn btn-outline-primary" style="display:none; margin-left:8px;">Team Huddle (Fri)</button>
+                <!-- Click to Assign link -->
+                <a href="../Peoples/ManualAssignments.html" class="btn btn-sm btn-secondary" style="margin-left:8px;">Click to Assign</a>
             </div>
         </div>
     </div>
@@ -640,16 +644,20 @@
     <!-- ── Page Body ── -->
     <div class="page-body">
 
+        <!-- Dashboard Title -->
         <div class="dash-title-wrap">
             <h2 id="dashboardTitle">TEAM LEAD DASHBOARD</h2>
         </div>
 
+        <!-- Alerts -->
         <div id="alerts"></div>
 
         <div class="row g-3">
 
             <!-- Left Column -->
             <div class="col-md-8">
+
+                <!-- Team Performance -->
                 <div class="card">
                     <div class="card-header-strip">
                         <div class="card-strip-icon">📊</div>
@@ -660,6 +668,7 @@
                     </div>
                 </div>
 
+                <!-- Volunteers Metrics -->
                 <div class="card">
                     <div class="card-header-strip">
                         <div class="card-strip-icon">👥</div>
@@ -682,12 +691,13 @@
                         </div>
                     </div>
                 </div>
+
             </div>
 
             <!-- Right Column -->
             <div class="col-md-4">
 
-                <!-- Attention Needed — Team Huddle button idi lo vuntundi -->
+                <!-- Attention Needed -->
                 <div class="card">
                     <div class="card-header-strip">
                         <div class="card-strip-icon">⚠️</div>
@@ -706,9 +716,6 @@
                     </div>
                     <div class="card-body">
                         <ul id="checkinsList" class="list-group list-group-flush"></ul>
-
-                        <!-- Team Huddle Button — Friday only, blink -->
-                        <button id="teamHuddleBtn">Team Huddle </button>
                     </div>
                 </div>
 
@@ -716,57 +723,38 @@
         </div>
     </div>
 
-    <!-- ── Team Huddle Modal ── -->
+    <!-- Team Huddle Modal -->
     <div class="modal fade" id="teamHuddleModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Team Huddle — Follow-ups for this Week</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="teamHuddleContent">
-                        <table class="table table-sm" id="huddleTable">
-                            <thead>
-                                <tr>
-                                    <th>Volunteer</th>
-                                    <th>Person Name</th>
-                                    <th>Contact Status</th>
-                                    <th>Response Type</th>
-                                    <th>Attempt Date</th>
-                                    <th>Notes</th>
-                                    <th>Escalation Appropriateness</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Team Huddle - Follow-ups for this Week</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="teamHuddleContent">
+                <table class="table table-sm" id="huddleTable">
+                    <thead>
+                        <tr>
+                            <th>Volunteer ID</th>
+                            <th>Person ID</th>
+                            <th>Person Name</th>
+                            <th>FollowUp ID</th>
+                            <th>Contact Status</th>
+                            <th>Response Type</th>
+                            <th>Attempt Date</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
         </div>
-    </div>
-
-
-
-    <div class="modal fade" id="esclationModel" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalTitle">Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-
-                <div class="modal-body p-0">
-                    <iframe id="escIframe" style="border:none;width:100%;height:600px;"></iframe>
-                </div>
-
-            </div>
-        </div>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

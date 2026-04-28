@@ -351,7 +351,6 @@
                 <!-- Row 3: Team Lead ID | Capacity Band -->
                 <div>
                     <label class="vl-label" for="teamLead">Team Lead</label>
-                    <!--<input type="text" id="teamLead" class="vl-input" placeholder="Lead's ID (if known)">-->
 
                     <select id="teamLead" class="vl-input">
                         <option value="">Select TeamLead</option>
@@ -367,6 +366,18 @@
                         <option value="Balanced">Balanced (2-3)</option>
                         <option value="Limited">Limited (1-2)</option>
                     </select>
+                </div>
+
+                <!-- Telegram Chat ID (full width) -->
+                <div class="vl-full" style="display:flex;align-items:center;gap:10px;">
+                    <div style="flex:1;">
+                        <label class="vl-label" for="telegramChatId">Telegram Chat ID</label>
+                        <input type="text" id="telegramChatId" class="vl-input" placeholder="Chat ID (click GetChatID)" />
+                    </div>
+                    <div style="white-space:nowrap;">
+                        <a href="#" id="getChatBtn" style="display:inline-block;margin-top:22px;">GetChatID</a>
+                        <div id="chatName" style="font-size:0.9rem;color:#374151;margin-top:6px;"></div>
+                    </div>
                 </div>
 
             </div><!-- /vl-grid -->
@@ -389,6 +400,29 @@
                 window.location.href = 'Login.html';
             });
 
+            // GetChatID click
+            $('#getChatBtn').on('click', function (e) {
+                e.preventDefault();
+                $('#chatName').text('Loading...');
+                $.ajax({
+                    url: API_BASE_URL + '/volunteers/get-latest-chat',
+                    method: 'GET',
+                    success: function (res) {
+                        if (res && res.data) {
+                            const chatId = res.data.chatId || res.data.ChatId || res.data.chat_id || '';
+                            const name = res.data.name || res.data.Name || res.data.name_display || '';
+                            $('#telegramChatId').val(chatId);
+                            $('#chatName').text(name ? name : 'No name');
+                        } else {
+                            $('#chatName').text('No chat found');
+                        }
+                    },
+                    error: function () {
+                        $('#chatName').text('Error fetching chat');
+                    }
+                });
+            });
+
             $('#signupForm').on('submit', function (e) {
                 e.preventDefault();
 
@@ -405,7 +439,8 @@
                     email: $("#email").val().trim(),
                     phone: $("#phone").val().trim(),
                     teamLead: $("#teamLead").val().trim(),
-                    capacityBand: $("#capacityBand").val()
+                    capacityBand: $("#capacityBand").val(),
+                    telegramChatId: $("#telegramChatId").val().trim()
                 };
 
                 if (!payload.firstName || !payload.lastName || !payload.email) {
@@ -427,10 +462,32 @@
                     contentType: "application/json",
                     data: JSON.stringify(payload),
 
-                    success: function () {
+                    success: function (res) {
                         btn.removeClass('loading').prop('disabled', false);
-                        successMsg.text("Account created successfully! Redirecting to login...").show();
-                        setTimeout(() => { window.location.href = 'Login.html'; }, 2000);
+                        // handle success and also update telegram id if provided
+                        const vid = (res && res.data && (res.data.VolunteerId || res.data.volunteerId || res.data.volunteer_id)) || null;
+                        const chatId = $('#telegramChatId').val().trim();
+
+                        if (vid && chatId) {
+                            // update volunteer record with telegram id
+                            $.ajax({
+                                url: API_BASE_URL + '/volunteers/update-telegram',
+                                method: 'PUT',
+                                contentType: 'application/json',
+                                data: JSON.stringify({ VolunteerId: vid, TelegramChatId: chatId }),
+                                success: function () {
+                                    $('#successMessage').text('Account created and Telegram linked. Redirecting...').show();
+                                    setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
+                                },
+                                error: function () {
+                                    $('#successMessage').text('Account created but failed to link Telegram. Redirecting...').show();
+                                    setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
+                                }
+                            });
+                        } else {
+                            $('#successMessage').text('Account created successfully! Redirecting to login...').show();
+                            setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
+                        }
                     },
 
                     error: function (xhr) {
