@@ -350,7 +350,7 @@
 
         /* ── Team Huddle Button — blink, inside Attention card ── */
         #teamHuddleBtn {
-            display: none; /* shown by JS on Friday */
+           
             width: 100%;
             margin-top: 14px;
             padding: 10px 16px;
@@ -634,7 +634,7 @@
                 <input id="teamLeadId" placeholder="Enter ID" />
                 <button id="loadMetrics">Load</button>
                 <!-- Team Huddle button (visible on Fridays via JS) -->
-                <button id="teamHuddleBtn" class="btn btn-outline-primary" style="display:none; margin-left:8px;">Team Huddle (Fri)</button>
+                <!--<button id="teamHuddleBtn" class="btn btn-outline-primary" style="display:none; margin-left:8px;">Team Huddle (Fri)</button>-->
                 <!-- Click to Assign link -->
                 <a href="../Peoples/ManualAssignments.html" class="btn btn-sm btn-secondary" style="margin-left:8px;">Click to Assign</a>
             </div>
@@ -707,6 +707,16 @@
                         <ul id="attentionList" class="list-group list-group-flush"></ul>
                     </div>
                 </div>
+                <!-- Team Huddle -->
+                <div class="card team-huddle" style="display:none;" >
+                    <div class="card-header-strip">
+                        <div class="card-strip-icon" style="font-size:25px;">🤝</div>
+                        <h3 class="card-strip-title">Team Huddle</h3>
+                    </div>
+                    <div class="card-body">
+                        <button id="teamHuddleBtn" class="btn btn-outline-primary" style="margin-left:8px;">Team Huddle</button>
+                    </div>
+                </div>
 
                 <!-- Check-ins & Escalations -->
                 <div class="card">
@@ -736,14 +746,16 @@
                         <table class="table table-sm" id="huddleTable">
                             <thead>
                                 <tr>
-                                    <th>Volunteer ID</th>
-                                    <th>Person ID</th>
+                                    <!--<th>Volunteer ID</th>
+                                    <th>Person ID</th>-->
                                     <th>Person Name</th>
-                                    <th>FollowUp ID</th>
+                                    <!--<th>FollowUp ID</th>-->
                                     <th>Contact Status</th>
                                     <th>Response Type</th>
                                     <th>Attempt Date</th>
                                     <th>Notes</th>
+                                    <th>Escalation</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>

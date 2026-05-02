@@ -630,14 +630,14 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
                 var targetWeek = week ?? ISOWeek.GetWeekOfYear(DateTime.Now);
 
                 const string query = @"
-                    SELECT f.*
-                    FROM follow_ups f
-                    WHERE f.week_number = @Week
-                      AND f.volunteer_id IN (
-                        SELECT volunteer_id FROM volunteers WHERE team_lead = @TeamLeadId
-                      )
-                    ORDER BY f.volunteer_id, f.attempt_date DESC, f.attempt_time DESC
-                ";
+                                        SELECT f.*, v.first_name, v.last_name
+                                        FROM follow_ups f
+                                        INNER JOIN volunteers v 
+                                            ON v.volunteer_id = f.volunteer_id
+                                        WHERE f.week_number = @Week
+                                          AND v.team_lead = @TeamLeadId
+                                        ORDER BY f.volunteer_id, f.attempt_date DESC, f.attempt_time DESC
+                                    ";
 
                 var list = await connection.QueryAsync<FollowUp>(query, new { Week = targetWeek, TeamLeadId = teamLeadId });
 

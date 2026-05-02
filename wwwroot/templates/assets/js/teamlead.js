@@ -83,10 +83,10 @@ $(function () {
 
         //Show or hide Team Huddle button based on IsTeamHurdleDay flag
         if (data.isTeamHurdleDay) {
-            $('#teamHuddleBtn').show();
+            $('.team-huddle').show();
 
         } else {
-            $('#teamHuddleBtn').hide();
+            $('.team-huddle').hide();
         }
 
 
@@ -242,6 +242,8 @@ $(function () {
         if (!teamLeadId) return alert('TeamLeadId required');
         // call DTO endpoint to get rich data
         TLID = teamLeadId;
+        var modal = new bootstrap.Modal(document.getElementById('teamHuddleModal'));
+        modal.show();
         TeamHuddleFollowsDataAjax(teamLeadId);
     });
 
@@ -263,7 +265,7 @@ $(function () {
 
                     const rows = res.data.map(r => `
     <tr>
-        <td>${r.volunteerId || r.VolunteerId}</td>                        
+                              
         <td>${r.personFirstName || r.PersonFirstName} ${r.personLastName || r.PersonLastName}</td>
         <td>${r.contactStatus || r.ContactStatus}</td>
         <td>${r.responseType || r.ResponseType}</td>
@@ -289,8 +291,7 @@ $(function () {
                     $('#huddleTable tbody').html(rows);
                 }
 
-                var modal = new bootstrap.Modal(document.getElementById('teamHuddleModal'));
-                modal.show();
+               
             },
             error: function () { alert('Error loading team huddle follow-ups'); }
         });

@@ -10,8 +10,12 @@ namespace RM_CMS.Data.Models
         public string FollowUpId { get; set; } = string.Empty;
         [Column("person_id")]
         public string PersonId { get; set; } = string.Empty;
+
         [Column("volunteer_id")]
         public string VolunteerId { get; set; } = string.Empty;
+        public string first_name { get; set; } = string.Empty;
+        public string last_name { get; set; } = string.Empty;
+
         [Column("attempt_number")]
         public int AttemptNumber { get; set; }
         [Column("attempt_date")]
