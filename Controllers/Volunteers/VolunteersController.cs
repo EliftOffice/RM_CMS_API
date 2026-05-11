@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RM_CMS.BLL.Peoples;
 using RM_CMS.BLL.Volunteers;
+using RM_CMS.DAL.CommonDAL;
 using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Volunteers;
 using RM_CMS.Data.Models;
@@ -15,10 +16,12 @@ namespace RM_CMS.Controllers.Volunteers
     {
         private readonly IVolunteersBLL _VolunteersBLL;
         private readonly ILogger<VolunteersController> _logger;
-        public VolunteersController(IVolunteersBLL volunteersBLL, ILogger<VolunteersController> logger)
+        private readonly ITelegram _telegram;
+        public VolunteersController(IVolunteersBLL volunteersBLL, ILogger<VolunteersController> logger,ITelegram tel)
         {
             _VolunteersBLL = volunteersBLL;
             _logger = logger;
+            _telegram = tel;
         }
 
         [HttpPost("assign-volunteer")]
@@ -185,6 +188,21 @@ namespace RM_CMS.Controllers.Volunteers
             {
                 _logger.LogError(ex, "Error getting latest telegram chat");
                 return HttpResponseHelper.CreateHttpResponse(new ApiResponse<TelegramChatDto>(ResponseType.Error, "Error retrieving latest chat", null));
+            }
+        }
+
+        [HttpGet("get-telegram-bot-url")]
+        public async Task<ActionResult<ApiResponse<string>>> GetTelegramBotUrl()
+        {
+            try
+            {
+                var result = await _telegram.GetTelegramBotUrl();
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting latest telegram chat");
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<string>(ResponseType.Error, "Error retrieving latest chat", null));
             }
         }
 

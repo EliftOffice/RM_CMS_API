@@ -27,6 +27,9 @@ namespace RM_CMS
             // Register Dapper and Data Access Services
             builder.Services.AddScoped<RM_CMS.Data.IDbConnectionFactory, RM_CMS.Data.DbConnectionFactory>();
 
+            // Register Common DAL Services
+            builder.Services.AddScoped<RM_CMS.DAL.CommonDAL.ITelegram, RM_CMS.DAL.CommonDAL.Telegram>();
+
             // Register Peoples Module
             builder.Services.AddScoped<RM_CMS.BLL.Peoples.IPeoplesBLL, RM_CMS.BLL.Peoples.PeoplesBLL>();
             builder.Services.AddScoped<RM_CMS.DAL.Peoples.IPeoplesDAL, RM_CMS.DAL.Peoples.PeoplesDAL>();

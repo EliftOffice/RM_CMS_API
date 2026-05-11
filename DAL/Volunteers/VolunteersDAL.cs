@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using RM_CMS.DAL.CommonDAL;
 using RM_CMS.DAL.Peoples;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO;
@@ -33,11 +34,13 @@ namespace RM_CMS.DAL.Volunteers
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
         private readonly IConfiguration _configuration;
+        private readonly ITelegram _telegram;
 
-        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory,IConfiguration config)
+        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory,IConfiguration config,ITelegram tel)
         {
             _dbConnectionFactory = dbConnectionFactory;
             _configuration = config;
+            _telegram = tel;
         }
         public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
         {
@@ -763,7 +766,8 @@ WHERE LOWER(email) = @Email;";
             {
                 using var client = new HttpClient();
 
-                var token = _configuration["Telegram:BotToken"];
+                //var token = _configuration["Telegram:BotToken"];
+                var token = _telegram.GetTelegramBotToken().Result.Data;
 
                 if (string.IsNullOrEmpty(token)) return;
 
@@ -782,7 +786,8 @@ WHERE LOWER(email) = @Email;";
         {
             try
             {
-                var token = _configuration["Telegram:BotToken"];
+               // var token = _configuration["Telegram:BotToken"];
+                var token = _telegram.GetTelegramBotToken().Result.Data;
                 if (string.IsNullOrEmpty(token))
                     return new ApiResponse<TelegramChatDto>(ResponseType.Error, "Bot token not configured", null);
 

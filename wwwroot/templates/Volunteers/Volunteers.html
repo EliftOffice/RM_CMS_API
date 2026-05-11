@@ -354,7 +354,7 @@
 
                     <select id="teamLead" class="vl-input">
                         <option value="">Select TeamLead</option>
-                      
+
                     </select>
 
                 </div>
@@ -369,15 +369,130 @@
                 </div>
 
                 <!-- Telegram Chat ID (full width) -->
-                <div class="vl-full" style="display:flex;align-items:center;gap:10px;">
-                    <div style="flex:1;">
-                        <label class="vl-label" for="telegramChatId">Telegram Chat ID</label>
-                        <input type="text" id="telegramChatId" class="vl-input" placeholder="Chat ID (click GetChatID)" />
+
+                <div class="vl-full">
+
+                    <div style="
+        border:1px solid #d1d5db;
+        border-radius:10px;
+        padding:16px;
+        background:#f9fafb;
+        margin-bottom:20px;
+    ">
+
+                        <!-- Header -->
+                        <div style="margin-bottom:14px;">
+
+                            <label class="vl-label" style="margin-bottom:2px;">
+                                Telegram Chat ID
+                            </label>
+
+                            <div style="
+                font-size:0.8rem;
+                color:#6b7280;
+            ">
+                                Open the bot and click Start before fetching Chat ID
+                            </div>
+
+                        </div>
+
+                        <!-- Input + Button -->
+                        <div style="
+            display:flex;
+            gap:12px;
+            align-items:center;
+            margin-bottom:14px;
+        ">
+
+                            <!-- Chat ID Input -->
+                            <div style="flex:1;">
+
+                                <input type="text"
+                                       id="telegramChatId"
+                                       class="vl-input"
+                                       placeholder="Telegram Chat ID"
+                                       style="margin-bottom:0;" />
+
+                            </div>
+
+                            <!-- Get Chat ID -->
+                            <button type="button"
+                                    id="getChatBtn"
+                                    class="vl-btn"
+                                    style="
+                        padding:10px 20px;
+                        white-space:nowrap;
+                    ">
+                                Get Chat ID
+                            </button>
+
+                        </div>
+                        <!-- Chat Name -->
+                        <div id="chatName"
+                             style="   margin-top:12px;   font-size:0.9rem;   color:#374151;">
+                        </div>
+
+                        <!-- Bottom Actions -->
+                        <div style="
+            display:flex;
+            align-items:center;
+            gap:10px;
+            border-top:1px solid #e5e7eb;
+            padding-top:12px;
+        ">
+
+                            <!-- Copy Icon -->
+                            <button type="button"
+                                    id="copyBotUrlBtn"
+                                    style="
+                        border:none;
+                        background:none;
+                        cursor:pointer;
+                        padding:0;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;                    "
+                                    title="Copy Bot URL">
+
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                     width="22"
+                                     height="22"
+                                     fill="none"
+                                     viewBox="0 0 24 24"
+                                     stroke="#085c40"
+                                     stroke-width="2">
+
+                                    <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+
+                                </svg>
+
+                           <span  style="color:#085c40;font-size:0.95rem;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px;"> Copy | </span> </button>
+                           
+                            <!-- Open Bot -->
+                            <a id="tel_boot_url" href="https://t.me/YourBotName"
+                               target="_blank"
+                               style="color:#085c40;                    font-size:0.95rem;                    font-weight:600;
+                    text-decoration:none;
+                    display:flex;
+                    align-items:center;
+                    gap:6px;               ">
+
+                                Open Telegram Bot ↗
+
+                            </a>
+
+                        </div>
+
+                        <!-- Hidden URL -->
+                        <input type="hidden"
+                               id="telegramBotUrl"
+                               value="https://t.me/YourBotName" />
+
+
+
                     </div>
-                    <div style="white-space:nowrap;">
-                        <a href="#" id="getChatBtn" style="display:inline-block;margin-top:22px;">GetChatID</a>
-                        <div id="chatName" style="font-size:0.9rem;color:#374151;margin-top:6px;"></div>
-                    </div>
+
                 </div>
 
             </div><!-- /vl-grid -->
@@ -390,11 +505,12 @@
         </form>
     </div><!-- /vl-card -->
     <!-- Scripts -->
-    <script src="../assets/js/volunteers.js"></script>
+    <!--<script src="../assets/js/volunteers.js"></script>-->
     <script>
         $(document).ready(function () {
 
             restrictMobileInput('phone');
+            GetTelegramURL();
 
             $('#backBtn').on('click', function () {
                 window.location.href = 'Login.html';
@@ -413,6 +529,7 @@
                             const name = res.data.name || res.data.Name || res.data.name_display || '';
                             $('#telegramChatId').val(chatId);
                             $('#chatName').text(name ? name : 'No name');
+                          
                         } else {
                             $('#chatName').text('No chat found');
                         }
@@ -422,6 +539,8 @@
                     }
                 });
             });
+
+           
 
             $('#signupForm').on('submit', function (e) {
                 e.preventDefault();
@@ -500,6 +619,41 @@
                     }
                 });
             });
+
+            $('#copyBotUrlBtn').on('click', function () {
+
+                const url = $('#telegramBotUrl').val();
+
+                navigator.clipboard.writeText(url);
+                alert("Url Copied")
+
+            });
+
+            function GetTelegramURL() {
+                try {
+                   
+                    $('#chatName').text('Loading...');
+                    $.ajax({
+                        url: API_BASE_URL + '/volunteers/get-telegram-bot-url',
+                        method: 'GET',
+                        success: function (res) {
+                            if (res && res.data) {
+                                $('#chatName').text(res.data);
+                                $("#telegramBotUrl").val(res.data);
+                                $("#tel_boot_url").attr("href", res.data);
+                            } else {
+                                $('#chatName').text('No chat found');
+                            }
+                        },
+                        error: function () {
+                            $('#chatName').text('Error fetching chat');
+                        }
+                    });
+
+                } catch (e) {
+
+                }
+            }
         });
     </script>
 
