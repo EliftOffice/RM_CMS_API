@@ -467,8 +467,9 @@
 
                                 </svg>
 
-                           <span  style="color:#085c40;font-size:0.95rem;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px;"> Copy | </span> </button>
-                           
+                                <span style="color:#085c40;font-size:0.95rem;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px;"> Copy | </span>
+                            </button>
+
                             <!-- Open Bot -->
                             <a id="tel_boot_url" href="https://t.me/YourBotName"
                                target="_blank"
@@ -621,9 +622,7 @@
             });
 
             $('#copyBotUrlBtn').on('click', function () {
-
                 const url = $('#telegramBotUrl').val();
-
                 navigator.clipboard.writeText(url);
                 alert("Url Copied")
 
@@ -631,22 +630,17 @@
 
             function GetTelegramURL() {
                 try {
-                   
-                    $('#chatName').text('Loading...');
                     $.ajax({
                         url: API_BASE_URL + '/volunteers/get-telegram-bot-url',
                         method: 'GET',
                         success: function (res) {
-                            if (res && res.data) {
-                                $('#chatName').text(res.data);
+                            if (res && res.data) {                               
                                 $("#telegramBotUrl").val(res.data);
                                 $("#tel_boot_url").attr("href", res.data);
-                            } else {
-                                $('#chatName').text('No chat found');
                             }
                         },
                         error: function () {
-                            $('#chatName').text('Error fetching chat');
+                            console.log("Error Getting Telegram URL");
                         }
                     });
 
