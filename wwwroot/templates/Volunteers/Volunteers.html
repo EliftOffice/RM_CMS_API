@@ -28,7 +28,7 @@
             margin: 0;
         }
 
-        /* ── BRAND (matches File 1) ── */
+        /* ── BRAND ── */
         .vl-brand {
             display: flex;
             align-items: center;
@@ -62,17 +62,17 @@
             color: #111827;
         }
 
-        /* ── CARD (matches File 1) ── */
+        /* ── CARD ── */
         .vl-card {
             background: #fff;
             border-radius: 14px;
             border: 1px solid #e5e7eb;
             padding: 32px 28px;
             width: 100%;
-            max-width: 540px; /* slightly wider to accommodate 2-col grid */
+            max-width: 540px;
         }
 
-        /* ── EYEBROW / HEADING / SUB (matches File 1) ── */
+        /* ── EYEBROW / HEADING / SUB ── */
         .vl-eyebrow {
             font-size: 0.68rem;
             font-weight: 700;
@@ -126,12 +126,11 @@
             gap: 0 16px;
         }
 
-            /* full-width override for fields that should span both columns */
             .vl-grid .vl-full {
                 grid-column: 1 / -1;
             }
 
-        /* ── LABEL (matches File 1) ── */
+        /* ── LABEL ── */
         .vl-label {
             font-size: 0.8rem;
             font-weight: 600;
@@ -140,7 +139,7 @@
             display: block;
         }
 
-        /* ── INPUT (matches File 1) ── */
+        /* ── INPUT ── */
         .vl-input {
             width: 100%;
             padding: 10px 14px;
@@ -164,22 +163,7 @@
                 color: #9ca3af;
             }
 
-        /* ── MESSAGES (matches File 1 pattern) ── */
-        .error {
-            color: #dc2626;
-            font-size: 0.82rem;
-            margin-bottom: 10px;
-            display: none;
-        }
-
-        .success {
-            color: #085c40;
-            font-size: 0.82rem;
-            margin-bottom: 10px;
-            display: none;
-        }
-
-        /* alert-message class used by JS */
+        /* ── MESSAGES ── */
         .alert-message {
             padding: 10px 14px;
             border-radius: 8px;
@@ -200,7 +184,7 @@
             color: #166534;
         }
 
-        /* ── BUTTON WRAP (matches File 1) ── */
+        /* ── BUTTON WRAP ── */
         .vl-btn-wrap {
             display: flex;
             justify-content: center;
@@ -209,7 +193,7 @@
             margin-top: 4px;
         }
 
-        /* ── PRIMARY BUTTON (matches File 1 exactly) ── */
+        /* ── PRIMARY BUTTON ── */
         .vl-btn {
             padding: 10px 36px;
             background: #085c40;
@@ -232,7 +216,7 @@
                 cursor: not-allowed;
             }
 
-        /* ── SECONDARY / BACK BUTTON ── */
+        /* ── SECONDARY BUTTON ── */
         .vl-btn-secondary {
             padding: 10px 36px;
             background: #fff;
@@ -277,7 +261,7 @@
             }
         }
 
-        /* ── RESPONSIVE: single column on small screens ── */
+        /* ── RESPONSIVE ── */
         @media (max-width: 480px) {
             .vl-card {
                 padding: 28px 18px;
@@ -298,13 +282,14 @@
 
 <body>
 
-    <!-- Brand (same as File 1) -->
+    <!-- Brand -->
     <div class="vl-brand">
         <div class="vl-logo">
             <img src="../assets/Images/logo.jpeg" alt="RM CMS Logo"
                  onerror="this.style.display='none';this.parentElement.textContent='R'">
         </div>
-        <span class="vl-brand-name">RM </span> <span class="vl-brand-name " style="color: #085c40"> CMS </span>
+        <span class="vl-brand-name">RM </span>
+        <span class="vl-brand-name" style="color: #085c40"> CMS </span>
     </div>
 
     <!-- Card -->
@@ -313,7 +298,7 @@
         <!-- Back link -->
         <a href="Login.html" class="vl-back">← Back to Login</a>
 
-        <!-- Header (same structure as File 1) -->
+        <!-- Header -->
         <p class="vl-eyebrow">Volunteer Portal</p>
         <h1 class="vl-heading">Create Account</h1>
         <p class="vl-sub">Join our volunteer community. Sign up to get started.</p>
@@ -323,7 +308,7 @@
         <div id="errorMessage" class="alert-message alert-error" style="display:none;"></div>
         <div id="successMessage" class="alert-message alert-success" style="display:none;"></div>
 
-        <!-- Form — 2-column grid -->
+        <!-- Form -->
         <form id="signupForm">
             <div class="vl-grid">
 
@@ -348,15 +333,12 @@
                            maxlength="10" inputmode="numeric" required>
                 </div>
 
-                <!-- Row 3: Team Lead ID | Capacity Band -->
+                <!-- Row 3: Team Lead | Capacity Band -->
                 <div>
                     <label class="vl-label" for="teamLead">Team Lead</label>
-
                     <select id="teamLead" class="vl-input">
                         <option value="">Select TeamLead</option>
-
                     </select>
-
                 </div>
                 <div>
                     <label class="vl-label" for="capacityBand">Capacity Band</label>
@@ -369,131 +351,75 @@
                 </div>
 
                 <!-- Telegram Chat ID (full width) -->
-
                 <div class="vl-full">
-
                     <div style="
-        border:1px solid #d1d5db;
-        border-radius:10px;
-        padding:16px;
-        background:#f9fafb;
-        margin-bottom:20px;
-    ">
-
+                        border:1px solid #d1d5db;
+                        border-radius:10px;
+                        padding:16px;
+                        background:#f9fafb;
+                        margin-bottom:20px;
+                    ">
                         <!-- Header -->
                         <div style="margin-bottom:14px;">
-
-                            <label class="vl-label" style="margin-bottom:2px;">
-                                Telegram Chat ID
-                            </label>
-
-                            <div style="
-                font-size:0.8rem;
-                color:#6b7280;
-            ">
+                            <label class="vl-label" style="margin-bottom:2px;">Telegram Chat ID</label>
+                            <div style="font-size:0.8rem; color:#6b7280;">
                                 Open the bot and click Start before fetching Chat ID
                             </div>
-
                         </div>
 
                         <!-- Input + Button -->
-                        <div style="
-            display:flex;
-            gap:12px;
-            align-items:center;
-            margin-bottom:14px;
-        ">
-
-                            <!-- Chat ID Input -->
+                        <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px;">
                             <div style="flex:1;">
-
                                 <input type="text"
                                        id="telegramChatId"
                                        class="vl-input"
                                        placeholder="Telegram Chat ID"
                                        style="margin-bottom:0;" />
-
                             </div>
-
-                            <!-- Get Chat ID -->
-                            <button type="button"
-                                    id="getChatBtn"
-                                    class="vl-btn"
-                                    style="
-                        padding:10px 20px;
-                        white-space:nowrap;
-                    ">
+                            <button type="button" id="getChatBtn" class="vl-btn"
+                                    style="padding:10px 20px; white-space:nowrap;">
                                 Get Chat ID
                             </button>
+                        </div>
 
-                        </div>
                         <!-- Chat Name -->
-                        <div id="chatName"
-                             style="   margin-top:12px;   font-size:0.9rem;   color:#374151;">
-                        </div>
+                        <div id="chatName" style="margin-top:12px; font-size:0.9rem; color:#374151;"></div>
 
                         <!-- Bottom Actions -->
                         <div style="
-            display:flex;
-            align-items:center;
-            gap:10px;
-            border-top:1px solid #e5e7eb;
-            padding-top:12px;
-        ">
-
+                            display:flex;
+                            align-items:center;
+                            gap:10px;
+                            border-top:1px solid #e5e7eb;
+                            padding-top:12px;
+                        ">
                             <!-- Copy Icon -->
-                            <button type="button"
-                                    id="copyBotUrlBtn"
-                                    style="
-                        border:none;
-                        background:none;
-                        cursor:pointer;
-                        padding:0;
-                        display:flex;
-                        align-items:center;
-                        justify-content:center;                    "
+                            <button type="button" id="copyBotUrlBtn"
+                                    style="border:none; background:none; cursor:pointer; padding:0;
+                                           display:flex; align-items:center; justify-content:center;"
                                     title="Copy Bot URL">
-
-                                <svg xmlns="http://www.w3.org/2000/svg"
-                                     width="22"
-                                     height="22"
-                                     fill="none"
-                                     viewBox="0 0 24 24"
-                                     stroke="#085c40"
-                                     stroke-width="2">
-
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                                     fill="none" viewBox="0 0 24 24" stroke="#085c40" stroke-width="2">
                                     <rect x="9" y="9" width="13" height="13" rx="2"></rect>
                                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-
                                 </svg>
-
-                                <span style="color:#085c40;font-size:0.95rem;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px;"> Copy | </span>
+                                <span style="color:#085c40; font-size:0.95rem; font-weight:600;
+                                             text-decoration:none; display:flex; align-items:center; gap:6px;">
+                                    Copy |
+                                </span>
                             </button>
 
                             <!-- Open Bot -->
-                            <a id="tel_boot_url" href="https://t.me/YourBotName"
-                               target="_blank"
-                               style="color:#085c40;                    font-size:0.95rem;                    font-weight:600;
-                    text-decoration:none;
-                    display:flex;
-                    align-items:center;
-                    gap:6px;               ">
-
+                            <a id="tel_boot_url" href="https://t.me/YourBotName" target="_blank"
+                               style="color:#085c40; font-size:0.95rem; font-weight:600;
+                                      text-decoration:none; display:flex; align-items:center; gap:6px;">
                                 Open Telegram Bot ↗
-
                             </a>
-
                         </div>
 
                         <!-- Hidden URL -->
-                        <input type="hidden"
-                               id="telegramBotUrl"
-                               value="https://t.me/YourBotName" />
-
-
-
+                        <input type="hidden" id="telegramBotUrl" value="https://t.me/YourBotName" />
                     </div>
-
                 </div>
 
             </div><!-- /vl-grid -->
@@ -505,151 +431,8 @@
 
         </form>
     </div><!-- /vl-card -->
-    <!-- Scripts -->
-    <!--<script src="../assets/js/volunteers.js"></script>-->
-    <script>
-        $(document).ready(function () {
-
-            restrictMobileInput('phone');
-            GetTelegramURL();
-
-            $('#backBtn').on('click', function () {
-                window.location.href = 'Login.html';
-            });
-
-            // GetChatID click
-            $('#getChatBtn').on('click', function (e) {
-                e.preventDefault();
-                $('#chatName').text('Loading...');
-                $.ajax({
-                    url: API_BASE_URL + '/volunteers/get-latest-chat',
-                    method: 'GET',
-                    success: function (res) {
-                        if (res && res.data) {
-                            const chatId = res.data.chatId || res.data.ChatId || res.data.chat_id || '';
-                            const name = res.data.name || res.data.Name || res.data.name_display || '';
-                            $('#telegramChatId').val(chatId);
-                            $('#chatName').text(name ? name : 'No name');
-                          
-                        } else {
-                            $('#chatName').text('No chat found');
-                        }
-                    },
-                    error: function () {
-                        $('#chatName').text('Error fetching chat');
-                    }
-                });
-            });
-
-           
-
-            $('#signupForm').on('submit', function (e) {
-                e.preventDefault();
-
-                const errorMsg = $('#errorMessage');
-                const successMsg = $('#successMessage');
-
-                errorMsg.hide().text('');
-                successMsg.hide().text('');
-
-                const payload = {
-                    VolunteerId: "",
-                    firstName: $("#firstName").val().trim(),
-                    lastName: $("#lastName").val().trim(),
-                    email: $("#email").val().trim(),
-                    phone: $("#phone").val().trim(),
-                    teamLead: $("#teamLead").val().trim(),
-                    capacityBand: $("#capacityBand").val(),
-                    telegramChatId: $("#telegramChatId").val().trim()
-                };
-
-                if (!payload.firstName || !payload.lastName || !payload.email) {
-                    errorMsg.text("First Name, Last Name, and Email are required.").show();
-                    return;
-                }
-
-                if (payload.phone && !isValidMobileNumber(payload.phone)) {
-                    errorMsg.text("Phone number must be exactly 10 digits.").show();
-                    return;
-                }
-
-                const btn = $('#submitBtn');
-                btn.addClass('loading').prop('disabled', true);
-
-                $.ajax({
-                    url: API_BASE_URL + "/volunteers",
-                    method: "POST",
-                    contentType: "application/json",
-                    data: JSON.stringify(payload),
-
-                    success: function (res) {
-                        btn.removeClass('loading').prop('disabled', false);
-                        // handle success and also update telegram id if provided
-                        const vid = (res && res.data && (res.data.VolunteerId || res.data.volunteerId || res.data.volunteer_id)) || null;
-                        const chatId = $('#telegramChatId').val().trim();
-
-                        if (vid && chatId) {
-                            // update volunteer record with telegram id
-                            $.ajax({
-                                url: API_BASE_URL + '/volunteers/update-telegram',
-                                method: 'PUT',
-                                contentType: 'application/json',
-                                data: JSON.stringify({ VolunteerId: vid, TelegramChatId: chatId }),
-                                success: function () {
-                                    $('#successMessage').text('Account created and Telegram linked. Redirecting...').show();
-                                    setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
-                                },
-                                error: function () {
-                                    $('#successMessage').text('Account created but failed to link Telegram. Redirecting...').show();
-                                    setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
-                                }
-                            });
-                        } else {
-                            $('#successMessage').text('Account created successfully! Redirecting to login...').show();
-                            setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
-                        }
-                    },
-
-                    error: function (xhr) {
-                        btn.removeClass('loading').prop('disabled', false);
-                        let msg = "Something went wrong.";
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            msg = xhr.responseJSON.message;
-                        }
-                        errorMsg.text(msg).show();
-                    }
-                });
-            });
-
-            $('#copyBotUrlBtn').on('click', function () {
-                const url = $('#telegramBotUrl').val();
-                navigator.clipboard.writeText(url);
-                alert("Url Copied")
-
-            });
-
-            function GetTelegramURL() {
-                try {
-                    $.ajax({
-                        url: API_BASE_URL + '/volunteers/get-telegram-bot-url',
-                        method: 'GET',
-                        success: function (res) {
-                            if (res && res.data) {                               
-                                $("#telegramBotUrl").val(res.data);
-                                $("#tel_boot_url").attr("href", res.data);
-                            }
-                        },
-                        error: function () {
-                            console.log("Error Getting Telegram URL");
-                        }
-                    });
-
-                } catch (e) {
-
-                }
-            }
-        });
-    </script>
+    <!-- External JS (no inline scripts) -->
+    <script src="../assets/js/volunteers.js"></script>
 
 </body>
 </html>
