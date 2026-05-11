@@ -67,7 +67,7 @@ namespace RM_CMS.DAL.CommonDAL
                     const string query = @"
                 SELECT config_value 
                 FROM system_config 
-                WHERE config_key = 'telegram_boot_url';
+                WHERE config_key = 'telegram_bot_url';
             ";
 
                     var token = await connection.QueryFirstOrDefaultAsync<string>(query);
