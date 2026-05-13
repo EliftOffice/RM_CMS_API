@@ -43,7 +43,8 @@ $(document).ready(function () {
                 }
             },
             error: function () {
-                showMessage("Failed to load TeamLeads", "error");
+                if (window.showToast) showToast("Failed to load TeamLeads", "error");
+                else showMessage("Failed to load TeamLeads", "error");
             }
         });
     }
@@ -100,7 +101,7 @@ $(document).ready(function () {
     $('#copyBotUrlBtn').on('click', function () {
         const url = $('#telegramBotUrl').val();
         navigator.clipboard.writeText(url);
-        alert("Url Copied");
+        if (window.showToast) showToast('Url Copied', 'success'); else alert('Url Copied');
     });
 
     // ── Form submit ───────────────────────────────────────────────────────────
@@ -121,12 +122,14 @@ $(document).ready(function () {
 
         // Validation
         if (!payload.firstName || !payload.lastName || !payload.email) {
-            showMessage("First Name, Last Name, and Email are required.", "error");
+            if (window.showToast) showToast("First Name, Last Name, and Email are required.", "error");
+            else showMessage("First Name, Last Name, and Email are required.", "error");
             return;
         }
 
         if (payload.phone && !isValidMobileNumber(payload.phone)) {
-            showMessage("Phone number must be exactly 10 digits.", "error");
+            if (window.showToast) showToast("Phone number must be exactly 10 digits.", "error");
+            else showMessage("Phone number must be exactly 10 digits.", "error");
             return;
         }
 
@@ -156,16 +159,19 @@ $(document).ready(function () {
                         contentType: 'application/json',
                         data: JSON.stringify({ VolunteerId: vid, TelegramChatId: chatId }),
                         success: function () {
-                            showMessage('Account created and Telegram linked. Redirecting...', 'success');
+                            if (window.showToast) showToast('Account created and Telegram linked. Redirecting...', 'success');
+                            else showMessage('Account created and Telegram linked. Redirecting...', 'success');
                             setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
                         },
                         error: function () {
-                            showMessage('Account created but failed to link Telegram. Redirecting...', 'success');
+                            if (window.showToast) showToast('Account created but failed to link Telegram. Redirecting...', 'warning');
+                            else showMessage('Account created but failed to link Telegram. Redirecting...', 'success');
                             setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
                         }
                     });
                 } else {
-                    showMessage(res.message || 'Account created successfully! Redirecting...', 'success');
+                    if (window.showToast) showToast(res.message || 'Account created successfully! Redirecting...', 'success');
+                    else showMessage(res.message || 'Account created successfully! Redirecting...', 'success');
                     clearForm();
                     setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
                 }
@@ -177,13 +183,18 @@ $(document).ready(function () {
                 if (xhr.responseJSON && xhr.responseJSON.message) {
                     msg = xhr.responseJSON.message;
                 }
-                showMessage(msg, "error");
+                if (window.showToast) showToast(msg, 'error'); else showMessage(msg, 'error');
             }
         });
     });
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     function showMessage(message, type) {
+        if (window.showToast) {
+            showToast(message, type === 'error' ? 'error' : 'success');
+            return;
+        }
+
         if (type === 'error') {
             $('#errorMessage').text(message).show();
         } else {
@@ -201,4 +212,6 @@ $(document).ready(function () {
         $("#teamLead, #capacityBand").val('');
     }
 
+
+   
 });

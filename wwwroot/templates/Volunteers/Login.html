@@ -7,12 +7,19 @@
 
     <link rel="icon" href="../../templates/assets/Images/favicon.ico">
     <link rel="icon" type="image/png" href="../../templates/assets/Images/logo.png">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
     <script src="../../templates/assets/js/api-config.js"></script>
+
+    <script src="../../templates/assets/js/toast.js"></script>
+
     <script src="../../templates/assets/js/VolunteerLogin.js"></script>
 
     <style>
+
         *, *::before, *::after {
             box-sizing: border-box;
         }
@@ -44,9 +51,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            color: #085c40;
-            font-size: 1.1rem;
             overflow: hidden;
         }
 
@@ -77,21 +81,20 @@
             letter-spacing: 0.1em;
             text-transform: uppercase;
             color: #085c40;
-            margin: 0 0 6px;
+            margin-bottom: 6px;
         }
 
         .vl-heading {
             font-size: 1.5rem;
             font-weight: 700;
             color: #111827;
-            margin: 0 0 6px;
-            letter-spacing: -0.03em;
+            margin-bottom: 6px;
         }
 
         .vl-sub {
             font-size: 0.83rem;
             color: #6b7280;
-            margin: 0 0 20px;
+            margin-bottom: 20px;
         }
 
         .vl-divider {
@@ -104,7 +107,7 @@
             font-size: 0.8rem;
             font-weight: 600;
             color: #374151;
-            margin: 0 0 6px;
+            margin-bottom: 6px;
             display: block;
         }
 
@@ -117,24 +120,18 @@
             color: #111827;
             outline: none;
             margin-bottom: 20px;
-            font-family: inherit;
             background: #fff;
-            transition: border-color 0.15s;
         }
 
             .vl-input:focus {
                 border-color: #085c40;
-                box-shadow: 0 0 0 3px rgba(8, 92, 64, 0.08);
-            }
-
-            .vl-input::placeholder {
-                color: #9ca3af;
+                box-shadow: 0 0 0 3px rgba(8,92,64,0.08);
             }
 
         .vl-btn-wrap {
             display: flex;
             justify-content: center;
-            margin-bottom: 18px;
+            margin-top: 10px;
         }
 
         .vl-btn {
@@ -146,75 +143,147 @@
             font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
-            font-family: inherit;
-            transition: background 0.15s;
         }
 
             .vl-btn:hover {
                 background: #064d35;
             }
 
-        .vl-links {
+        .otp-wrap {
             display: flex;
-            justify-content: space-between;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
         }
 
-            .vl-links a {
-                font-size: 0.8rem;
-                color: #085c40;
-                text-decoration: none;
+        .otp-input {
+            width: 55px;
+            height: 55px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+        }
+
+            .otp-input:focus {
+                border-color: #085c40;
+                box-shadow: 0 0 0 3px rgba(8,92,64,0.08);
+                outline: none;
             }
 
-                .vl-links a:hover {
-                    text-decoration: underline;
-                }
-
-        .error {
-            color: #dc2626;
-            font-size: 0.82rem;
-            margin-bottom: 10px;
-            display: none;
-        }
-
-        .success {
-            color: #085c40;
-            font-size: 0.82rem;
-            margin-bottom: 10px;
+        #otpSection {
             display: none;
         }
     </style>
+
 </head>
+
 <body>
 
     <div class="vl-brand">
+
         <div class="vl-logo">
-            <img src="../assets/Images/logo.jpeg" alt="RM CMS Logo"
+
+            <img src="../assets/Images/logo.jpeg"
+                 alt="RM CMS Logo"
                  onerror="this.style.display='none';this.parentElement.textContent='RM'">
+
         </div>
-        <span class="vl-brand-name"> </span> <span class="vl-brand-name" style="color: #085c40" >CMS</span>
+
+        <span class="vl-brand-name" style="color:#085c40;">
+            RM CMS
+        </span>
+
     </div>
 
     <div class="vl-card">
-        <p class="vl-eyebrow">Volunteer Portal</p>
-        <h1 class="vl-heading">Welcome back</h1>
-        <p class="vl-sub">Enter your registered mobile number to sign in.</p>
+
+        <p class="vl-eyebrow">
+            Volunteer Portal
+        </p>
+
+        <h1 class="vl-heading">
+            Welcome Back
+        </h1>
+
+        <p class="vl-sub">
+            Enter your registered mobile number to continue.
+        </p>
+
         <div class="vl-divider"></div>
 
-        <div class="error" id="errorMessage"></div>
-        <div class="success" id="successMessage"></div>
-
         <form id="loginForm">
-            <label class="vl-label" for="mobile">Mobile Number</label>
-            <input type="text" id="mobile" class="vl-input" placeholder="e.g. 9876543210" maxlength="10">
-            <div class="vl-btn-wrap">
-                <button type="submit" class="vl-btn">Login</button>
+
+            <!-- MOBILE SECTION -->
+            <div id="mobileSection">
+
+                <label class="vl-label" for="mobile">
+                    Mobile Number
+                </label>
+
+                <input type="text"
+                       id="mobile"
+                       class="vl-input"
+                       placeholder="e.g. 9876543210"
+                       maxlength="10">
+
+                <div class="vl-btn-wrap">
+
+                    <button type="submit"
+                            class="vl-btn">
+
+                        Send OTP
+
+                    </button>
+
+                </div>
+
             </div>
+
+            <!-- OTP SECTION -->
+            <div id="otpSection">
+
+                <label class="vl-label">
+                    Enter 4 Digit OTP
+                </label>
+
+                <div class="otp-wrap">
+
+                    <input type="text"
+                           class="otp-input"
+                           maxlength="1">
+
+                    <input type="text"
+                           class="otp-input"
+                           maxlength="1">
+
+                    <input type="text"
+                           class="otp-input"
+                           maxlength="1">
+
+                    <input type="text"
+                           class="otp-input"
+                           maxlength="1">
+
+                </div>
+
+                <div class="vl-btn-wrap">
+
+                    <button type="button"
+                            id="verifyOtpBtn"
+                            class="vl-btn">
+
+                        Verify OTP
+
+                    </button>
+
+                </div>
+
+            </div>
+
         </form>
 
-        <!--<div class="vl-links">
-            <a href="#" id="forgotLink">Forgot Mobile Number?</a>
-            <a href="#" id="signUp">SignUp?</a>
-        </div>-->
     </div>
 
 </body>

@@ -97,13 +97,19 @@ namespace RM_CMS.DAL.TeamLeads
         UPDATE volunteers SET
             last_check_in = @CheckInDate,
             next_check_in = @NextCheckInDate,
-            emotional_tone = @EmotionalTone
+            emotional_tone = @EmotionalTone,
+            capacity_band=@NewCapacityBand,
+capacity_min=@capacityMin,
+capacity_max=@capacityMax
         WHERE volunteer_id = @VolunteerId";
 
                 await connection.ExecuteAsync(updateVolunteerQuery, new
                 {
                     CheckInDate = dto.CheckInDate ?? DateTime.UtcNow,
                     nextCheckInDate,
+                    dto.NewCapacityBand,
+                    dto.CapacityMin,
+                    dto.CapacityMax,
                     dto.EmotionalTone,
                     dto.VolunteerId
                 }, transaction);

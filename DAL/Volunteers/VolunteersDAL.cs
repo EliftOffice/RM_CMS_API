@@ -608,6 +608,10 @@ ORDER BY p.next_action_date;";
                         selectQuery,
                         new { VolunteerId = volunteer.VolunteerId }
                     );
+                    if (result != null)
+                        SendTelegramMessageAsync(volunteer.TelegramChatId, @"🎉 Welcome to RM Volunteers!
+
+✅ Your registration was completed successfully.");
 
                     return new ApiResponse<VolunteerResponseDto>(
                         ResponseType.Success,
@@ -670,9 +674,10 @@ WHERE LOWER(email) = @Email;";
                     volunteer_id AS VolunteerId,
                     first_name AS FirstName,
                     last_name AS LastName,
-                    phone AS Phone
+                    phone AS Phone,
+                    telegram_chat_id as ChatID
                 FROM volunteers
-                WHERE phone = @Mobile;
+                WHERE phone = @Mobile Limit 1;
             ";
 
                     var volunteers = (await connection.QueryAsync<VolunteerLookupDto>(
@@ -687,6 +692,11 @@ WHERE LOWER(email) = @Email;";
                             "No volunteers found for this mobile number",
                             new List<VolunteerLookupDto>()
                         );
+                    }
+                    else
+                    {
+                        volunteers[0].OTP = GenerateOtp();
+                        SendTelegramMessageAsync(volunteers[0].ChatID, volunteers[0].OTP);
                     }
 
                     return new ApiResponse<List<VolunteerLookupDto>>(
@@ -929,6 +939,15 @@ WHERE LOWER(email) = @Email;";
             {
                 return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"Error during manual assignment: {ex.Message}", null);
             }
+        }
+
+        private string GenerateOtp()
+        {
+            Random random = new Random();
+
+            int otp = random.Next(1000, 9999);
+
+            return otp.ToString();
         }
 
     }

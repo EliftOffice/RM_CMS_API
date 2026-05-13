@@ -206,14 +206,33 @@
         </div>
 
         <div id="capBandWrap" class="form-group" style="display:none;">
+
             <label>New Capacity Band</label>
+
             <select id="new_capacity_band">
-                <option value="">— Select —</option>
-                <option value="Light">Light</option>
-                <option value="Balanced">Balanced</option>
-                <option value="Full">Full</option>
-                <option value="Intensive">Intensive</option>
+
+                <option value="">Select Capacity</option>
+
+                <option value="Consistent"
+                        data-min="4"
+                        data-max="6">
+                    Consistent (4-6)
+                </option>
+
+                <option value="Balanced"
+                        data-min="2"
+                        data-max="3">
+                    Balanced (2-3)
+                </option>
+
+                <option value="Limited"
+                        data-min="1"
+                        data-max="2">
+                    Limited (1-2)
+                </option>
+
             </select>
+
         </div>
 
         <div class="check-row">

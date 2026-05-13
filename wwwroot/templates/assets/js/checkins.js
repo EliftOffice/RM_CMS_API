@@ -1,4 +1,15 @@
 ﻿function setMessage(text, color) {
+    if (window.showToast) {
+        // map color keywords to types
+        let type = 'success';
+        if (!text) return;
+        if (color === 'red' || color === 'danger' || color === 'error') type = 'error';
+        if (color === 'green' || color === 'success') type = 'success';
+        if (color === 'warning' || color === 'yellow') type = 'warning';
+        showToast(text, type);
+        return;
+    }
+
     $("#message").text(text).css("color", color);
 }
 
@@ -51,24 +62,43 @@ $(document).ready(function () {
     // ── SAVE ───────────────────────────────────────────────
     $("#saveBtn").click(function () {
         setMessage("", "");
+        const selectedOption = $("#new_capacity_band option:selected");
 
         const data = {
-            volunteerId: $("#volunteer_id").val(),   // ✅ ID
-            teamLeadId: $("#team_lead_id").val(),    // ✅ ID
+            volunteerId: $("#volunteer_id").val(),
+            teamLeadId: $("#team_lead_id").val(),
+
             checkInDate: $("#check_in_date").val() || null,
+
             durationMin: parseInt($("#duration_min").val()) || null,
+
             meetingType: $("#meeting_type").val(),
+
             emotionalTone: $("#emotional_tone").val(),
+
             capacityAdjustment: $("#capacity_adjustment").is(":checked"),
+
             newCapacityBand: $("#capacity_adjustment").is(":checked")
-                ? ($("#new_capacity_band").val() || null) : null,
+                ? ($("#new_capacity_band").val() || null)
+                : null,
+
             concernsNoted: $("#concerns_noted").val() || null,
+
             followUpNeeded: $("#follow_up_needed").is(":checked"),
+
             completionRateDiscussed: $("#completion_rate_discussed").is(":checked"),
+
             boundaryIssues: $("#boundary_issues").is(":checked"),
+
             trainingNeeds: $("#training_needs").val() || null,
+
             actionItems: $("#action_items").val() || null,
+
             nextCheckInDate: $("#next_check_in_date").val() || null,
+
+            capacityMin: selectedOption.data("min") || null,
+
+            capacityMax: selectedOption.data("max") || null
         };
 
         console.log("FINAL DATA:", JSON.stringify(data));

@@ -53,7 +53,10 @@
     $(document).on('click', '.edit', function () {
         const id = $(this).data('id');
         $.ajax({ url: API_BASE_URL + '/people/' + id, method: 'GET', success: function (res) {
-                if (!res || !res.data) return alert('Person not found');
+                if (!res || !res.data) {
+                    if (window.showToast) showToast('Person not found','warning'); else alert('Person not found');
+                    return;
+                }
                 const p = res.data;
                 $('#person_id').val(p.person_id || p.PersonId);
                 $('#first_name').val(p.first_name || p.FirstName);
@@ -71,7 +74,7 @@
 
                 var modal = new bootstrap.Modal(document.getElementById('editModal'));
                 modal.show();
-            }, error: function () { alert('Error'); }
+            }, error: function () { if (window.showToast) showToast('Error loading person','error'); else alert('Error'); }
         });
     });
 
@@ -95,19 +98,19 @@
         $.ajax({
             url: API_BASE_URL + '/UpdateVisitor', method: 'PUT', contentType: 'application/json', data: JSON.stringify(payload), success: function (res) {
                 if (res && res.data) {
-                    $('#modalResponse').html('<div class="alert alert-success">Saved</div>');
+                    if (window.showToast) showToast('Saved','success'); else $('#modalResponse').html('<div class="alert alert-success">Saved</div>');
                     setTimeout(() => { var modalEl = document.getElementById('editModal'); var modal = bootstrap.Modal.getInstance(modalEl); modal.hide(); loadPeople(); }, 700);
                 } else {
-                    $('#modalResponse').html('<div class="alert alert-danger">Error</div>');
+                    if (window.showToast) showToast('Error saving','error'); else $('#modalResponse').html('<div class="alert alert-danger">Error</div>');
                 }
-            }, error: function () { $('#modalResponse').html('<div class="alert alert-danger">API Error</div>'); }
+            }, error: function () { if (window.showToast) showToast('API Error','error'); else $('#modalResponse').html('<div class="alert alert-danger">API Error</div>'); }
         });
     });
 
     $(document).on('click', '.delete', function () {
         const id = $(this).data('id');
         if (!confirm('Delete this person?')) return;
-        $.ajax({ url: API_BASE_URL + '/people/' + id, method: 'DELETE', success: function () { loadPeople(); }, error: function () { alert('Delete failed'); } });
+        $.ajax({ url: API_BASE_URL + '/people/' + id, method: 'DELETE', success: function () { if (window.showToast) showToast('Deleted','success'); loadPeople(); }, error: function () { if (window.showToast) showToast('Delete failed','error'); else alert('Delete failed'); } });
     });
 
 });

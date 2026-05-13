@@ -37,6 +37,7 @@
         public string Trend { get; set; }
         public string Flag { get; set; }
         public double CompletionRate { get; set; }
+        public int assignment_count { get; set; }
     }
 
     public class TeamPerformanceDTO
@@ -97,6 +98,7 @@
         public int capacity_max { get; set; }
 
         public string emotional_tone { get; set; }
+        public int assignment_count { get; set; }
     }
 
     public class TeamLeadPerformanceDTO

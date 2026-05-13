@@ -106,8 +106,31 @@ $(function () {
         const volunteers = data.volunteers || data.Volunteers || [];
         const rows = volunteers.map(v => `
             <tr>
-                <td class='v-name' style='cursor:pointer' data-id='${v.VolunteerId || v.volunteerId}'>${v.name || v.Name}</td>
-                <td>${v.capacityBand || v.CapacityBand}</td>
+<td class='v-name' style='cursor:pointer' data-id='${v.VolunteerId || v.volunteerId}'>
+
+    <span style="display:flex;align-items:center;gap:6px;">
+        
+        ${v.name || v.Name}
+
+        <span style="
+            background:#ef4444;
+            color:#fff;
+            min-width:18px;
+            height:18px;
+            border-radius:999px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:11px;
+            font-weight:bold;
+            padding:0 5px;
+        ">
+            ${v.assignment_count || 0}
+        </span>
+
+    </span>
+
+</td>                <td>${v.capacityBand || v.CapacityBand}</td>
                 <td>${v.thisWeek || v.ThisWeek}</td>
                 <td>${v.trend || v.Trend}</td>
                 <td>${v.flag || v.Flag}</td>

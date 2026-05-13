@@ -98,5 +98,8 @@ namespace RM_CMS.Data.Models
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string Phone { get; set; }
+        public string ChatID { get; set; }
+        public string OTP { get; set; }
+
     }
 }

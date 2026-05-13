@@ -417,6 +417,14 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="ddlLocationType" class="form-label">Location Type</label>
+
+                        <select class="form-select" id="ddlLocationType" name="ddlLocationType">
+                            <option value="Local" selected>Local</option>
+                            <option value="Non-Local">Non-Local</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">Address</label>
                         <textarea class="form-control" id="address" rows="2" placeholder="Enter Address..."></textarea>
                     </div>
@@ -526,7 +534,8 @@
                     refName: refName,
                     refPhone: refPhone,
                     prayerRequests: $('#prayer_requests').val(),
-                    householdType: $('#household_type').val()
+                    householdType: $('#household_type').val(),
+                    LocationType: $('#ddlLocationType').val()
                 };
 
                 const btn = $('#submitBtn');

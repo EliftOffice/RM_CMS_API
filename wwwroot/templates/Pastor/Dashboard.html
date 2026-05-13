@@ -1,0 +1,523 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pastor Dashboard</title>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Your Config & JS -->
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/PastorDashboard.js"></script>
+
+    <!-- HEADER STYLES -->
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #eaeaea;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .header-section {
+            text-align: center;
+            border-bottom: 1px solid #555;
+            padding-bottom: 15px;
+        }
+
+        .title-block {
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        .sub-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .meta-block {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #ccc;
+        }
+
+        .section {
+            margin-top: 25px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            font-size: 15px;
+            letter-spacing: 1px;
+        }
+
+        .overall-health {
+            margin-top: 15px;
+            font-size: 16px;
+        }
+
+        .dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin: 0 8px;
+            background: #00ff88;
+        }
+
+        .health-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            margin-top: 15px;
+            gap: 10px 40px;
+            font-size: 15px;
+        }
+
+        .kpi-table {
+            margin-top: 15px;
+            font-size: 15px;
+        }
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            padding: 6px 0;
+        }
+
+        .kpi-header {
+            font-weight: bold;
+        }
+
+        .kpi-separator {
+            border-top: 1px dashed #777;
+            margin: 5px 0 10px 0;
+        }
+
+        .kpi-overall {
+            margin-top: 15px;
+            font-size: 15px;
+        }
+
+        .check {
+            color: #00ff88;
+            margin-left: 8px;
+        }
+
+        .tl-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.5fr;
+            padding: 6px 0;
+            font-size: 15px;
+        }
+
+        .tl-header {
+            font-weight: bold;
+        }
+
+        .attention {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .attention-title {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #ffcc00;
+        }
+
+        .flag {
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .pl-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1.5fr;
+            padding: 6px 0;
+            font-size: 15px;
+        }
+
+        .pl-header {
+            font-weight: bold;
+        }
+
+        .pipeline-summary {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .health-line {
+            margin-bottom: 6px;
+        }
+
+        .watch-line {
+            color: #ffcc00;
+        }
+
+        .escalation-block {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .escalation-title {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .escalation-item {
+            margin-left: 10px;
+            margin-top: 3px;
+        }
+
+        .check {
+            color: #00ff88;
+            margin-left: 6px;
+        }
+
+        .warning {
+            color: #ffcc00;
+            margin-top: 10px;
+        }
+
+        .insight {
+            margin-top: 12px;
+            color: #ccc;
+        }
+
+        .trend-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            padding: 6px 0;
+            font-size: 15px;
+        }
+
+        .trend-header {
+            font-weight: bold;
+        }
+
+        .trend-insight {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .trend-warning {
+            color: #ffcc00;
+            margin-top: 10px;
+        }
+
+        .impact-block {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .impact-title {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .impact-item {
+            margin-left: 10px;
+            margin-top: 4px;
+        }
+
+        .check {
+            color: #00ff88;
+            margin-right: 6px;
+        }
+
+        .dp-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 3fr;
+            padding: 6px 0;
+            font-size: 15px;
+        }
+
+        .dp-header {
+            font-weight: bold;
+        }
+
+        .dp-summary {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .alert-block {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .alert-title {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .alert-item {
+            margin-left: 10px;
+            margin-top: 4px;
+        }
+
+        .alert-action {
+            margin-left: 25px;
+            color: #ccc;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- HEADER SECTION -->
+        <div id="dashboardHeader" class="header-section">
+
+            <div class="title-block">
+                <div>LEVEL 1 FOLLOW-UP SYSTEM</div>
+                <div class="sub-title">SENIOR PASTOR STRATEGIC DASHBOARD</div>
+            </div>
+
+            <div class="meta-block">
+                <div id="headerMonth"></div>
+                <div id="headerLastUpdated"></div>
+            </div>
+
+        </div>
+
+        <!-- SYSTEM HEALTH -->
+        <div class="section">
+
+            <div class="section-title">
+                📊 SYSTEM HEALTH AT-A-GLANCE
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Overall Health -->
+            <div class="overall-health">
+                Overall System Health:
+                <span id="healthDot" class="dot"></span>
+                <span id="overallHealthText"></span>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div class="health-grid">
+
+                <div>Active Volunteers: <span id="activeVolunteers"></span></div>
+                <div>System vNPS: <span id="systemVNPS"></span></div>
+
+                <div>Active Team Leads: <span id="activeTeamLeads"></span></div>
+                <div>Volunteer Retention: <span id="retention"></span></div>
+
+                <div>First-Time Visitors MTD: <span id="visitors"></span></div>
+                <div>Completion Rate: <span id="completion"></span></div>
+
+                <div>Follow-Ups Completed MTD: <span id="completed"></span></div>
+                <div>Avg Response Time: <span id="avgResponse"></span></div>
+
+            </div>
+
+            <div class="divider"></div>
+
+        </div>
+
+        <!-- KPI SECTION -->
+        <div class="section">
+
+            <div class="section-title">
+                🎯 KEY PERFORMANCE INDICATORS (MONTH-TO-DATE)
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="kpi-table">
+
+                <!-- Header -->
+                <div class="kpi-row kpi-header">
+                    <div>Metric</div>
+                    <div>Current</div>
+                    <div>Target</div>
+                    <div>Status</div>
+                    <div>Trend</div>
+                </div>
+
+                <div class="kpi-separator"></div>
+
+                <!-- Rows -->
+                <div id="kpiRows"></div>
+
+            </div>
+
+            <div id="kpiOverall" class="kpi-overall"></div>
+
+            <div class="divider"></div>
+
+        </div>
+
+        <!-- TEAM LEAD PERFORMANCE -->
+        <div class="section">
+
+            <div class="section-title">
+                👥 TEAM LEAD PERFORMANCE COMPARISON
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Header -->
+            <div class="tl-row tl-header">
+                <div>Team Lead</div>
+                <div>Team Size</div>
+                <div>Completion</div>
+                <div>vNPS</div>
+                <div>Retention</div>
+                <div>Flag</div>
+            </div>
+
+            <div class="kpi-separator"></div>
+
+            <!-- Rows -->
+            <div id="teamLeadRows"></div>
+
+            <!-- Attention -->
+            <div id="attentionSection" class="attention"></div>
+
+            <div class="divider"></div>
+
+        </div>
+
+        <!-- PIPELINE HEALTH -->
+        <div class="section">
+
+            <div class="section-title">
+                📊 VISITOR PIPELINE HEALTH
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Header -->
+            <div class="pl-row pl-header">
+                <div>Stage</div>
+                <div>Count</div>
+                <div>% of Total</div>
+                <div>Avg Days in Stage</div>
+            </div>
+
+            <div class="kpi-separator"></div>
+
+            <!-- Rows -->
+            <div id="pipelineRows"></div>
+
+            <!-- Summary -->
+            <div id="pipelineSummary" class="pipeline-summary"></div>
+
+            <div class="divider"></div>
+
+        </div>
+
+        <!-- ESCALATIONS & CRISIS -->
+        <div class="section">
+
+            <div class="section-title">
+                🎉 ESCALATIONS & CRISIS MANAGEMENT
+            </div>
+
+            <div class="divider"></div>
+
+            <div id="escalationContent"></div>
+
+            <div class="divider"></div>
+
+        </div>
+
+        <!-- TREND ANALYSIS -->
+        <div class="section">
+
+            <div class="section-title">
+                📈 TREND ANALYSIS (LAST 3 MONTHS)
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Header -->
+            <div id="trendHeader" class="trend-row trend-header"></div>
+
+            <div class="kpi-separator"></div>
+
+            <!-- Rows -->
+            <div id="trendRows"></div>
+
+            <!-- Insights -->
+            <div id="trendInsights" class="trend-insight"></div>
+
+            <div class="divider"></div>
+
+        </div>
+
+        <!-- IMPACT & OUTCOMES -->
+        <div class="section">
+
+            <div class="section-title">
+                💡 IMPACT & OUTCOMES
+            </div>
+
+            <div class="divider"></div>
+
+            <div id="impactContent"></div>
+
+            <div class="divider"></div>
+
+        </div>
+
+        <!-- DEVELOPMENT PIPELINE -->
+        <div class="section">
+
+            <div class="section-title">
+                🏋️ VOLUNTEER DEVELOPMENT PIPELINE
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Header -->
+            <div class="dp-row dp-header">
+                <div>Stage</div>
+                <div>Count</div>
+                <div>Notes</div>
+            </div>
+
+            <div class="kpi-separator"></div>
+
+            <!-- Rows -->
+            <div id="dpRows"></div>
+
+            <!-- Summary -->
+            <div id="dpSummary" class="dp-summary"></div>
+
+            <div class="divider"></div>
+
+        </div>
+
+        <!-- ALERTS & RECOMMENDATIONS -->
+        <div class="section">
+
+            <div class="section-title">
+                ⚠ SYSTEM ALERTS & RECOMMENDATIONS
+            </div>
+
+            <div class="divider"></div>
+
+            <div id="alertsContent"></div>
+
+            <div class="divider"></div>
+
+        </div>
+    </div>
+
+</body>
+</html>

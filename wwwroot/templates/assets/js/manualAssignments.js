@@ -79,7 +79,10 @@ $(function(){
     $('#confirmAssign').on('click', function(){
         const personId = $('#assignPersonId').val();
         const volunteerId = $('#volunteerSelect').val();
-        if(!personId || !volunteerId) return alert('Select volunteer');
+        if(!personId || !volunteerId) {
+            if (window.showToast) showToast('Select volunteer', 'warning'); else alert('Select volunteer');
+            return;
+        }
 
         $.ajax({
             url: API_BASE_URL + '/volunteers/manual-assign',
@@ -87,15 +90,15 @@ $(function(){
             contentType: 'application/json',
             data: JSON.stringify({ PersonId: personId, VolunteerId: volunteerId }),
             success: function(res){
-                if(res && res.responseType === 1){
-                    alert('Assigned successfully');
+                if(res && (res.responseType === 1 || res.responseType === 'Success' || res.responseType === 'success')){
+                    if (window.showToast) showToast('Assigned successfully', 'success'); else alert('Assigned successfully');
                     var modalEl = document.getElementById('assignModal'); var modal = bootstrap.Modal.getInstance(modalEl); modal.hide();
                     loadPeople($('#filterStatus').val());
                 } else {
-                    alert('Assignment failed: ' + (res.message || 'error'));
+                    if (window.showToast) showToast('Assignment failed: ' + (res.message || 'error'), 'error'); else alert('Assignment failed: ' + (res.message || 'error'));
                 }
             },
-            error: function(){ alert('API error'); }
+            error: function(){ if (window.showToast) showToast('API error', 'error'); else alert('API error'); }
         });
     });
 

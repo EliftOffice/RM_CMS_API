@@ -80,17 +80,62 @@ namespace RM_CMS.DAL.TeamLeads
                     var lastWeek = currentWeek - 1;
 
                     // 1. Get volunteers
-                    const string volunteersQuery = @"
-                SELECT volunteer_id, first_name, last_name,concat(capacity_band,' | ',capacity_min,'-',capacity_max,'/week') capacity_band, capacity_min, capacity_max
-                FROM volunteers
-                WHERE team_lead = @TeamLeadId AND status = 'Active';
-            ";
+                    //        const string volunteersQuery = @"
+                    //    SELECT volunteer_id, first_name, last_name,concat(capacity_band,' | ',capacity_min,'-',capacity_max,'/week') capacity_band, capacity_min, capacity_max
+                    //    FROM volunteers
+                    //    WHERE team_lead = @TeamLeadId AND status = 'Active';
+                    //";
+
+                    //        var volunteers = (await connection.QueryAsync<VolunteerDTO>(
+                    //            volunteersQuery,
+                    //            new { TeamLeadId = teamLeadId }
+                    //        )).ToList();
+
+
+                   // 1.Get volunteers
+                            const string volunteersQuery = @"SELECT 
+    v.volunteer_id,
+    v.first_name,
+    v.last_name,
+
+    CONCAT(
+        v.capacity_band,
+        ' | ',
+        v.capacity_min,
+        '-',
+        v.capacity_max,
+        '/week'
+    ) AS capacity_band,
+
+    v.capacity_min,
+    v.capacity_max,
+
+    COUNT(p.person_id) AS assignment_count
+
+FROM volunteers v
+
+LEFT JOIN people p 
+    ON p.assigned_volunteer = v.volunteer_id
+    AND p.follow_up_status IN ('ASSIGNED', 'RETRY PENDING')
+
+WHERE v.team_lead = @TeamLeadId
+  AND v.status = 'Active'
+
+GROUP BY 
+    v.volunteer_id,
+    v.first_name,
+    v.last_name,
+    v.capacity_band,
+    v.capacity_min,
+    v.capacity_max
+
+ORDER BY v.first_name;
+                    ";
 
                     var volunteers = (await connection.QueryAsync<VolunteerDTO>(
                         volunteersQuery,
                         new { TeamLeadId = teamLeadId }
                     )).ToList();
-
 
                     var volunteerMetrics = new List<VolunteerMetricsDTO>();
 
@@ -153,7 +198,9 @@ namespace RM_CMS.DAL.TeamLeads
                             LastWeek = lastWeekCompleted,
                             Trend = trend,
                             Flag = flag,
-                            CompletionRate = completionRate
+                            CompletionRate = completionRate,
+                            assignment_count=v.assignment_count
+                            
                         });
                     }
 

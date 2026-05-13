@@ -13,6 +13,7 @@
         public string? RefName { get; set; }
         public string? RefPhone { get; set; }
         public string? PrayerRequests { get; set; }       
+        public string? locationType { get; set; }       
     }
 
     public class CreatePeopleDto
