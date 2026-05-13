@@ -2,156 +2,245 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pastor Dashboard</title>
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+    <!-- Bootstrap (from File 3) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts (Segoe UI fallback already in File 3) -->
     <!-- Your Config & JS -->
     <script src="../assets/js/api-config.js"></script>
     <script src="../assets/js/PastorDashboard.js"></script>
 
-    <!-- HEADER STYLES -->
     <style>
-        body {
-            font-family: monospace;
-            background: #1e1e1e;
-            color: #eaeaea;
-            margin: 0;
-            padding: 20px;
+
+        /* ===== FILE 3 BASE STYLES ===== */
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
 
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #f5f7f6;
+            color: #111827;
+            margin: 0;
+            padding: 2rem 1rem;
+            min-height: 100vh;
+        }
+
+        /* ===== BRAND HEADER (from File 3) ===== */
+        .vl-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 1.5rem;
+            justify-content: center;
+        }
+
+        .vl-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #e6f4ef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+            .vl-logo img {
+                width: 34px;
+                height: 34px;
+                object-fit: contain;
+            }
+
+        .vl-brand-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #085c40;
+        }
+
+        /* ===== CONTAINER ===== */
         .container {
             max-width: 900px;
             margin: auto;
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #e5e7eb;
+            padding: 32px 28px;
         }
 
+        /* ===== HEADER SECTION ===== */
         .header-section {
             text-align: center;
-            border-bottom: 1px solid #555;
-            padding-bottom: 15px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 20px;
+            margin-bottom: 10px;
         }
 
         .title-block {
-            font-size: 14px;
-            letter-spacing: 1px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #085c40;
+            margin-bottom: 6px;
         }
 
         .sub-title {
-            font-size: 16px;
-            font-weight: bold;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #111827;
             margin-top: 5px;
         }
 
         .meta-block {
             margin-top: 10px;
-            font-size: 13px;
-            color: #ccc;
+            font-size: 0.83rem;
+            color: #6b7280;
         }
 
+        /* ===== SECTION ===== */
         .section {
-            margin-top: 25px;
+            margin-top: 28px;
         }
 
         .section-title {
-            font-weight: bold;
-            font-size: 15px;
-            letter-spacing: 1px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #085c40;
+            margin-bottom: 12px;
         }
 
-        .overall-health {
-            margin-top: 15px;
-            font-size: 16px;
+        /* ===== DIVIDER ===== */
+        .divider,
+        .kpi-separator {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 10px 0 14px 0;
+            border: none;
         }
 
+        /* ===== DOT ===== */
         .dot {
             display: inline-block;
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            margin: 0 8px;
-            background: #00ff88;
+            margin: 0 6px;
+            background: #085c40;
+            vertical-align: middle;
         }
 
+        /* ===== OVERALL HEALTH ===== */
+        .overall-health {
+            margin-top: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        /* ===== HEALTH GRID ===== */
         .health-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            margin-top: 15px;
+            margin-top: 14px;
             gap: 10px 40px;
-            font-size: 15px;
+            font-size: 0.88rem;
+            color: #374151;
         }
 
+            .health-grid > div span {
+                font-weight: 700;
+                color: #085c40;
+            }
+
+        /* ===== KPI TABLE ===== */
         .kpi-table {
-            margin-top: 15px;
-            font-size: 15px;
+            margin-top: 12px;
+            font-size: 0.88rem;
         }
 
         .kpi-row {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-            padding: 6px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
         }
 
         .kpi-header {
-            font-weight: bold;
-        }
-
-        .kpi-separator {
-            border-top: 1px dashed #777;
-            margin: 5px 0 10px 0;
+            font-weight: 700;
+            color: #111827;
+            border-bottom: 2px solid #e5e7eb;
         }
 
         .kpi-overall {
-            margin-top: 15px;
-            font-size: 15px;
+            margin-top: 14px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #111827;
         }
 
-        .check {
-            color: #00ff88;
-            margin-left: 8px;
-        }
-
+        /* ===== TEAM LEAD TABLE ===== */
         .tl-row {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.5fr;
-            padding: 6px 0;
-            font-size: 15px;
+            padding: 8px 0;
+            font-size: 0.88rem;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
         }
 
         .tl-header {
-            font-weight: bold;
+            font-weight: 700;
+            color: #111827;
+            border-bottom: 2px solid #e5e7eb;
         }
 
+        /* ===== ATTENTION ===== */
         .attention {
-            margin-top: 15px;
-            font-size: 14px;
+            margin-top: 14px;
+            font-size: 0.85rem;
         }
 
         .attention-title {
             margin-bottom: 5px;
-            font-weight: bold;
-            color: #ffcc00;
+            font-weight: 700;
+            color: #b45309;
         }
 
         .flag {
-            font-size: 18px;
+            font-size: 1rem;
             text-align: center;
         }
 
+        /* ===== PIPELINE TABLE ===== */
         .pl-row {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr 1.5fr;
-            padding: 6px 0;
-            font-size: 15px;
+            padding: 8px 0;
+            font-size: 0.88rem;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
         }
 
         .pl-header {
-            font-weight: bold;
+            font-weight: 700;
+            color: #111827;
+            border-bottom: 2px solid #e5e7eb;
         }
 
         .pipeline-summary {
-            margin-top: 15px;
-            font-size: 14px;
+            margin-top: 14px;
+            font-size: 0.85rem;
+            color: #374151;
         }
 
         .health-line {
@@ -159,120 +248,205 @@
         }
 
         .watch-line {
-            color: #ffcc00;
+            color: #b45309;
         }
 
+        /* ===== ESCALATIONS ===== */
         .escalation-block {
-            margin-top: 10px;
-            font-size: 14px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: #374151;
         }
 
         .escalation-title {
             margin-top: 10px;
-            font-weight: bold;
+            font-weight: 700;
+            color: #111827;
         }
 
         .escalation-item {
-            margin-left: 10px;
-            margin-top: 3px;
+            margin-left: 12px;
+            margin-top: 4px;
         }
 
         .check {
-            color: #00ff88;
+            color: #085c40;
             margin-left: 6px;
+            font-weight: 700;
         }
 
         .warning {
-            color: #ffcc00;
+            color: #b45309;
             margin-top: 10px;
         }
 
         .insight {
-            margin-top: 12px;
-            color: #ccc;
+            margin-top: 14px;
+            font-size: 0.83rem;
+            color: #6b7280;
+            background: #f9fafb;
+            border-left: 3px solid #085c40;
+            padding: 8px 12px;
+            border-radius: 0 6px 6px 0;
         }
 
+        /* ===== TREND TABLE ===== */
         .trend-row {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-            padding: 6px 0;
-            font-size: 15px;
+            padding: 8px 0;
+            font-size: 0.88rem;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
         }
 
         .trend-header {
-            font-weight: bold;
+            font-weight: 700;
+            color: #111827;
+            border-bottom: 2px solid #e5e7eb;
         }
 
         .trend-insight {
-            margin-top: 15px;
-            font-size: 14px;
+            margin-top: 14px;
+            font-size: 0.85rem;
+            color: #374151;
         }
 
         .trend-warning {
-            color: #ffcc00;
+            color: #b45309;
             margin-top: 10px;
+            font-weight: 600;
         }
 
+        /* ===== IMPACT ===== */
         .impact-block {
-            margin-top: 10px;
-            font-size: 14px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: #374151;
         }
 
         .impact-title {
             margin-top: 10px;
-            font-weight: bold;
+            font-weight: 700;
+            color: #111827;
         }
 
         .impact-item {
-            margin-left: 10px;
+            margin-left: 12px;
             margin-top: 4px;
         }
 
-        .check {
-            color: #00ff88;
-            margin-right: 6px;
-        }
-
+        /* ===== DEVELOPMENT PIPELINE TABLE ===== */
         .dp-row {
             display: grid;
             grid-template-columns: 2fr 1fr 3fr;
-            padding: 6px 0;
-            font-size: 15px;
+            padding: 8px 0;
+            font-size: 0.88rem;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
         }
 
         .dp-header {
-            font-weight: bold;
+            font-weight: 700;
+            color: #111827;
+            border-bottom: 2px solid #e5e7eb;
         }
 
         .dp-summary {
-            margin-top: 15px;
-            font-size: 14px;
+            margin-top: 14px;
+            font-size: 0.85rem;
+            color: #374151;
         }
 
+        /* ===== ALERTS ===== */
         .alert-block {
-            margin-top: 10px;
-            font-size: 14px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: #374151;
         }
 
         .alert-title {
             margin-top: 10px;
-            font-weight: bold;
+            font-weight: 700;
+            color: #111827;
         }
 
         .alert-item {
-            margin-left: 10px;
+            margin-left: 12px;
             margin-top: 4px;
         }
 
         .alert-action {
-            margin-left: 25px;
-            color: #ccc;
+            margin-left: 28px;
+            color: #6b7280;
+        }
+
+        /* ===== INPUT / BUTTON styles from File 3 (kept for any forms) ===== */
+        .vl-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #111827;
+            outline: none;
+            margin-bottom: 20px;
+            background: #fff;
+        }
+
+            .vl-input:focus {
+                border-color: #085c40;
+                box-shadow: 0 0 0 3px rgba(8,92,64,0.08);
+            }
+
+        .vl-btn {
+            padding: 10px 36px;
+            background: #085c40;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+            .vl-btn:hover {
+                background: #064d35;
+            }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 600px) {
+            .health-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .kpi-row,
+            .tl-row,
+            .pl-row,
+            .dp-row,
+            .trend-row {
+                font-size: 0.78rem;
+            }
+
+            .container {
+                padding: 20px 14px;
+            }
         }
     </style>
 
 </head>
 
 <body>
+
+    <!-- Brand bar (from File 3) -->
+    <div class="vl-brand">
+        <div class="vl-logo">
+            <img src="../assets/Images/logo.jpeg"
+                 alt="RM CMS Logo"
+                 onerror="this.style.display='none';this.parentElement.textContent='RM'">
+        </div>
+        <span class="vl-brand-name">RM CMS</span>
+    </div>
 
     <div class="container">
 
@@ -300,14 +474,12 @@
 
             <div class="divider"></div>
 
-            <!-- Overall Health -->
             <div class="overall-health">
                 Overall System Health:
                 <span id="healthDot" class="dot"></span>
                 <span id="overallHealthText"></span>
             </div>
 
-            <!-- Metrics Grid -->
             <div class="health-grid">
 
                 <div>Active Volunteers: <span id="activeVolunteers"></span></div>
@@ -339,7 +511,6 @@
 
             <div class="kpi-table">
 
-                <!-- Header -->
                 <div class="kpi-row kpi-header">
                     <div>Metric</div>
                     <div>Current</div>
@@ -350,7 +521,6 @@
 
                 <div class="kpi-separator"></div>
 
-                <!-- Rows -->
                 <div id="kpiRows"></div>
 
             </div>
@@ -370,7 +540,6 @@
 
             <div class="divider"></div>
 
-            <!-- Header -->
             <div class="tl-row tl-header">
                 <div>Team Lead</div>
                 <div>Team Size</div>
@@ -382,10 +551,8 @@
 
             <div class="kpi-separator"></div>
 
-            <!-- Rows -->
             <div id="teamLeadRows"></div>
 
-            <!-- Attention -->
             <div id="attentionSection" class="attention"></div>
 
             <div class="divider"></div>
@@ -401,7 +568,6 @@
 
             <div class="divider"></div>
 
-            <!-- Header -->
             <div class="pl-row pl-header">
                 <div>Stage</div>
                 <div>Count</div>
@@ -411,10 +577,8 @@
 
             <div class="kpi-separator"></div>
 
-            <!-- Rows -->
             <div id="pipelineRows"></div>
 
-            <!-- Summary -->
             <div id="pipelineSummary" class="pipeline-summary"></div>
 
             <div class="divider"></div>
@@ -445,15 +609,12 @@
 
             <div class="divider"></div>
 
-            <!-- Header -->
             <div id="trendHeader" class="trend-row trend-header"></div>
 
             <div class="kpi-separator"></div>
 
-            <!-- Rows -->
             <div id="trendRows"></div>
 
-            <!-- Insights -->
             <div id="trendInsights" class="trend-insight"></div>
 
             <div class="divider"></div>
@@ -484,7 +645,6 @@
 
             <div class="divider"></div>
 
-            <!-- Header -->
             <div class="dp-row dp-header">
                 <div>Stage</div>
                 <div>Count</div>
@@ -493,10 +653,8 @@
 
             <div class="kpi-separator"></div>
 
-            <!-- Rows -->
             <div id="dpRows"></div>
 
-            <!-- Summary -->
             <div id="dpSummary" class="dp-summary"></div>
 
             <div class="divider"></div>
@@ -517,6 +675,7 @@
             <div class="divider"></div>
 
         </div>
+
     </div>
 
 </body>
