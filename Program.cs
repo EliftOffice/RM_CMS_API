@@ -27,9 +27,6 @@ namespace RM_CMS
             // Register Dapper and Data Access Services
             builder.Services.AddScoped<RM_CMS.Data.IDbConnectionFactory, RM_CMS.Data.DbConnectionFactory>();
 
-            // Register Common DAL Services
-            builder.Services.AddScoped<RM_CMS.DAL.CommonDAL.ITelegram, RM_CMS.DAL.CommonDAL.Telegram>();
-
             // Register Peoples Module
             builder.Services.AddScoped<RM_CMS.BLL.Peoples.IPeoplesBLL, RM_CMS.BLL.Peoples.PeoplesBLL>();
             builder.Services.AddScoped<RM_CMS.DAL.Peoples.IPeoplesDAL, RM_CMS.DAL.Peoples.PeoplesDAL>();
@@ -46,6 +43,8 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteersBLL, RM_CMS.BLL.Volunteers.VolunteersBLL>();
             builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteersDAL, RM_CMS.DAL.Volunteers.VolunteersDAL>();
 
+            // Register Telegram DAL
+            builder.Services.AddScoped<RM_CMS.DAL.CommonDAL.ITelegram, RM_CMS.DAL.CommonDAL.Telegram>();
 
             // Register Team Leads Module
             builder.Services.AddScoped<RM_CMS.DAL.TeamLeads.ITeamLeadDashBoardDAL, RM_CMS.DAL.TeamLeads.TeamLeadDashBoardDAL>();
@@ -90,12 +89,31 @@ namespace RM_CMS
 
             app.MapControllers();
 
-            // Map default document
+            // Map default document to admin.html (was volunteers login)
             app.MapGet("/", async context =>
             {
                 context.Response.ContentType = "text/html";
-                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates","Volunteers", "Login.html"));
-            });          
+                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "admin.html"));
+            });
+
+            // Map templates index to admin.html as well
+            app.MapGet("/templates/index.html", async context =>
+            {
+                context.Response.ContentType = "text/html";
+                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "admin.html"));
+            });
+
+            app.MapGet("/diagnostics", async context =>
+            {
+                context.Response.ContentType = "text/html";
+                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates", "diagnostics.html"));
+            });
+
+            app.MapGet("/templates/diagnostics.html", async context =>
+            {
+                context.Response.ContentType = "text/html";
+                await context.Response.SendFileAsync(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates", "diagnostics.html"));
+            });
 
             app.Run();
         }

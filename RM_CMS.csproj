@@ -39,6 +39,7 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Dapper" Version="2.1.15" />
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
+    <PackageReference Include="WTelegramClient" Version="4.4.4" />
   </ItemGroup>
 
   <ItemGroup>

@@ -11,6 +11,7 @@
 
         public string people_id { get; set; } = string.Empty;
         public string people_name { get;set; } = string.Empty;  
+        public string phone { get;set; } = string.Empty;  
 
     }
 }

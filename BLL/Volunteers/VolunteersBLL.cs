@@ -1,9 +1,12 @@
-﻿using RM_CMS.DAL.Peoples;
+﻿using RM_CMS.DAL.CommonDAL;
+using RM_CMS.DAL.Peoples;
 using RM_CMS.DAL.Volunteers;
 using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Volunteers;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
+using TL;
+using WTelegram;
 
 namespace RM_CMS.BLL.Volunteers
 {
@@ -22,15 +25,25 @@ namespace RM_CMS.BLL.Volunteers
         // New methods
         Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync();
         Task<ApiResponse<bool>> UpdateVolunteerTelegramAsync(UpdateVolunteerTelegramDto dto);
+
+        Task<ApiResponse<string>> SendTelegramMessage(
+             TelegramMessageRequest request);
     }
     public class VolunteersBLL : IVolunteersBLL
     {
         private readonly IVolunteersDAL _volunteersDAL;
+        private readonly ITelegram _telegramDAL;
+        private TelegramApiConfigModel _telegramConfig;
+        private TelegramMessageRequest _request;
 
-        public VolunteersBLL(IVolunteersDAL volunteersDAL)
+        private static readonly SemaphoreSlim _telegramLock = new(1, 1);
+
+        public VolunteersBLL(IVolunteersDAL volunteersDAL, ITelegram telegramDAL)
         {
             _volunteersDAL = volunteersDAL;
+            _telegramDAL = telegramDAL;
         }
+       
 
         public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
         {
@@ -272,5 +285,125 @@ namespace RM_CMS.BLL.Volunteers
                 return new ApiResponse<bool>(ResponseType.Error, $"Error updating volunteer telegram: {ex.Message}", false);
             }
         }
+
+
+        public async Task<ApiResponse<string>> SendTelegramMessage(
+     TelegramMessageRequest request)
+        {
+            await _telegramLock.WaitAsync();
+
+            try
+            {
+                var configResponse =
+                    await _telegramDAL.GetTelegramAPIConfig();
+
+                if (configResponse.ResponseType != ResponseType.Success)
+                {
+                    return new ApiResponse<string>(
+                        ResponseType.Warning,
+                        configResponse.Message,
+                        string.Empty
+                    );
+                }
+
+                var telegramConfig = configResponse.Data;
+
+                using var client = new Client(what =>
+                {
+                    switch (what)
+                    {
+                        case "api_id":
+                            return telegramConfig.ApiId;
+
+                        case "api_hash":
+                            return telegramConfig.ApiHash;
+
+                        case "phone_number":
+                            return telegramConfig.PhoneNumber;
+
+                        case "verification_code":
+                            return request.OTP;
+
+                        case "password":
+                            return request.TwoFactorPassword;
+
+                        default:
+                            return null;
+                    }
+                });
+
+                var me = await client.LoginUserIfNeeded();
+
+                var result = await client.Contacts_ImportContacts(new[]
+                {
+            new InputPhoneContact
+            {
+                client_id = DateTime.UtcNow.Ticks,
+                phone = request.TargetPhoneNumber,
+                first_name = "Telegram",
+                last_name = "User"
+            }
+        });
+
+                if (result.users.Count == 0)
+                {
+                    return new ApiResponse<string>(
+                        ResponseType.Warning,
+                        "Telegram user not found",
+                        string.Empty
+                    );
+                }
+
+                var user = result.users.Values.First();
+
+                await client.SendMessageAsync(user, request.Message);
+
+                return new ApiResponse<string>(
+                    ResponseType.Success,
+                    "Message sent successfully",
+                    "SUCCESS"
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<string>(
+                    ResponseType.Error,
+                    ex.Message,
+                    string.Empty
+                );
+            }
+            finally
+            {
+                _telegramLock.Release();
+            }
+        }
+
+        //private string Config(string what)
+        //{
+        //    switch (what)
+        //    {
+        //        case "api_id":
+        //            return _telegramConfig.ApiId;
+
+        //        case "api_hash":
+        //            return _telegramConfig.ApiHash;
+
+        //        case "phone_number":
+        //            return _telegramConfig.PhoneNumber;
+
+        //        case "verification_code":
+        //            return string.IsNullOrWhiteSpace(_request.OTP)
+        //                ? null
+        //                : _request.OTP;
+
+        //        case "password":
+        //            return string.IsNullOrWhiteSpace(_request.TwoFactorPassword)
+        //                ? null
+        //                : _request.TwoFactorPassword;
+
+        //        default:
+        //            return null;
+        //    }
+        //}
     }
 }

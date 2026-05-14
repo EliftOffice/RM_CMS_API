@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using RM_CMS.BLL.Volunteers;
 using RM_CMS.DAL.CommonDAL;
 using RM_CMS.DAL.Peoples;
 using RM_CMS.Data;
@@ -7,6 +8,8 @@ using RM_CMS.Data.DTO.Volunteers;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
 using System.Text.Json;
+using TL;
+using WTelegram;
 
 namespace RM_CMS.DAL.Volunteers
 {
@@ -36,7 +39,7 @@ namespace RM_CMS.DAL.Volunteers
         private readonly IConfiguration _configuration;
         private readonly ITelegram _telegram;
 
-        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory,IConfiguration config,ITelegram tel)
+        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory, IConfiguration config, ITelegram tel)
         {
             _dbConnectionFactory = dbConnectionFactory;
             _configuration = config;
@@ -101,7 +104,7 @@ namespace RM_CMS.DAL.Volunteers
                     {
                         // 2. Find & lock volunteer (prevents race condition)
                         const string volunteerQuery = @"
-                    SELECT volunteer_id, first_name, last_name, capacity_max, current_assignments, telegram_chat_id
+                    SELECT volunteer_id, first_name, last_name, capacity_max, current_assignments, telegram_chat_id,phone
                     FROM volunteers
                     WHERE status = 'Active'
                       AND current_assignments < capacity_max
@@ -172,14 +175,14 @@ namespace RM_CMS.DAL.Volunteers
                             transaction);
 
                         // 🔥 5. Send Telegram AFTER commit
-                       
+
 
                         transaction.Commit();
 
-                        if (string.IsNullOrEmpty(volunteer.telegram_chat_id))
+                        if (!string.IsNullOrEmpty(volunteer.phone))
                         {
                             var message = $@"
-👋 Hi {volunteer.first_name},
+👋 Hi {volunteer.first_name} ,
 
 📌 A new follow-up has been assigned to you.
 
@@ -187,11 +190,31 @@ namespace RM_CMS.DAL.Volunteers
 https://rmoffice.online/templates/Volunteers/Login.html
 🙏 Thank you!
 ";
+                            TelegramMessageRequest obj = new TelegramMessageRequest();
+                            obj.TargetPhoneNumber = volunteer.phone;
+                            obj.Message = message;
 
-
-
-                            _ = SendTelegramMessageAsync(volunteer.telegram_chat_id, message);
+                            // Use injected ITelegram to send message (fire-and-forget)
+                            _ = _telegram.SendTelegramMessageByPhoneNumber(obj.TargetPhoneNumber, obj.Message);
                         }
+
+//                        if (string.IsNullOrEmpty(volunteer.telegram_chat_id))
+//                        {
+//                            var message = $@"
+//👋 Hi {volunteer.first_name},
+
+//📌 A new follow-up has been assigned to you.
+
+//👉 Please check your dashboard:
+//https://rmoffice.online/templates/Volunteers/Login.html
+//🙏 Thank you!
+//";
+
+
+
+                            
+//                        }
+
 
                         return new ApiResponse<AssignedVolunteerDTO>(
                             ResponseType.Success,
@@ -563,7 +586,7 @@ ORDER BY p.next_action_date;";
                         volunteer.CapacityBand,
                         CapacityMin = capacity.Min,
                         CapacityMax = capacity.Max,
-                         volunteer.TelegramChatId
+                        volunteer.TelegramChatId
                     });
 
                     // 🔥 4. Fetch FULL DATA → MAP TO DTO (NO MANUAL MAPPING)
@@ -609,9 +632,20 @@ ORDER BY p.next_action_date;";
                         new { VolunteerId = volunteer.VolunteerId }
                     );
                     if (result != null)
-                        SendTelegramMessageAsync(volunteer.TelegramChatId, @"🎉 Welcome to RM Volunteers!
+                    //                        SendTelegramMessageAsync(volunteer.TelegramChatId, @"🎉 Welcome to RM Volunteers!
 
-✅ Your registration was completed successfully.");
+                    //✅ Your registration was completed successfully.");
+                    {
+                        TelegramMessageRequest obj = new TelegramMessageRequest();
+                        obj.TargetPhoneNumber = volunteer.Phone;
+                        obj.Message = "🎉 Welcome to RM Volunteers! ✅ Your registration was completed successfully";
+
+                        // Use injected ITelegram to send message
+                        _ = _telegram.SendTelegramMessageByPhoneNumber(obj.TargetPhoneNumber, obj.Message);
+
+                    }
+
+
 
                     return new ApiResponse<VolunteerResponseDto>(
                         ResponseType.Success,
@@ -696,7 +730,16 @@ WHERE LOWER(email) = @Email;";
                     else
                     {
                         volunteers[0].OTP = GenerateOtp();
-                        SendTelegramMessageAsync(volunteers[0].ChatID, volunteers[0].OTP);
+                        //  SendTelegramMessageAsync(volunteers[0].ChatID, volunteers[0].OTP);
+
+
+                        TelegramMessageRequest obj = new TelegramMessageRequest();
+                        obj.TargetPhoneNumber = volunteers[0].Phone;
+                        obj.Message = volunteers[0].OTP;
+
+                        // Send OTP using ITelegram
+                        _ = _telegram.SendTelegramMessageByPhoneNumber(obj.TargetPhoneNumber, obj.Message);
+
                     }
 
                     return new ApiResponse<List<VolunteerLookupDto>>(
@@ -768,8 +811,8 @@ WHERE LOWER(email) = @Email;";
                     null
                 );
             }
-        }      
-        
+        }
+
         private async Task SendTelegramMessageAsync(string chatId, string message)
         {
             try
@@ -796,7 +839,7 @@ WHERE LOWER(email) = @Email;";
         {
             try
             {
-               // var token = _configuration["Telegram:BotToken"];
+                // var token = _configuration["Telegram:BotToken"];
                 var token = _telegram.GetTelegramBotToken().Result.Data;
                 if (string.IsNullOrEmpty(token))
                     return new ApiResponse<TelegramChatDto>(ResponseType.Error, "Bot token not configured", null);
@@ -950,5 +993,9 @@ WHERE LOWER(email) = @Email;";
             return otp.ToString();
         }
 
+
+
+
     }
+
 }

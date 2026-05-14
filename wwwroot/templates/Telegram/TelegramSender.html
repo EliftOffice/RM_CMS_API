@@ -1,0 +1,164 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Message Sender</title>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/utils.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 40px;
+        }
+
+        .container {
+            width: 450px;
+            margin: auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px #ccc;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            margin-top: 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+            button:hover {
+                background: #0056b3;
+            }
+
+        #responseMessage {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h2>Send Telegram Message</h2>
+
+        <label>Target Phone Number</label>
+        <input type="text"
+               id="txtTargetPhone"
+               placeholder="+919876543210" />
+
+        <label>Message</label>
+        <textarea id="txtMessage"
+                  rows="5"
+                  placeholder="Enter message"></textarea>
+
+        <label>Telegram OTP (First Login Only)</label>
+        <input type="text"
+               id="txtOTP"
+               placeholder="Enter Telegram OTP" />
+
+        <label>2FA Password (Optional)</label>
+        <input type="password"
+               id="txt2FA"
+               placeholder="Enter 2FA Password" />
+
+        <button id="btnSendMessage">
+            Send Message
+        </button>
+
+        <div id="responseMessage"></div>
+
+    </div>
+
+    <script>
+
+        $(document).ready(function () {
+
+            $("#btnSendMessage").click(function () {
+
+                sendTelegramMessage();
+            });
+
+        });
+
+        function sendTelegramMessage() {
+
+            let request = {
+
+                targetPhoneNumber:
+                    $("#txtTargetPhone").val(),
+
+                message:
+                    $("#txtMessage").val(),
+
+                otp:
+                    $("#txtOTP").val(),
+
+                twoFactorPassword:
+                    $("#txt2FA").val()
+            };
+
+            $.ajax({
+
+                url: API_BASE_URL + '/volunteers/send-message',
+
+                type: "POST",
+
+                contentType: "application/json",
+
+                data: JSON.stringify(request),
+
+                success: function (response) {
+
+                    $("#responseMessage")
+                        .css("color", "green")
+                        .html(response.message);
+                },
+
+                error: function (xhr) {
+
+                    $("#responseMessage")
+                        .css("color", "red")
+                        .html("Error occurred while sending message");
+                }
+            });
+        }
+
+    </script>
+
+</body>
+</html>

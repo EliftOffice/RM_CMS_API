@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using RM_CMS.BLL.Peoples;
 using RM_CMS.BLL.Volunteers;
 using RM_CMS.DAL.CommonDAL;
+using RM_CMS.DAL.Volunteers;
 using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Volunteers;
 using RM_CMS.Data.Models;
@@ -17,6 +18,7 @@ namespace RM_CMS.Controllers.Volunteers
         private readonly IVolunteersBLL _VolunteersBLL;
         private readonly ILogger<VolunteersController> _logger;
         private readonly ITelegram _telegram;
+
         public VolunteersController(IVolunteersBLL volunteersBLL, ILogger<VolunteersController> logger,ITelegram tel)
         {
             _VolunteersBLL = volunteersBLL;
@@ -237,6 +239,16 @@ namespace RM_CMS.Controllers.Volunteers
                 _logger.LogError(ex, "Manual assign failed");
                 return HttpResponseHelper.CreateHttpResponse(new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, "Error during manual assign", null));
             }
+        }
+
+
+        [HttpPost("send-message")]
+        public async Task<IActionResult> SendMessage(
+             [FromBody] TelegramMessageRequest request)
+        {
+            var response = await _VolunteersBLL.SendTelegramMessage(request);
+
+            return Ok(response);
         }
 
     }
