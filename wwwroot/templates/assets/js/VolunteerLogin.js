@@ -93,11 +93,11 @@ $(document).ready(function () {
 
         let mobile = $('#mobile').val().trim();
 
-        if (!/^\d{10}$/.test(mobile)) {
+        //if (!/^\d{10}$/.test(mobile)) {
 
-            showToast('Invalid mobile number', 'warning');
-            return;
-        }
+        //    showToast('Invalid mobile number', 'warning');
+        //    return;
+        //}
 
         $.get(API_BASE_URL + `/volunteers/mobile/${mobile}`, function (res) {
 
