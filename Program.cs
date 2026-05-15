@@ -43,8 +43,13 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteersBLL, RM_CMS.BLL.Volunteers.VolunteersBLL>();
             builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteersDAL, RM_CMS.DAL.Volunteers.VolunteersDAL>();
 
+            // Register Memory Cache for OTP storage
+            builder.Services.AddMemoryCache();
+
             // Register Telegram DAL
+            builder.Services.AddHttpClient();
             builder.Services.AddScoped<RM_CMS.DAL.CommonDAL.ITelegram, RM_CMS.DAL.CommonDAL.Telegram>();
+
 
             // Register Team Leads Module
             builder.Services.AddScoped<RM_CMS.DAL.TeamLeads.ITeamLeadDashBoardDAL, RM_CMS.DAL.TeamLeads.TeamLeadDashBoardDAL>();

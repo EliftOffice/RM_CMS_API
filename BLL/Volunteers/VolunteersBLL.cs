@@ -19,7 +19,7 @@ namespace RM_CMS.BLL.Volunteers
 
         Task<ApiResponse<VolunteerResponseDto>> CreateVolunteerAsync(CreateVolunteerDto dto);
         Task<ApiResponse<List<Volunteer>>> GetVolunteersAsync();
-        Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersByMobileAsync(string mobile);
+        Task<ApiResponse<List<UserLookupDto>>> GetVolunteersByMobileAsync(string mobile);
         Task<ApiResponse<string>> UpdateVolunteerMobileAsync(UpdateVolunteerMobileDto dto);
 
         // New methods
@@ -28,6 +28,8 @@ namespace RM_CMS.BLL.Volunteers
 
         Task<ApiResponse<string>> SendTelegramMessage(
              TelegramMessageRequest request);
+
+
     }
     public class VolunteersBLL : IVolunteersBLL
     {
@@ -43,7 +45,7 @@ namespace RM_CMS.BLL.Volunteers
             _volunteersDAL = volunteersDAL;
             _telegramDAL = telegramDAL;
         }
-       
+
 
         public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
         {
@@ -182,28 +184,77 @@ namespace RM_CMS.BLL.Volunteers
         }
 
 
-        public async Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersByMobileAsync(string mobile)
+        public async Task<ApiResponse<List<UserLookupDto>>> GetVolunteersByMobileAsync(string mobile)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(mobile))
                 {
-                    return new ApiResponse<List<VolunteerLookupDto>>(
+                    return new ApiResponse<List<UserLookupDto>>(
                         ResponseType.Warning,
                         "Mobile number is required",
-                        new List<VolunteerLookupDto>()
+                        new List<UserLookupDto>()
                     );
                 }
 
-                // ✅ Call DAL
-                return await _volunteersDAL.GetVolunteersAsyncByMobile(mobile);
+                // Volunteers
+                var volunteerResult = await _volunteersDAL.GetVolunteersAsyncByMobile(mobile);
+
+                if (volunteerResult.ResponseType == ResponseType.Success &&
+                    volunteerResult.Data != null &&
+                    volunteerResult.Data.Any())
+                {
+                    return new ApiResponse<List<UserLookupDto>>(
+                        ResponseType.Success,
+                        "Volunteer found",
+                        volunteerResult.Data.Select(v => new UserLookupDto
+                        {
+                            Id = v.VolunteerId,
+                            FirstName = v.FirstName,
+                            LastName = v.LastName,
+                            Phone = v.Phone,
+                            Role = "volunteer",
+                            OTP = v.OTP
+                        }).ToList()
+                    );
+                }
+
+                // Team Lead fallback
+                var teamLeadResult = await _volunteersDAL.GetTeamLeadByMobileAsync(mobile);
+
+                if (teamLeadResult.ResponseType == ResponseType.Success &&
+                    teamLeadResult.Data != null)
+                {
+                    return new ApiResponse<List<UserLookupDto>>(
+                        ResponseType.Success,
+                        "Team lead found",
+                        new List<UserLookupDto>
+                        {
+                    new UserLookupDto
+                    {
+                        Id = teamLeadResult.Data.TeamLeadId,
+                        FirstName = teamLeadResult.Data.FirstName,
+                        LastName = teamLeadResult.Data.LastName,
+                        Phone = teamLeadResult.Data.Phone,
+                        Role = "teamlead",
+                        OTP = teamLeadResult.Data.OTP
+                    }
+                        }
+                    );
+                }
+
+                return new ApiResponse<List<UserLookupDto>>(
+                    ResponseType.Warning,
+                    "No user found with this mobile number",
+                    new List<UserLookupDto>()
+                );
             }
             catch (Exception ex)
             {
-                return new ApiResponse<List<VolunteerLookupDto>>(
+                return new ApiResponse<List<UserLookupDto>>(
                     ResponseType.Error,
-                    $"Error retrieving volunteer: {ex.Message}",
-                    new List<VolunteerLookupDto>()
+                    $"Error retrieving user: {ex.Message}",
+                    new List<UserLookupDto>()
                 );
             }
         }
@@ -378,32 +429,6 @@ namespace RM_CMS.BLL.Volunteers
             }
         }
 
-        //private string Config(string what)
-        //{
-        //    switch (what)
-        //    {
-        //        case "api_id":
-        //            return _telegramConfig.ApiId;
 
-        //        case "api_hash":
-        //            return _telegramConfig.ApiHash;
-
-        //        case "phone_number":
-        //            return _telegramConfig.PhoneNumber;
-
-        //        case "verification_code":
-        //            return string.IsNullOrWhiteSpace(_request.OTP)
-        //                ? null
-        //                : _request.OTP;
-
-        //        case "password":
-        //            return string.IsNullOrWhiteSpace(_request.TwoFactorPassword)
-        //                ? null
-        //                : _request.TwoFactorPassword;
-
-        //        default:
-        //            return null;
-        //    }
-        //}
     }
 }

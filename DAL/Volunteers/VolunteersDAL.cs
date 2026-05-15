@@ -10,6 +10,7 @@ using RM_CMS.Utilities;
 using System.Text.Json;
 using TL;
 using WTelegram;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace RM_CMS.DAL.Volunteers
 {
@@ -31,6 +32,10 @@ namespace RM_CMS.DAL.Volunteers
 
         // Manual assign to specific volunteer
         Task<ApiResponse<AssignedVolunteerDTO>> ManualAssignToVolunteerAsync(string personId, string volunteerId);
+
+        Task<ApiResponse<VolunteerLookupDto>> GetVolunteerByMobileAsync(string mobile);
+        Task<ApiResponse<TeamLeadLookupDto>> GetTeamLeadByMobileAsync(string mobile);
+
     }
 
     public class VolunteersDAL : IVolunteersDAL
@@ -38,12 +43,14 @@ namespace RM_CMS.DAL.Volunteers
         private readonly IDbConnectionFactory _dbConnectionFactory;
         private readonly IConfiguration _configuration;
         private readonly ITelegram _telegram;
+        private readonly IMemoryCache _cache;
 
-        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory, IConfiguration config, ITelegram tel)
+        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory, IConfiguration config, ITelegram tel, IMemoryCache cache)
         {
             _dbConnectionFactory = dbConnectionFactory;
             _configuration = config;
             _telegram = tel;
+            _cache = cache;
         }
         public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
         {
@@ -198,22 +205,22 @@ https://rmoffice.online/templates/Volunteers/Login.html
                             _ = _telegram.SendTelegramMessageByPhoneNumber(obj.TargetPhoneNumber, obj.Message);
                         }
 
-//                        if (string.IsNullOrEmpty(volunteer.telegram_chat_id))
-//                        {
-//                            var message = $@"
-//👋 Hi {volunteer.first_name},
+                        //                        if (string.IsNullOrEmpty(volunteer.telegram_chat_id))
+                        //                        {
+                        //                            var message = $@"
+                        //👋 Hi {volunteer.first_name},
 
-//📌 A new follow-up has been assigned to you.
+                        //📌 A new follow-up has been assigned to you.
 
-//👉 Please check your dashboard:
-//https://rmoffice.online/templates/Volunteers/Login.html
-//🙏 Thank you!
-//";
+                        //👉 Please check your dashboard:
+                        //https://rmoffice.online/templates/Volunteers/Login.html
+                        //🙏 Thank you!
+                        //";
 
 
 
-                            
-//                        }
+
+                        //                        }
 
 
                         return new ApiResponse<AssignedVolunteerDTO>(
@@ -701,53 +708,52 @@ WHERE LOWER(email) = @Email;";
         {
             try
             {
-                using (var connection = _dbConnectionFactory.GetConnection())
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                const string query = @"
+            SELECT 
+                volunteer_id AS VolunteerId,
+                first_name AS FirstName,
+                last_name AS LastName,
+                phone AS Phone,
+                telegram_chat_id AS ChatID,'volunteer' as role
+            FROM volunteers
+            WHERE phone = @Mobile
+            LIMIT 1;";
+
+                var volunteers = (await connection.QueryAsync<VolunteerLookupDto>(
+                    query,
+                    new { Mobile = mobile }
+                )).ToList();
+
+                if (!volunteers.Any())
                 {
-                    const string query = @"
-                SELECT 
-                    volunteer_id AS VolunteerId,
-                    first_name AS FirstName,
-                    last_name AS LastName,
-                    phone AS Phone,
-                    telegram_chat_id as ChatID
-                FROM volunteers
-                WHERE phone = @Mobile Limit 1;
-            ";
-
-                    var volunteers = (await connection.QueryAsync<VolunteerLookupDto>(
-                        query,
-                        new { Mobile = mobile }
-                    )).ToList();
-
-                    if (!volunteers.Any())
-                    {
-                        return new ApiResponse<List<VolunteerLookupDto>>(
-                            ResponseType.Warning,
-                            "No volunteers found for this mobile number",
-                            new List<VolunteerLookupDto>()
-                        );
-                    }
-                    else
-                    {
-                        volunteers[0].OTP = GenerateOtp();
-                        //  SendTelegramMessageAsync(volunteers[0].ChatID, volunteers[0].OTP);
-
-
-                        TelegramMessageRequest obj = new TelegramMessageRequest();
-                        obj.TargetPhoneNumber = volunteers[0].Phone;
-                        obj.Message = volunteers[0].OTP;
-
-                        // Send OTP using ITelegram
-                        _ = _telegram.SendTelegramMessageByPhoneNumber(obj.TargetPhoneNumber, obj.Message);
-
-                    }
-
                     return new ApiResponse<List<VolunteerLookupDto>>(
-                        ResponseType.Success,
-                        "Volunteer retrieved successfully",
-                        volunteers
+                        ResponseType.Warning,
+                        "No volunteer found for this mobile number",
+                        new List<VolunteerLookupDto>()
                     );
                 }
+
+                var volunteer = volunteers[0];
+
+                // Generate OTP
+                volunteer.OTP = GenerateOtp();
+
+                // Better OTP message
+                string message = $"🔐 RM CMS Volunteer Login OTP: {volunteer.OTP}. " +
+                                 $"This OTP is valid for a short time ⏳. Do not share it with anyone ⚠️.";
+
+                await _telegram.SendTelegramMessageByPhoneNumber(
+                    volunteer.Phone,
+                    message
+                );
+
+                return new ApiResponse<List<VolunteerLookupDto>>(
+                    ResponseType.Success,
+                    "Volunteer retrieved successfully",
+                    volunteers
+                );
             }
             catch (Exception ex)
             {
@@ -983,6 +989,91 @@ WHERE LOWER(email) = @Email;";
                 return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"Error during manual assignment: {ex.Message}", null);
             }
         }
+
+        public async Task<ApiResponse<VolunteerLookupDto>> GetVolunteerByMobileAsync(string mobile)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+                const string q = @"
+                    SELECT volunteer_id AS VolunteerId, first_name AS FirstName, last_name AS LastName, phone AS Phone
+                    FROM volunteers
+                    WHERE phone = @Mobile LIMIT 1;";
+
+                var v = await connection.QueryFirstOrDefaultAsync<VolunteerLookupDto>(q, new { Mobile = mobile });
+                if (v == null) return new ApiResponse<VolunteerLookupDto>(ResponseType.Warning, "Not found", null);
+                return new ApiResponse<VolunteerLookupDto>(ResponseType.Success, "Found", v);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<VolunteerLookupDto>(ResponseType.Error, ex.Message, null);
+            }
+        }
+
+        public async Task<ApiResponse<TeamLeadLookupDto>> GetTeamLeadByMobileAsync(string mobile)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                const string q = @"
+            SELECT 
+                team_lead_id AS TeamLeadId,
+                first_name AS FirstName,
+                last_name AS LastName,
+                role_type AS RoleType,
+                phone AS Phone,
+                email AS Email
+            FROM team_leads
+            WHERE phone = @Mobile
+            LIMIT 1;";
+
+                var teamLead = await connection.QueryFirstOrDefaultAsync<TeamLeadLookupDto>(
+                    q,
+                    new { Mobile = mobile }
+                );
+
+                if (teamLead == null)
+                {
+                    return new ApiResponse<TeamLeadLookupDto>(
+                        ResponseType.Warning,
+                        "Team lead not found",
+                        null
+                    );
+                }
+
+                // Generate OTP
+                teamLead.OTP = GenerateOtp();
+
+                // Send Telegram Message
+                TelegramMessageRequest obj = new TelegramMessageRequest
+                {
+                    TargetPhoneNumber = teamLead.Phone,
+                    Message = $"🔐 Your RM CMS secure login OTP is: {teamLead.OTP}. Valid for a limited time ⏳. Please do not share this code ⚠️."
+                };
+
+                await _telegram.SendTelegramMessageByPhoneNumber(
+                    obj.TargetPhoneNumber,
+                    obj.Message
+                );
+
+                return new ApiResponse<TeamLeadLookupDto>(
+                    ResponseType.Success,
+                    "Team lead found",
+                    teamLead
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<TeamLeadLookupDto>(
+                    ResponseType.Error,
+                    ex.Message,
+                    null
+                );
+            }
+        }
+
+
 
         private string GenerateOtp()
         {

@@ -100,6 +100,7 @@ namespace RM_CMS.Data.Models
         public string Phone { get; set; }
         public string ChatID { get; set; }
         public string OTP { get; set; }
+        public string role { get; set; }
 
     }
 }

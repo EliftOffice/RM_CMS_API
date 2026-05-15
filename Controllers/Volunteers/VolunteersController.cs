@@ -129,8 +129,8 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
-        [HttpGet("/api/volunteers/mobile/{mobile}")]
-        public async Task<ActionResult<ApiResponse<List<VolunteerLookupDto>>>> GetVolunteersByMobileAsync(string mobile)
+        [HttpGet("api/volunteers/mobile/{mobile}")]
+        public async Task<ActionResult<ApiResponse<List<UserLookupDto>>>> GetVolunteersByMobileAsync(string mobile)
         {
             try
             {
@@ -139,12 +139,12 @@ namespace RM_CMS.Controllers.Volunteers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving volunteer by mobile");
+                _logger.LogError(ex, "Error retrieving user by mobile");
 
-                return StatusCode(500, new ApiResponse<List<VolunteerLookupDto>>(
+                return StatusCode(500, new ApiResponse<List<UserLookupDto>>(
                     ResponseType.Error,
-                    "An error occurred while retrieving volunteer by mobile",
-                    new List<VolunteerLookupDto>()
+                    "An error occurred while retrieving user by mobile",
+                    new List<UserLookupDto>()
                 ));
             }
         }
@@ -250,6 +250,8 @@ namespace RM_CMS.Controllers.Volunteers
 
             return Ok(response);
         }
+
+       
 
     }
 }

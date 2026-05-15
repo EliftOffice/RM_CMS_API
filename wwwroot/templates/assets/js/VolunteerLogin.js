@@ -49,7 +49,7 @@
 
 //    });
 
-   
+
 
 //    // ================= LOAD VOLUNTEERS =================
 //    function loadVolunteers() {
@@ -71,7 +71,7 @@
 //        });
 //    }
 
-    
+
 
 //});
 
@@ -93,11 +93,11 @@ $(document).ready(function () {
 
         let mobile = $('#mobile').val().trim();
 
-        //if (!/^\d{10}$/.test(mobile)) {
+        if (!/^\d{10}$/.test(mobile)) {
 
-        //    showToast('Invalid mobile number', 'warning');
-        //    return;
-        //}
+            showToast('Invalid mobile number', 'warning');
+            return;
+        }
 
         $.get(API_BASE_URL + `/volunteers/mobile/${mobile}`, function (res) {
 
@@ -108,14 +108,15 @@ $(document).ready(function () {
                 currentVolunteerId =
                     volunteer.volunteerId ||
                     volunteer.volunteer_id ||
-                    volunteer.id;
+                volunteer.Id;
 
                 currentMobile = mobile;
 
                 // Demo OTP
-                const otp = volunteer.otp;
+                const otp = volunteer.OTP;
 
                 sessionStorage.setItem("login_otp", otp);
+                sessionStorage.setItem("role", volunteer.Role);
 
                 showToast('📩 OTP sent to Telegram successfully', 'success');
 
@@ -167,15 +168,37 @@ $(document).ready(function () {
         }
 
         const savedOtp = sessionStorage.getItem("login_otp");
+        const role = sessionStorage.getItem("role");
 
         if (enteredOtp === savedOtp) {
 
             showToast('✅ Login successful', 'success');
+            let redirectUrl = "";
+
+            if (role === "volunteer") {
+
+                redirectUrl = `../../templates/Volunteers/Assignments.html?volunteerid=${currentVolunteerId}`;
+
+            }
+            else if (role === "teamlead") {
+
+                redirectUrl = `../../templates/TeamLead/TeamLeadDashboard.html?teamleadid=${currentVolunteerId}`;
+
+            }
+            else if (role === "pastor") {
+
+                redirectUrl = `../../templates/Pastor/PastorDashboard.html`;
+
+            }
+            else {
+
+                showToast('Unknown role. Contact admin', 'error');
+                return;
+            }
 
             setTimeout(() => {
 
-                window.location.href =
-                    `../../templates/Volunteers/Assignments.html?volunteerid=${currentVolunteerId}`;
+                window.location.href = redirectUrl;
 
             }, 800);
 
