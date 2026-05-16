@@ -17,6 +17,7 @@ namespace RM_CMS.BLL.Volunteers
         Task<ApiResponse<VolunteerResponseDto>> CreateVolunteerAsync(CreateVolunteerDto dto);
         Task<ApiResponse<List<Volunteer>>> GetVolunteersAsync();
         Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersByMobileAsync(string mobile);
+        Task<ApiResponse<List<UserLookupDto>>> GetVolunteersByMobileAsyncV1(string mobile);
         Task<ApiResponse<string>> UpdateVolunteerMobileAsync(UpdateVolunteerMobileDto dto);
 
         // New methods
@@ -168,7 +169,80 @@ namespace RM_CMS.BLL.Volunteers
             }
         }
 
+        public async Task<ApiResponse<List<UserLookupDto>>> GetVolunteersByMobileAsyncV1(string mobile)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(mobile))
+                {
+                    return new ApiResponse<List<UserLookupDto>>(
+                        ResponseType.Warning,
+                        "Mobile number is required",
+                        new List<UserLookupDto>()
+                    );
+                }
 
+                // Volunteers
+                var volunteerResult = await _volunteersDAL.GetVolunteersAsyncByMobile(mobile);
+
+                if (volunteerResult.ResponseType == ResponseType.Success &&
+                    volunteerResult.Data != null &&
+                    volunteerResult.Data.Any())
+                {
+                    return new ApiResponse<List<UserLookupDto>>(
+                        ResponseType.Success,
+                        "Volunteer found",
+                        volunteerResult.Data.Select(v => new UserLookupDto
+                        {
+                            Id = v.VolunteerId,
+                            FirstName = v.FirstName,
+                            LastName = v.LastName,
+                            Phone = v.Phone,
+                            Role = "volunteer",
+                            OTP = v.OTP
+                        }).ToList()
+                    );
+                }
+
+                // Team Lead fallback
+                var teamLeadResult = await _volunteersDAL.GetTeamLeadByMobileAsync(mobile);
+
+                if (teamLeadResult.ResponseType == ResponseType.Success &&
+                    teamLeadResult.Data != null)
+                {
+                    return new ApiResponse<List<UserLookupDto>>(
+                        ResponseType.Success,
+                        "Team lead found",
+                        new List<UserLookupDto>
+                        {
+                    new UserLookupDto
+                    {
+                        Id = teamLeadResult.Data.TeamLeadId,
+                        FirstName = teamLeadResult.Data.FirstName,
+                        LastName = teamLeadResult.Data.LastName,
+                        Phone = teamLeadResult.Data.Phone,
+                        Role =teamLeadResult.Data.RoleType,
+                        OTP = teamLeadResult.Data.OTP
+                    }
+                        }
+                    );
+                }
+
+                return new ApiResponse<List<UserLookupDto>>(
+                    ResponseType.Warning,
+                    "No user found with this mobile number",
+                    new List<UserLookupDto>()
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<UserLookupDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving user: {ex.Message}",
+                    new List<UserLookupDto>()
+                );
+            }
+        }
         public async Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersByMobileAsync(string mobile)
         {
             try

@@ -1,11 +1,18 @@
 var TLID = "";
 $(function () {
-    $('#loadMetrics').on('click', function () {
-        const teamLeadId = $('#teamLeadId').val();
-        if (!teamLeadId) { alert('Enter team lead id'); return; }
-        loadMetrics(teamLeadId);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const tlFromUrl = urlParams.get('teamleadid') || urlParams.get('teamLeadId');
+    if (tlFromUrl) {
+       // $('#teamLeadId').val(tlFromUrl);
+        loadMetrics(tlFromUrl);
+    }
+    //$('#loadMetrics').on('click', function () {
+    //    const teamLeadId = $('#teamLeadId').val();
+    //    if (!teamLeadId) { alert('Enter team lead id'); return; }
+    //    loadMetrics(teamLeadId);
         
-    });
+    //});
 
     //----TeamLeads Screen
 

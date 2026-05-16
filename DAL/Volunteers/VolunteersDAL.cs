@@ -28,6 +28,8 @@ namespace RM_CMS.DAL.Volunteers
 
         // Manual assign to specific volunteer
         Task<ApiResponse<AssignedVolunteerDTO>> ManualAssignToVolunteerAsync(string personId, string volunteerId);
+        Task<ApiResponse<TeamLeadLookupDto>> GetTeamLeadByMobileAsync(string mobile);
+
     }
 
     public class VolunteersDAL : IVolunteersDAL
@@ -675,7 +677,7 @@ WHERE LOWER(email) = @Email;";
                     first_name AS FirstName,
                     last_name AS LastName,
                     phone AS Phone,
-                    telegram_chat_id as ChatID
+                    telegram_chat_id as ChatID,'volunteer' as Role
                 FROM volunteers
                 WHERE phone = @Mobile Limit 1;
             ";
@@ -949,6 +951,78 @@ WHERE LOWER(email) = @Email;";
 
             return otp.ToString();
         }
+
+
+
+        public async Task<ApiResponse<TeamLeadLookupDto>> GetTeamLeadByMobileAsync(string mobile)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                const string q = @"
+            SELECT 
+                team_lead_id AS TeamLeadId,
+                first_name AS FirstName,
+                last_name AS LastName,
+                role_type AS RoleType,
+                phone AS Phone,
+                email AS Email,
+                telegram_chat_id AS ChatID
+            FROM team_leads
+            WHERE phone = @Mobile
+            LIMIT 1;";
+
+                var teamLead = await connection.QueryFirstOrDefaultAsync<TeamLeadLookupDto>(
+                    q,
+                    new { Mobile = mobile }
+                );
+
+                if (teamLead == null)
+                {
+                    return new ApiResponse<TeamLeadLookupDto>(
+                        ResponseType.Warning,
+                        "Team lead not found",
+                        null
+                    );
+                }
+
+                // Generate OTP
+                teamLead.OTP = GenerateOtp();
+                string Message = $"🔐 Your RM CMS secure login OTP is: <b>{teamLead.OTP}</b>. Valid for a limited time ⏳. Please do not share this code ⚠️.";
+                var res =SendTelegramMessageAsync(teamLead.ChatID, Message);
+
+
+                // Send Telegram Message
+                //TelegramMessageRequest obj = new TelegramMessageRequest
+                //{
+                //    TargetPhoneNumber = teamLead.Phone,
+                //    Message = Message
+                //};
+
+                //await SendTelegramMessageAsync(
+                //    obj.TargetPhoneNumber,
+                //    obj.Message
+                //);
+
+                return new ApiResponse<TeamLeadLookupDto>(
+                    ResponseType.Success,
+                    "Team lead found",
+                    teamLead
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<TeamLeadLookupDto>(
+                    ResponseType.Error,
+                    ex.Message,
+                    null
+                );
+            }
+        }
+
+
+
 
     }
 }

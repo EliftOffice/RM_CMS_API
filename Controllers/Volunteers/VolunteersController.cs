@@ -147,6 +147,26 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
+        [HttpGet("/api/volunteers/GetVolunteersByMobileAsyncV1/{mobile}")]
+        public async Task<ActionResult<ApiResponse<List<UserLookupDto>>>> GetVolunteersByMobileAsyncV1(string mobile)
+        {
+            try
+            {
+                var result = await _VolunteersBLL.GetVolunteersByMobileAsyncV1(mobile);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving volunteer by mobile");
+
+                return StatusCode(500, new ApiResponse<List<UserLookupDto>>(
+                    ResponseType.Error,
+                    "An error occurred while retrieving volunteer by mobile",
+                    new List<UserLookupDto>()
+                ));
+            }
+        }
+
         [HttpPut("update-mobile")]
         public async Task<ActionResult<ApiResponse<string>>> UpdateVolunteerMobileAsync([FromBody] UpdateVolunteerMobileDto dto)
         {

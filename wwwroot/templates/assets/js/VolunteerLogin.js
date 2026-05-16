@@ -99,16 +99,14 @@ $(document).ready(function () {
             return;
         }
 
-        $.get(API_BASE_URL + `/volunteers/mobile/${mobile}`, function (res) {
+        $.get(API_BASE_URL + `/volunteers/GetVolunteersByMobileAsyncV1/${mobile}`, function (res) {
 
             if (res.data && res.data.length > 0) {
 
                 const volunteer = res.data[0];
 
                 currentVolunteerId =
-                    volunteer.volunteerId ||
-                    volunteer.volunteer_id ||
-                    volunteer.id;
+                 volunteer.id;
 
                 currentMobile = mobile;
 
@@ -116,6 +114,7 @@ $(document).ready(function () {
                 const otp = volunteer.otp;
 
                 sessionStorage.setItem("login_otp", otp);
+                sessionStorage.setItem("login_role", volunteer.role);
 
                 showToast('📩 OTP sent to Telegram successfully', 'success');
 
@@ -167,17 +166,45 @@ $(document).ready(function () {
         }
 
         const savedOtp = sessionStorage.getItem("login_otp");
+        const role = sessionStorage.getItem("login_role");
 
         if (enteredOtp === savedOtp) {
 
+            if (role) {
+                let redirectUrl = "";
+
+                if (role === "volunteer") {
+
+                    redirectUrl = `../../templates/Volunteers/Assignments.html?volunteerid=${currentVolunteerId}`;
+
+                }
+                else if (role === "TeamLead") {
+
+                    redirectUrl = `../../templates/TeamLeads/TeamLeadDashboard.html?teamleadid=${currentVolunteerId}`;
+
+
+                }
+                else if (role === "Pastor") {
+
+                    redirectUrl = `../../templates/Pastor/PastorDashboard.html`;
+
+                }
+                else {
+
+                    showToast('Unknown role. Contact admin', 'error');
+                    return;
+                }
+
+                setTimeout(() => {
+
+                    window.location.href = redirectUrl;
+
+                }, 800);
+            }
+
             showToast('✅ Login successful', 'success');
 
-            setTimeout(() => {
-
-                window.location.href =
-                    `../../templates/Volunteers/Assignments.html?volunteerid=${currentVolunteerId}`;
-
-            }, 800);
+            
 
         } else {
 
