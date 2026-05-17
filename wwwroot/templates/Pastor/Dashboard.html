@@ -432,11 +432,29 @@
                 padding: 20px 14px;
             }
         }
+
+        .logout-btn {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            padding: 0;
+        }
+
+            .logout-btn:hover {
+                text-decoration: underline;
+            }
     </style>
 
 </head>
 
 <body>
+    <div style="float:right">
+        <a class="logout-btn" href="../Volunteers/Login.html">Logout</a>
+    </div>
 
     <!-- Brand bar (from File 3) -->
     <div class="vl-brand">
@@ -446,6 +464,7 @@
                  onerror="this.style.display='none';this.parentElement.textContent='RM'">
         </div>
         <span class="vl-brand-name">RM CMS</span>
+
     </div>
 
     <div class="container">

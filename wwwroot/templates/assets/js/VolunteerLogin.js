@@ -171,6 +171,7 @@ $(document).ready(function () {
         if (enteredOtp === savedOtp) {
 
             if (role) {
+                setLoginSession(true);
                 let redirectUrl = "";
 
                 if (role === "volunteer") {
@@ -186,7 +187,7 @@ $(document).ready(function () {
                 }
                 else if (role === "Pastor") {
 
-                    redirectUrl = `../../templates/Pastor/PastorDashboard.html`;
+                    redirectUrl = `../../templates/Pastor/Dashboard.html`;
 
                 }
                 else {
@@ -258,6 +259,11 @@ $(document).ready(function () {
 
         });
 
+    }
+
+    function setLoginSession(isLogin) {
+
+        sessionStorage.setItem("IsLogin", isLogin);
     }
 
 });

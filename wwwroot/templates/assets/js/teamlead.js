@@ -1,6 +1,6 @@
 var TLID = "";
 $(function () {
-
+    checkLogin();
     const urlParams = new URLSearchParams(window.location.search);
     const tlFromUrl = urlParams.get('teamleadid') || urlParams.get('teamLeadId');
     if (tlFromUrl) {
@@ -15,7 +15,7 @@ $(function () {
     //});
 
     //----TeamLeads Screen
-
+   
     $("#saveBtn").click(function () {
 
         var data = {
@@ -85,7 +85,24 @@ $(function () {
             }
         });
     }
+    function checkLogin() {
 
+        let isLogin = sessionStorage.getItem("IsLogin");
+
+        if (
+            isLogin === null ||
+            isLogin === undefined ||
+            isLogin === "false" ||
+            isLogin === false
+        ) {
+
+            window.location.href = "../Volunteers/Login.html";
+
+            return false;
+        }
+
+        return true;
+    }
     function renderMetrics(data, teamLeadId) {
 
         //Show or hide Team Huddle button based on IsTeamHurdleDay flag
