@@ -62,6 +62,11 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.DAL.Pastors.IPastorDashboardDAL, RM_CMS.DAL.Pastors.PastorDashboardDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.Pastors.IPastorDashboardBLL, RM_CMS.BLL.Pastors.PastorDashBoardBLL>();
 
+            // Register Admin Module for System Config
+            builder.Services.AddScoped<RM_CMS.DAL.Admin.ISystemConfigRepository, RM_CMS.DAL.Admin.SystemConfigRepository>();
+            builder.Services.AddScoped<RM_CMS.BLL.Admin.ISystemConfigService, RM_CMS.BLL.Admin.SystemConfigService>();
+            builder.Services.AddScoped<RM_CMS.BLL.Admin.INotificationService, RM_CMS.BLL.Admin.NotificationService>();
+
             Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
 
 

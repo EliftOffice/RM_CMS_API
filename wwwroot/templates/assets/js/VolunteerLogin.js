@@ -184,6 +184,11 @@ $(document).ready(function () {
                         redirectUrl = `../../templates/Pastor/Dashboard.html`;
 
                     }
+                    else if (role === "Admin") {
+
+                        redirectUrl = `../../templates/Admin/siteadmin.html`;
+
+                    }
                     else {
                         $('#loadingOverlay').hide();
                         showToast('Unknown role. Contact admin', 'error');

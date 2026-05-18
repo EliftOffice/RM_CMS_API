@@ -1,4 +1,4 @@
-﻿using Dapper;
+﻿﻿using Dapper;
 using RM_CMS.DAL.CommonDAL;
 using RM_CMS.DAL.Peoples;
 using RM_CMS.Data;
@@ -21,6 +21,7 @@ namespace RM_CMS.DAL.Volunteers
         Task<ApiResponse<List<Volunteer>>> GetVolunteersAsync();
         Task<ApiResponse<List<VolunteerLookupDto>>> GetVolunteersAsyncByMobile(string mobile);
         Task<ApiResponse<string>> UpdateVolunteerMobileAsync(string volunteerId, string mobile);
+        Task<ApiResponse<List<VolunteerChatInfoDto>>> GetActiveVolunteersWithChatIdAsync();
 
         // New DAL methods
         Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync();
@@ -30,6 +31,7 @@ namespace RM_CMS.DAL.Volunteers
         Task<ApiResponse<AssignedVolunteerDTO>> ManualAssignToVolunteerAsync(string personId, string volunteerId);
         Task<ApiResponse<TeamLeadLookupDto>> GetTeamLeadByMobileAsync(string mobile);
         Task<ApiResponse<TeamLeadLookupDto>> GetUserByMobileAsync(string mobile);
+        Task SendTelegramMessageAsync(string chatId, string message);
 
     }
 
@@ -794,7 +796,7 @@ WHERE LOWER(email) = @Email;";
             }
         }
 
-        private async Task SendTelegramMessageAsync(string chatId, string message)
+        public async Task SendTelegramMessageAsync(string chatId, string message)
         {
             try
             {
@@ -1126,8 +1128,36 @@ WHERE LOWER(email) = @Email;";
             }
         }
 
+        public async Task<ApiResponse<List<VolunteerChatInfoDto>>> GetActiveVolunteersWithChatIdAsync()
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+                const string query = @"
+                    SELECT
+                        volunteer_id AS VolunteerId,
+                        first_name AS FirstName,
+                        telegram_chat_id AS TelegramChatId
+                    FROM volunteers
+                    WHERE status = 'Active' AND telegram_chat_id IS NOT NULL AND telegram_chat_id != '';
+                ";
 
+                var volunteers = (await connection.QueryAsync<VolunteerChatInfoDto>(query)).ToList();
 
-
+                return new ApiResponse<List<VolunteerChatInfoDto>>(
+                    ResponseType.Success,
+                    "Active volunteers with chat ID retrieved.",
+                    volunteers
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<VolunteerChatInfoDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteers for broadcast: {ex.Message}",
+                    null
+                );
+            }
+        }
     }
 }
