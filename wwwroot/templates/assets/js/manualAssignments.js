@@ -1,6 +1,11 @@
 $(function(){
     const statusOptions = ["", "NEW", "ASSIGNED", "CONTACTED", "RETRY PENDING", "ESCALATED", "COMPLETE", "UNRESPONSIVE"];
 
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const tlFromUrl = urlParams.get('teamleadid') || urlParams.get('teamLeadId');
+    $("#back_tl").attr('href', "../TeamLeads/TeamLeadDashboard.html?teamleadid=" + tlFromUrl);
+
     function loadStatusOptions(){
         const sel = $('#filterStatus');
         sel.empty();

@@ -7,6 +7,7 @@ $(function () {
        // $('#teamLeadId').val(tlFromUrl);
         loadMetrics(tlFromUrl);
     }
+    $("#lnk_manual").attr('href', "../Peoples/ManualAssignments.html?teamleadid=" + tlFromUrl)
     //$('#loadMetrics').on('click', function () {
     //    const teamLeadId = $('#teamLeadId').val();
     //    if (!teamLeadId) { alert('Enter team lead id'); return; }

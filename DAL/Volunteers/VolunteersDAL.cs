@@ -179,21 +179,20 @@ namespace RM_CMS.DAL.Volunteers
 
                         transaction.Commit();
 
-                        if (string.IsNullOrEmpty(volunteer.telegram_chat_id))
+                        if (!string.IsNullOrEmpty(volunteer.telegram_chat_id))
                         {
-                            var message = $@"
-👋 Hi {volunteer.first_name},
+                            string message = $@"
+🙏 Praise the Lord <b>{volunteer.first_name}</b> ,
 
-📌 A new follow-up has been assigned to you.
+📌 మీకు కొత్త Follow-Up కేటాయించబడింది.
 
-👉 Please check your dashboard:
-https://rmoffice.online/templates/Volunteers/Login.html
-🙏 Thank you!
+ఈ link open చేసి complete చేయండి:
+👉 https://rmoffice.online
+
+🙏 ధన్యవాదాలు!
 ";
 
-
-
-                            _ = SendTelegramMessageAsync(volunteer.telegram_chat_id, message);
+                            await SendTelegramMessageAsync(volunteer.telegram_chat_id, message);
                         }
 
                         return new ApiResponse<AssignedVolunteerDTO>(
@@ -909,7 +908,7 @@ WHERE LOWER(email) = @Email;";
                 }
 
                 // 2. Verify volunteer exists and has capacity
-                const string volQuery = @"SELECT volunteer_id AS VolunteerId, first_name AS FirstName, last_name AS LastName, capacity_max, current_assignments FROM volunteers WHERE volunteer_id = @VolunteerId FOR UPDATE";
+                const string volQuery = @"SELECT volunteer_id AS VolunteerId, first_name AS FirstName, last_name AS LastName, capacity_max, current_assignments,telegram_chat_id FROM volunteers WHERE volunteer_id = @VolunteerId FOR UPDATE";
                 var volunteer = await connection.QueryFirstOrDefaultAsync<dynamic>(volQuery, new { VolunteerId = volunteerId }, transaction);
                 if (volunteer == null)
                 {
@@ -920,6 +919,8 @@ WHERE LOWER(email) = @Email;";
                 // Check capacity
                 int capacityMax = volunteer.capacity_max ?? 0;
                 int current = volunteer.current_assignments ?? 0;
+                string telegramChatId = volunteer.telegram_chat_id?.ToString() ?? "";
+                string first_name = volunteer.FirstName ?? "";
                 if (current >= capacityMax)
                 {
                     transaction.Rollback();
@@ -958,8 +959,23 @@ WHERE LOWER(email) = @Email;";
                     people_id = person.PersonId,
                     people_name = person.FirstName + " " + person.LastName
                 };
+                if (!string.IsNullOrEmpty(telegramChatId))
+                {
+                    string message = $@"
+🙏 Praise the Lord <b>{first_name}</b> ,
 
-                return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Success, "Manual assignment completed", assigned);
+📌 మీకు కొత్త Follow-Up కేటాయించబడింది.
+
+ఈ link open చేసి complete చేయండి:
+👉 https://rmoffice.online
+
+🙏 ధన్యవాదాలు!
+";
+
+                    await SendTelegramMessageAsync(telegramChatId, message);
+                }
+
+                    return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Success, "Manual assignment completed", assigned);
             }
             catch (Exception ex)
             {
