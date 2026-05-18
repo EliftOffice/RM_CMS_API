@@ -227,6 +227,31 @@ namespace RM_CMS.BLL.Volunteers
                         }
                     );
                 }
+               
+
+                // User fallback
+                var user = await _volunteersDAL.GetUserByMobileAsync(mobile);
+
+                if (user.ResponseType == ResponseType.Success &&
+                    user.Data != null)
+                {
+                    return new ApiResponse<List<UserLookupDto>>(
+                        ResponseType.Success,
+                        "User found",
+                        new List<UserLookupDto>
+                        {
+                    new UserLookupDto
+                    {
+                        Id = user.Data.TeamLeadId,
+                        FirstName = user.Data.FirstName,
+                        LastName = user.Data.LastName,
+                        Phone = user.Data.Phone,
+                        Role =user.Data.RoleType,
+                        OTP = user.Data.OTP
+                    }
+                        }
+                    );
+                }
 
                 return new ApiResponse<List<UserLookupDto>>(
                     ResponseType.Warning,

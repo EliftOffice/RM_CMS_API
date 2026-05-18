@@ -79,6 +79,7 @@
 
 
 $(document).ready(function () {
+    setLoginSession(false);
 
     let currentVolunteerId = "";
     let currentMobile = "";
@@ -263,7 +264,7 @@ $(document).ready(function () {
 
     function setLoginSession(isLogin) {
 
-        sessionStorage.setItem("IsLogin", isLogin);
+        sessionStorage.setItem("isLoggedIn", isLogin);
     }
 
 });

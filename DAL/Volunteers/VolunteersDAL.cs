@@ -29,6 +29,7 @@ namespace RM_CMS.DAL.Volunteers
         // Manual assign to specific volunteer
         Task<ApiResponse<AssignedVolunteerDTO>> ManualAssignToVolunteerAsync(string personId, string volunteerId);
         Task<ApiResponse<TeamLeadLookupDto>> GetTeamLeadByMobileAsync(string mobile);
+        Task<ApiResponse<TeamLeadLookupDto>> GetUserByMobileAsync(string mobile);
 
     }
 
@@ -697,8 +698,8 @@ WHERE LOWER(email) = @Email;";
                     }
                     else
                     {
-                        volunteers[0].OTP = GenerateOtp();
-                        SendTelegramMessageAsync(volunteers[0].ChatID, volunteers[0].OTP);
+                        volunteers[0].OTP = GenerateOtp();                       
+                        SendTelegramMessageAsync(volunteers[0].ChatID, $"🔐 Your RM CMS secure login OTP is: <b>{volunteers[0].OTP}</b>. Please do not share this code ⚠️.");
                     }
 
                     return new ApiResponse<List<VolunteerLookupDto>>(
@@ -772,7 +773,7 @@ WHERE LOWER(email) = @Email;";
             }
         }      
         
-        private async Task SendTelegramMessageAsync(string chatId, string message)
+        private async Task SendTelegramMessageAsyncv1(string chatId, string message)
         {
             try
             {
@@ -791,6 +792,29 @@ WHERE LOWER(email) = @Email;";
             catch
             {
                 // Optional: log error (don't break main flow)
+            }
+        }
+
+        private async Task SendTelegramMessageAsync(string chatId, string message)
+        {
+            try
+            {
+                using var client = new HttpClient();
+
+                var token = _telegram.GetTelegramBotToken().Result.Data;
+
+                if (string.IsNullOrEmpty(token)) return;
+
+                var url = $"https://api.telegram.org/bot{token}/sendMessage" +
+                          $"?chat_id={chatId}" +
+                          $"&text={Uri.EscapeDataString(message)}" +
+                          $"&parse_mode=HTML";
+
+                await client.GetAsync(url);
+            }
+            catch
+            {
+                // Optional: log error
             }
         }
 
@@ -989,8 +1013,75 @@ WHERE LOWER(email) = @Email;";
 
                 // Generate OTP
                 teamLead.OTP = GenerateOtp();
-                string Message = $"🔐 Your RM CMS secure login OTP is: <b>{teamLead.OTP}</b>. Valid for a limited time ⏳. Please do not share this code ⚠️.";
+                string Message = $"🔐 Your RM CMS secure login OTP is: <b>{teamLead.OTP}</b>. Please do not share this code ⚠️.";
                 var res =SendTelegramMessageAsync(teamLead.ChatID, Message);
+
+
+                // Send Telegram Message
+                //TelegramMessageRequest obj = new TelegramMessageRequest
+                //{
+                //    TargetPhoneNumber = teamLead.Phone,
+                //    Message = Message
+                //};
+
+                //await SendTelegramMessageAsync(
+                //    obj.TargetPhoneNumber,
+                //    obj.Message
+                //);
+
+                return new ApiResponse<TeamLeadLookupDto>(
+                    ResponseType.Success,
+                    "Team lead found",
+                    teamLead
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<TeamLeadLookupDto>(
+                    ResponseType.Error,
+                    ex.Message,
+                    null
+                );
+            }
+        }
+
+        public async Task<ApiResponse<TeamLeadLookupDto>> GetUserByMobileAsync(string mobile)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                const string q = @"
+            SELECT 
+                user_id  AS TeamLeadId,
+                first_name AS FirstName,
+                last_name AS LastName,
+                role_type AS RoleType,
+                phone AS Phone,
+                email AS Email,
+                telegram_chat_id AS ChatID
+            FROM users
+            WHERE phone = @Mobile
+            LIMIT 1;";
+
+                var teamLead = await connection.QueryFirstOrDefaultAsync<TeamLeadLookupDto>(
+                    q,
+                    new { Mobile = mobile }
+                );
+
+                if (teamLead == null)
+                {
+                    return new ApiResponse<TeamLeadLookupDto>(
+                        ResponseType.Warning,
+                        "Team lead not found",
+                        null
+                    );
+                }
+
+                // Generate OTP
+                teamLead.OTP = GenerateOtp();
+                string Message = $"🔐 Your RM CMS secure login OTP is: <b>{teamLead.OTP}</b>. Please do not share this code ⚠️.";
+                var res = SendTelegramMessageAsync(teamLead.ChatID, Message);
 
 
                 // Send Telegram Message

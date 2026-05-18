@@ -1,6 +1,6 @@
 var TLID = "";
-$(function () {
-    checkLogin();
+$(function () {    
+    
     const urlParams = new URLSearchParams(window.location.search);
     const tlFromUrl = urlParams.get('teamleadid') || urlParams.get('teamLeadId');
     if (tlFromUrl) {
@@ -393,4 +393,5 @@ $(function () {
         const year = d.getFullYear();
         return `${day}-${month}-${year}`;
     }
+   
 });
