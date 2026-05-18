@@ -3,6 +3,7 @@ $(function () {
     
     const urlParams = new URLSearchParams(window.location.search);
     const tlFromUrl = urlParams.get('teamleadid') || urlParams.get('teamLeadId');
+    TLID = tlFromUrl;
     if (tlFromUrl) {
        // $('#teamLeadId').val(tlFromUrl);
         loadMetrics(tlFromUrl);
@@ -286,7 +287,7 @@ $(function () {
     });
 
     $(document).on('click', '#teamHuddleBtn', function () {
-        const teamLeadId = $('#teamLeadId').val();
+        const teamLeadId = TLID;
         if (!teamLeadId) return alert('TeamLeadId required');
         // call DTO endpoint to get rich data
         TLID = teamLeadId;
