@@ -176,6 +176,43 @@
         #otpSection {
             display: none;
         }
+        #loadingOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loader-box {
+            background: #fff;
+            padding: 24px 30px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #ddd;
+            border-top: 5px solid #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: auto;
+        }
+
+        .loading-text {
+            margin-top: 12px;
+            font-weight: bold;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 
 </head>
@@ -271,16 +308,23 @@
 
                 <div class="vl-btn-wrap">
 
-                    <button type="button"
-                            id="verifyOtpBtn"
-                            class="vl-btn">
+                    <!--<button type="button"
+                    id="verifyOtpBtn"
+                    class="vl-btn">
 
-                        Verify OTP
+                Verify OTP
 
-                    </button>
+            </button>-->
 
                 </div>
 
+            </div>
+
+            <div id="loadingOverlay">
+                <div class="loader-box">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Verifying OTP...</div>
+                </div>
             </div>
 
         </form>

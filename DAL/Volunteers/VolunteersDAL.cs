@@ -992,8 +992,6 @@ WHERE LOWER(email) = @Email;";
             return otp.ToString();
         }
 
-
-
         public async Task<ApiResponse<TeamLeadLookupDto>> GetTeamLeadByMobileAsync(string mobile)
         {
             try

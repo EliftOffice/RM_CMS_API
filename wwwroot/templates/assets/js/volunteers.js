@@ -1,14 +1,19 @@
-$(document).ready(function () {
 
+
+var TLID = "";
+$(document).ready(function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tlFromUrl = urlParams.get('teamleadid') || urlParams.get('teamLeadId');
+    TLID = tlFromUrl;
     // ── Init ──────────────────────────────────────────────────────────────────
     restrictMobileInput('phone');
     loadTeamLeads();
     GetTelegramURL();
 
     // ── Back buttons ──────────────────────────────────────────────────────────
-    $('#backBtn').on('click', function () {
-        window.location.href = 'Login.html';
-    });
+    //$('#backBtn').on('click', function () {
+    //    window.location.href = 'Login.html';
+    //});
 
     // ── Load Team Leads ───────────────────────────────────────────────────────
     function loadTeamLeads() {
@@ -40,6 +45,12 @@ $(document).ready(function () {
 
                         dropdown.append(`<option value="${id}">${name}</option>`);
                     });
+                    if (TLID !== "" && TLID !== null) {
+
+                        $("#teamLead")
+                            .val(TLID)
+                            .attr("disabled", true);
+                    }
                 }
             },
             error: function () {

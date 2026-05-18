@@ -140,79 +140,70 @@ $(document).ready(function () {
 
     });
 
-    // ================= OTP AUTO MOVE =================
+    // ================= OTP AUTO MOVE + AUTO VERIFY =================
     $(document).on('input', '.otp-input', function () {
 
+        // Move to next input
         if ($(this).val().length === 1) {
-
             $(this).next('.otp-input').focus();
         }
 
-    });
-
-    // ================= VERIFY OTP =================
-    $('#verifyOtpBtn').click(function () {
-
+        // Get complete OTP
         let enteredOtp = "";
 
         $('.otp-input').each(function () {
-
             enteredOtp += $(this).val();
         });
 
-        if (enteredOtp.length !== 4) {
+        // Auto verify when 4 digits entered
+        if (enteredOtp.length === 4) {
+            $('#loadingOverlay').css('display', 'flex');
+            const savedOtp = sessionStorage.getItem("login_otp");
+            const role = sessionStorage.getItem("login_role");
 
-            showToast('Enter 4 digit OTP', 'warning');
-            return;
-        }
+            if (enteredOtp === savedOtp) {
 
-        const savedOtp = sessionStorage.getItem("login_otp");
-        const role = sessionStorage.getItem("login_role");
+                if (role) {
 
-        if (enteredOtp === savedOtp) {
+                    setLoginSession(true);
 
-            if (role) {
-                setLoginSession(true);
-                let redirectUrl = "";
+                    let redirectUrl = "";
 
-                if (role === "volunteer") {
+                    if (role === "volunteer") {
 
-                    redirectUrl = `../../templates/Volunteers/Assignments.html?volunteerid=${currentVolunteerId}`;
+                        redirectUrl = `../../templates/Volunteers/Assignments.html?volunteerid=${currentVolunteerId}`;
 
+                    }
+                    else if (role === "TeamLead") {
+
+                        redirectUrl = `../../templates/TeamLeads/TeamLeadDashboard.html?teamleadid=${currentVolunteerId}`;
+
+                    }
+                    else if (role === "Pastor") {
+
+                        redirectUrl = `../../templates/Pastor/Dashboard.html`;
+
+                    }
+                    else {
+                        $('#loadingOverlay').hide();
+                        showToast('Unknown role. Contact admin', 'error');
+                        return;
+                    }
+
+                    showToast('✅ Login successful', 'success');
+
+                    setTimeout(() => {
+
+                        window.location.href = redirectUrl;
+
+                    }, 800);
                 }
-                else if (role === "TeamLead") {
 
-                    redirectUrl = `../../templates/TeamLeads/TeamLeadDashboard.html?teamleadid=${currentVolunteerId}`;
-
-
-                }
-                else if (role === "Pastor") {
-
-                    redirectUrl = `../../templates/Pastor/Dashboard.html`;
-
-                }
-                else {
-
-                    showToast('Unknown role. Contact admin', 'error');
-                    return;
-                }
-
-                setTimeout(() => {
-
-                    window.location.href = redirectUrl;
-
-                }, 800);
+            } else {
+                showToast('Invalid OTP', 'error');
+                $('#loadingOverlay').hide();
             }
-
-            showToast('✅ Login successful', 'success');
-
-            
-
-        } else {
-
-            showToast('Invalid OTP', 'error');
         }
-
     });
 
     // ================= OPEN MODAL =================
@@ -266,5 +257,28 @@ $(document).ready(function () {
 
         sessionStorage.setItem("isLoggedIn", isLogin);
     }
+
+    // ================= KEY NAVIGATION =================
+    $(document).on('keydown', '.otp-input', function (e) {
+
+        // Backspace -> previous input
+        if (e.key === "Backspace" && $(this).val() === '') {
+
+            $(this).prev('.otp-input').focus();
+        }
+
+        // Left Arrow -> previous input
+        if (e.key === "ArrowLeft") {
+
+            $(this).prev('.otp-input').focus();
+        }
+
+        // Right Arrow -> next input
+        if (e.key === "ArrowRight") {
+
+            $(this).next('.otp-input').focus();
+        }
+
+    });
 
 });
