@@ -166,7 +166,7 @@ function buildRow(title, item, isPercent = true) {
     <div class="kpi-row">
         <div>${title}</div>
         <div>${current}</div>
-        <div>${target} ${showPercent ? "%" : ""}</div>
+        <div>${target}${showPercent ? "%" : ""}</div>
         <div>${statusDot}</div>
         <div>${trend}</div>
     </div>
