@@ -309,7 +309,7 @@ namespace RM_CMS.DAL.Volunteers
     v.created_at AS CreatedAt,
     v.updated_at AS UpdatedAt,
 
-    CONCAT(tl.first_name, ' ', tl.last_name) AS TeamLeadFullName
+    CONCAT(tl.first_name, ' ', tl.last_name) AS TeamLeadFullName,tl.telegram_chat_id as TelegramChatID
 
 FROM volunteers v
 LEFT JOIN team_leads tl 

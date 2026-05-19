@@ -160,15 +160,17 @@ function buildRow(title, item, isPercent = true) {
     const statusDot = getStatusDot(item.status);
     const trend = getTrend(item.trend);
 
+    const showPercent = title !== "System vNPS";
+
     return `
-        <div class="kpi-row">
-            <div>${title}</div>
-            <div>${current}</div>
-            <div>${target}</div>
-            <div>${statusDot}</div>
-            <div>${trend}</div>
-        </div>
-    `;
+    <div class="kpi-row">
+        <div>${title}</div>
+        <div>${current}</div>
+        <div>${target} ${showPercent ? "%" : ""}</div>
+        <div>${statusDot}</div>
+        <div>${trend}</div>
+    </div>
+`;
 }
 function formatValue(val, isPercent) {
     if (val === null || val === undefined) return "0";

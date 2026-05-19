@@ -90,6 +90,9 @@ namespace RM_CMS.Data.Models
         public DateTime CreatedAt { get; set; }
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; }
+
+       
+        public string TelegramChatID { get; set; }
     }
 
     public class VolunteerLookupDto

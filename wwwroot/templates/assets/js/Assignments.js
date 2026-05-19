@@ -163,6 +163,7 @@
                 const fullName = `${v.firstName || ''} ${v.lastName || ''}`.trim();
                 $('#spnVolunteerName').text(fullName || 'N/A');
                 $('#spnteamLead').text(v.teamLeadFullName || 'N/A');
+                $('#hdntelegramchatId').val(v.telegramChatID || 0);
             },
             error: function () {
                 $('#spnVolunteerName').text('Error');
@@ -219,7 +220,10 @@
             call_duration_min: parseInt($('#call_duration_min').val() || '0'),
             notes: $('#notes').val(),
             tags: '',
-            team_lead_id: ''
+            team_lead_id: '',
+            team_lead_name: $('#spnteamLead').text(),
+            telegram_chat_id: $('#hdntelegramchatId').val(),
+            volunteer_name: $('#spnVolunteerName').text()
         };
 
         const $btn = $(this);

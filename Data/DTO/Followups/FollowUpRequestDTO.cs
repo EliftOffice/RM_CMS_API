@@ -13,5 +13,8 @@
         public int? call_duration_min { get; set; }
         public string notes { get; set; } = string.Empty;
         public string tags { get; set; } = string.Empty;
+        public string team_lead_name { get; set; } = string.Empty;
+        public string telegram_chat_id { get; set; } = string.Empty;
+        public string volunteer_name { get; set; } = string.Empty;
     }
 }

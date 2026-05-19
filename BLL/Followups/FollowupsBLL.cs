@@ -1,4 +1,5 @@
 ﻿using RM_CMS.DAL.Followups;
+using RM_CMS.DAL.Volunteers;
 using RM_CMS.Data.DTO.Followups;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
@@ -6,7 +7,7 @@ using RM_CMS.Utilities;
 namespace RM_CMS.BLL.Followups
 {
     public interface IFollowupsBLL
-    {       
+    {
         Task<ApiResponse<object>> LogFollowUpAttemptAsync(FollowUpRequestDTO data);
         Task<ApiResponse<IEnumerable<FollowUp>>> GetFollowUpsByFilterAsync(FollowUpsFilterDTO filter);
     }
@@ -14,10 +15,12 @@ namespace RM_CMS.BLL.Followups
     public class FollowupsBLL : IFollowupsBLL
     {
         private readonly IFollowupsDAL _followupsDAL;
+        private readonly IVolunteersDAL _volunteersDAL;
 
-        public FollowupsBLL(IFollowupsDAL followupsDAL)
+        public FollowupsBLL(IFollowupsDAL followupsDAL, IVolunteersDAL volunteersDAL)
         {
             _followupsDAL = followupsDAL;
+            _volunteersDAL = volunteersDAL;
         }
 
         // ✅ NORMAL
@@ -153,6 +156,58 @@ namespace RM_CMS.BLL.Followups
                         new { follow_up_id = data.follow_up_id }
                     );
                 }
+                try
+                {
+                    if (
+    string.Equals(data.response_type, "needs follow-up", StringComparison.OrdinalIgnoreCase) ||
+    string.Equals(data.response_type, "crisis", StringComparison.OrdinalIgnoreCase)
+)
+                    {
+                        if (
+      string.Equals(data.response_type, "needs follow-up", StringComparison.OrdinalIgnoreCase) ||
+      string.Equals(data.response_type, "crisis", StringComparison.OrdinalIgnoreCase)
+  )
+                        {
+                            if (!string.IsNullOrEmpty(data.team_lead_id))
+                            {
+                                string alertTitle;
+                                string assignText;
+
+                                if (string.Equals(data.response_type, "crisis", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    alertTitle = "🚨 Crisis Alert";
+                                    assignText = $"మీకు <b>{data.volunteer_name}</b> Crisis assign చేశారు.";
+                                }
+                                else
+                                {
+                                    alertTitle = "🤝 Needs Follow-Up";
+                                    assignText = $"మీకు <b>{data.volunteer_name}</b>  Follow-Up assign చేశారు.";
+                                }
+
+                                string message = $@"
+{alertTitle}
+
+🙏 Praise the Lord {data.team_lead_name},
+
+{assignText}
+
+👉 https://rmoffice.online
+";
+
+                                await _volunteersDAL.SendTelegramMessageAsync(
+                                    data.telegram_chat_id,
+                                    message
+                                );
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+
+                    throw;
+                }
+
 
                 // 4. Success
                 return new ApiResponse<object>(
@@ -189,6 +244,6 @@ namespace RM_CMS.BLL.Followups
         }
 
 
-       
+
     }
 }

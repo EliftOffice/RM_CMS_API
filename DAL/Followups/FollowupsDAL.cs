@@ -488,7 +488,7 @@ namespace RM_CMS.DAL.Followups
                             FollowUpId = followUpId,
                             PersonId = data.person_id,
                             VolunteerId = data.volunteer_id,
-                            TeamLeadId = data.team_lead_id,
+                            TeamLeadId = data.team_lead_id,                           
                             AttemptNumber = attemptNumber,
                             ContactMethod = data.contact_method ?? "Phone Call",
                             ContactStatus = data.contact_status,
