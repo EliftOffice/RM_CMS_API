@@ -52,6 +52,7 @@ $(document).ready(function () {
 
                 // Focus first OTP
                 $('.otp-input').first().focus();
+                autoFillFromClipboard();
 
             } else {
 
@@ -149,6 +150,7 @@ $(document).ready(function () {
 
     });
 
+
     // ================= LOAD VOLUNTEERS =================
     function loadVolunteers() {
 
@@ -186,6 +188,28 @@ $(document).ready(function () {
     function setLoginSession(isLogin) {
 
         sessionStorage.setItem("isLoggedIn", isLogin);
+    }
+
+    // ================= CLIPBOARD OTP AUTO-FILL =================
+    async function autoFillFromClipboard() {
+        try {
+            const text = await navigator.clipboard.readText();
+            const match = text.match(/\b(\d{4})\b/); // 4 digit extract
+
+            if (match) {
+                const digits = match[1].split('');
+
+                $('.otp-input').each(function (i) {
+                    $(this).val(digits[i] || '');
+                });
+
+                // మీ existing auto-verify trigger
+                $('.otp-input').last().trigger('input');
+            }
+
+        } catch (err) {
+            console.warn('Clipboard access denied:', err);
+        }
     }
 
     // ================= KEY NAVIGATION =================
