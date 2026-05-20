@@ -172,19 +172,19 @@ $(document).ready(function () {
                         success: function () {
                             if (window.showToast) showToast('Account created and Telegram linked. Redirecting...', 'success');
                             else showMessage('Account created and Telegram linked. Redirecting...', 'success');
-                            setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
+                          //  setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
                         },
                         error: function () {
                             if (window.showToast) showToast('Account created but failed to link Telegram. Redirecting...', 'warning');
                             else showMessage('Account created but failed to link Telegram. Redirecting...', 'success');
-                            setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
+                           // setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
                         }
                     });
                 } else {
                     if (window.showToast) showToast(res.message || 'Account created successfully! Redirecting...', 'success');
                     else showMessage(res.message || 'Account created successfully! Redirecting...', 'success');
                     clearForm();
-                    setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
+                   // setTimeout(() => { window.location.href = 'Login.html'; }, 1800);
                 }
             },
 
