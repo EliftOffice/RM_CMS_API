@@ -3,6 +3,7 @@ using RM_CMS.DAL.CommonDAL;
 using RM_CMS.DAL.Peoples;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO;
+using RM_CMS.Data.DTO.Jobs;
 using RM_CMS.Data.DTO.Volunteers;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
@@ -32,6 +33,7 @@ namespace RM_CMS.DAL.Volunteers
         Task<ApiResponse<TeamLeadLookupDto>> GetTeamLeadByMobileAsync(string mobile);
         Task<ApiResponse<TeamLeadLookupDto>> GetUserByMobileAsync(string mobile);
         Task SendTelegramMessageAsync(string chatId, string message);
+        Task<ApiResponse<List<VolunteerPendingAssignmentDto>>> GetVolunteersWithPendingAssignmentsAsync();
 
     }
 
@@ -1155,6 +1157,67 @@ WHERE LOWER(email) = @Email;";
                 return new ApiResponse<List<VolunteerChatInfoDto>>(
                     ResponseType.Error,
                     $"Error retrieving volunteers for broadcast: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+
+
+        //Jobs
+        public async Task<ApiResponse<List<VolunteerPendingAssignmentDto>>> GetVolunteersWithPendingAssignmentsAsync()
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+SELECT 
+    v.volunteer_id           AS VolunteerId,
+    v.first_name             AS FirstName,
+    v.last_name              AS LastName,
+    v.phone                  AS Phone,
+    v.email                  AS Email,
+    v.telegram_chat_id       AS TelegramChatId,
+
+    COUNT(p.person_id)       AS PendingAssignmentsCount
+
+FROM volunteers v
+
+INNER JOIN people p
+    ON p.assigned_volunteer = v.volunteer_id
+
+WHERE p.follow_up_status IN ('ASSIGNED', 'RETRY PENDING')
+
+GROUP BY
+    v.volunteer_id,
+    v.first_name,
+    v.last_name,
+    v.phone,
+    v.email,
+    v.telegram_chat_id
+
+ORDER BY PendingAssignmentsCount DESC;
+";
+
+                    var volunteers = await connection
+                        .QueryAsync<VolunteerPendingAssignmentDto>(query);
+
+                    var list = volunteers?.ToList()
+                               ?? new List<VolunteerPendingAssignmentDto>();
+
+                    return new ApiResponse<List<VolunteerPendingAssignmentDto>>(
+                        ResponseType.Success,
+                        "Pending assignment volunteers retrieved successfully",
+                        list
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<VolunteerPendingAssignmentDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteers: {ex.Message}",
                     null
                 );
             }

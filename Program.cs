@@ -62,6 +62,9 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.DAL.Pastors.IPastorDashboardDAL, RM_CMS.DAL.Pastors.PastorDashboardDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.Pastors.IPastorDashboardBLL, RM_CMS.BLL.Pastors.PastorDashBoardBLL>();
 
+            //Register CornJobs
+            builder.Services.AddScoped<RM_CMS.BLL.Jobs.ICornJobsBLL,RM_CMS.BLL.Jobs.CornJobsBLL > ();
+
             // Register Admin Module for System Config
             builder.Services.AddScoped<RM_CMS.DAL.Admin.ISystemConfigRepository, RM_CMS.DAL.Admin.SystemConfigRepository>();
             builder.Services.AddScoped<RM_CMS.BLL.Admin.ISystemConfigService, RM_CMS.BLL.Admin.SystemConfigService>();

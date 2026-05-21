@@ -1,6 +1,7 @@
 ﻿using RM_CMS.DAL.Peoples;
 using RM_CMS.DAL.Volunteers;
 using RM_CMS.Data.DTO;
+using RM_CMS.Data.DTO.Jobs;
 using RM_CMS.Data.DTO.Volunteers;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
@@ -23,6 +24,9 @@ namespace RM_CMS.BLL.Volunteers
         // New methods
         Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync();
         Task<ApiResponse<bool>> UpdateVolunteerTelegramAsync(UpdateVolunteerTelegramDto dto);
+
+        Task<ApiResponse<List<VolunteerPendingAssignmentDto>>> GetVolunteersWithPendingAssignmentsAsync();
+        Task<ApiResponse<bool>> SendTelegramMessageAsync(string chatId, string message);
     }
     public class VolunteersBLL : IVolunteersBLL
     {
@@ -369,6 +373,75 @@ namespace RM_CMS.BLL.Volunteers
             catch (Exception ex)
             {
                 return new ApiResponse<bool>(ResponseType.Error, $"Error updating volunteer telegram: {ex.Message}", false);
+            }
+        }
+
+        public async Task<ApiResponse<List<VolunteerPendingAssignmentDto>>>GetVolunteersWithPendingAssignmentsAsync()
+        {
+            try
+            {
+                return await _volunteersDAL
+                    .GetVolunteersWithPendingAssignmentsAsync();
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<VolunteerPendingAssignmentDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteers with pending assignments: {ex.Message}",
+                    new List<VolunteerPendingAssignmentDto>()
+                );
+            }
+        }
+       
+
+        public async Task<ApiResponse<bool>> SendTelegramMessageAsync(string chatId, string message)
+        {
+            try
+            {
+                // Validations
+
+                if (string.IsNullOrWhiteSpace(chatId))
+                {
+                    return new ApiResponse<bool>(
+                        ResponseType.Warning,
+                        "Chat id is required",
+                        false
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(message))
+                {
+                    return new ApiResponse<bool>(
+                        ResponseType.Warning,
+                        "Message is required",
+                        false
+                    );
+                }
+
+                if (message.Length > 4000)
+                {
+                    return new ApiResponse<bool>(
+                        ResponseType.Warning,
+                        "Message exceeds telegram limit",
+                        false
+                    );
+                }
+
+                await _volunteersDAL.SendTelegramMessageAsync(chatId, message);
+
+                return new ApiResponse<bool>(
+                    ResponseType.Success,
+                    "Telegram message sent successfully",
+                    true
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    $"Error sending telegram message: {ex.Message}",
+                    false
+                );
             }
         }
     }

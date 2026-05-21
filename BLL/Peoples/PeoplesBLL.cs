@@ -17,6 +17,7 @@ namespace RM_CMS.BLL.Peoples
         Task<ApiResponse<List<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter);
         Task<ApiResponse<List<People>>> GetBasicPeopleAsync(string? status = null);
         Task<ApiResponse<People>> UpdateVisitorAsync(CreatePeopleDto updateDto);
+        Task<ApiResponse<List<string>>> GetUnassignedPersonIdsAsync();
     }
     public class PeoplesBLL : IPeoplesBLL
     {
@@ -150,6 +151,7 @@ namespace RM_CMS.BLL.Peoples
                 );
             }
         }
+       
 
 
         private string DeterminePriority(CreatePeopleDto dto)
@@ -325,6 +327,38 @@ namespace RM_CMS.BLL.Peoples
             }
         }
 
+        public async Task<ApiResponse<List<string>>> GetUnassignedPersonIdsAsync()
+        {
+            try
+            {
+                var result = await _peoplesDAL.GetUnassignedPersonIdsAsync();
+
+                if (result.ResponseType != ResponseType.Success)
+                {
+                    return new ApiResponse<List<string>>(
+                        ResponseType.Error,
+                        result.Message,
+                        new List<string>()
+                    );
+                }
+
+                var personIds = result.Data?.ToList() ?? new List<string>();
+
+                return new ApiResponse<List<string>>(
+                    ResponseType.Success,
+                    result.Message,
+                    personIds
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<string>>(
+                    ResponseType.Error,
+                    $"Error retrieving person ids: {ex.Message}",
+                    new List<string>()
+                );
+            }
+        }
 
 
     }

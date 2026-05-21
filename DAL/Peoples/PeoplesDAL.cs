@@ -21,6 +21,7 @@ namespace RM_CMS.DAL.Peoples
         Task<ApiResponse<IEnumerable<People>>> GetPeopleByFilterAsync(PeoplesFilterDTO filter);
         Task<ApiResponse<List<People>>> GetBasicPeopleAsync(string? status = null);
         Task<ApiResponse<People>> UpdatePersonAsync(People person);
+        Task<ApiResponse<List<string>>> GetUnassignedPersonIdsAsync();
     }
 
     public class PeoplesDAL : IPeoplesDAL
@@ -326,13 +327,67 @@ WHERE p.person_id = @PersonId";
             {
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
-                    var query = new StringBuilder("SELECT * FROM people WHERE 1=1");
+                    var query = new StringBuilder(@"SELECT 
+                                                    person_id AS PersonId,
+
+                                                    first_name AS FirstName,
+                                                    assigned_volunteer AS volunteerId,
+                                                    location_type AS LocationType,
+
+                                                    last_name AS LastName,
+
+                                                    email AS Email,
+                                                    phone AS Phone,
+
+                                                    age_range AS AgeRange,
+                                                    household_type AS HouseholdType,
+                                                    zip_code AS ZipCode,
+                                                    address AS Address,
+
+                                                    visit_type AS VisitType,
+                                                    first_visit_date AS FirstVisitDate,
+                                                    last_visit_date AS LastVisitDate,
+                                                    visit_count AS VisitCount,
+
+                                                    connection_source AS ConnectionSource,
+                                                    campus AS Campus,
+
+                                                    reference_name AS RefName,
+                                                    reference_phone AS refPhone,
+
+                                                    follow_up_status AS FollowUpStatus,
+                                                    follow_up_priority AS FollowUpPriority,
+
+                                                    assigned_volunteer AS AssignedVolunteer,
+                                                    assigned_date AS AssignedDate,
+
+                                                    last_contact_date AS LastContactDate,
+                                                    next_action_date AS NextActionDate,
+
+                                                    interested_in AS InterestedIn,
+                                                    prayer_requests AS PrayerRequests,
+                                                    specific_needs AS SpecificNeeds,
+
+                                                    created_at AS CreatedAt,
+                                                    updated_at AS UpdatedAt,
+                                                    created_by AS CreatedBy                      
+
+                                                FROM people
+                                                WHERE 1 = 1
+                                               ");
                     var parameters = new DynamicParameters();
 
                     if (!string.IsNullOrEmpty(filter.Status))
                     {
-                        query.Append(" AND follow_up_status = @Status");
-                        parameters.Add("Status", filter.Status);
+                        if (filter.Status == "ASSIGNED")
+                        {
+                            query.Append(" AND follow_up_status in ('ASSIGNED','RETRY PENDING')");
+                        }
+                        else
+                        {
+                            query.Append(" AND follow_up_status = @Status");
+                            parameters.Add("Status", filter.Status);
+                        }
                     }
 
                     if (!string.IsNullOrEmpty(filter.Priority))
@@ -351,6 +406,130 @@ WHERE p.person_id = @PersonId";
                     {
                         query.Append(" AND campus = @Campus");
                         parameters.Add("Campus", filter.Campus);
+                    }
+                    if (filter.StartDate != null && filter.EndDate != null)
+                    {
+                        query.Append(" AND created_at BETWEEN @StartDate AND @EndDate");
+                        parameters.Add("StartDate", filter.StartDate);
+                        parameters.Add("EndDate", filter.EndDate);
+                    }
+
+                    query.Append(" ORDER BY created_at DESC LIMIT @Limit");
+                    parameters.Add("Limit", filter.Limit);
+
+                    var people = await connection.QueryAsync<People>(
+                        query.ToString(),
+                        parameters
+                    );
+
+                    return new ApiResponse<IEnumerable<People>>(
+                        ResponseType.Success,
+                        "People retrieved successfully",
+                        people
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<IEnumerable<People>>(
+                    ResponseType.Error,
+                    $"Error retrieving people: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+        public async Task<ApiResponse<IEnumerable<People>>> GetVolunteesWithPending(PeoplesFilterDTO filter)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    var query = new StringBuilder(@"SELECT 
+                                                    person_id AS PersonId,
+
+                                                    first_name AS FirstName,
+                                                    volunteer_id AS volunteerId,
+                                                    location_type AS LocationType,
+
+                                                    last_name AS LastName,
+
+                                                    email AS Email,
+                                                    phone AS Phone,
+
+                                                    age_range AS AgeRange,
+                                                    household_type AS HouseholdType,
+                                                    zip_code AS ZipCode,
+                                                    address AS Address,
+
+                                                    visit_type AS VisitType,
+                                                    first_visit_date AS FirstVisitDate,
+                                                    last_visit_date AS LastVisitDate,
+                                                    visit_count AS VisitCount,
+
+                                                    connection_source AS ConnectionSource,
+                                                    campus AS Campus,
+
+                                                    reference_name AS RefName,
+                                                    reference_phone AS refPhone,
+
+                                                    follow_up_status AS FollowUpStatus,
+                                                    follow_up_priority AS FollowUpPriority,
+
+                                                    assigned_volunteer AS AssignedVolunteer,
+                                                    assigned_date AS AssignedDate,
+
+                                                    last_contact_date AS LastContactDate,
+                                                    next_action_date AS NextActionDate,
+
+                                                    interested_in AS InterestedIn,
+                                                    prayer_requests AS PrayerRequests,
+                                                    specific_needs AS SpecificNeeds,
+
+                                                    created_at AS CreatedAt,
+                                                    updated_at AS UpdatedAt,
+                                                    created_by AS CreatedBy                      
+
+                                                FROM people
+                                                WHERE 1 = 1
+                                               ");
+                    var parameters = new DynamicParameters();
+
+                    if (!string.IsNullOrEmpty(filter.Status))
+                    {
+                        if (filter.Status == "ASSIGNED")
+                        {
+                            query.Append(" AND follow_up_status in ('ASSIGNED','RETRY PENDING')");
+                        }
+                        else
+                        {
+                            query.Append(" AND follow_up_status = @Status");
+                            parameters.Add("Status", filter.Status);
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(filter.Priority))
+                    {
+                        query.Append(" AND follow_up_priority = @Priority");
+                        parameters.Add("Priority", filter.Priority);
+                    }
+
+                    if (!string.IsNullOrEmpty(filter.AssignedTo))
+                    {
+                        query.Append(" AND assigned_volunteer = @AssignedTo");
+                        parameters.Add("AssignedTo", filter.AssignedTo);
+                    }
+
+                    if (!string.IsNullOrEmpty(filter.Campus))
+                    {
+                        query.Append(" AND campus = @Campus");
+                        parameters.Add("Campus", filter.Campus);
+                    }
+                    if (filter.StartDate != null && filter.EndDate != null)
+                    {
+                        query.Append(" AND created_at BETWEEN @StartDate AND @EndDate");
+                        parameters.Add("StartDate", filter.StartDate);
+                        parameters.Add("EndDate", filter.EndDate);
                     }
 
                     query.Append(" ORDER BY created_at DESC LIMIT @Limit");
@@ -387,13 +566,13 @@ WHERE p.person_id = @PersonId";
                 {
                     var sb = new StringBuilder();
                     sb.Append(@"SELECT 
-    person_id AS PersonId,
-    first_name AS FirstName,
-    last_name AS LastName,
-    phone AS Phone,
-    follow_up_status AS FollowupStatus,
-    next_action_date AS NextActionDate
-FROM people");
+                                person_id AS PersonId,
+                                first_name AS FirstName,
+                                last_name AS LastName,
+                                phone AS Phone,
+                                follow_up_status AS FollowupStatus,
+                                next_action_date AS NextActionDate
+                            FROM people");
 
                     var parameters = new DynamicParameters();
 
@@ -520,6 +699,46 @@ WHERE person_id = @PersonId;
                     ResponseType.Error,
                     $"Error updating person: {ex.Message}",
                     null
+                );
+            }
+        }
+
+        public async Task<ApiResponse<List<string>>> GetUnassignedPersonIdsAsync()
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+SELECT person_id
+FROM people
+WHERE follow_up_status = @FollowUpStatus
+ORDER BY created_at DESC;
+";
+
+                    var personIds = await connection.QueryAsync<string>(
+                        query,
+                        new
+                        {
+                            FollowUpStatus = "NEW"
+                        }
+                    );
+
+                    var list = personIds?.ToList() ?? new List<string>();
+
+                    return new ApiResponse<List<string>>(
+                        ResponseType.Success,
+                        "Unassigned person ids retrieved successfully",
+                        list
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<string>>(
+                    ResponseType.Error,
+                    $"Error retrieving person ids: {ex.Message}",
+                    new List<string>()
                 );
             }
         }
