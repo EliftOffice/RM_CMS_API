@@ -43,12 +43,7 @@ $(document).ready(function () {
     if (volunteerName) $("#volunteer_name").val(decodeURIComponent(volunteerName));
     if (teamLeadName) $("#team_lead_name").val(decodeURIComponent(teamLeadName));
 
-    console.log("INIT DATA:", {
-        volunteerId,
-        teamLeadId,
-        volunteerName,
-        teamLeadName
-    });
+  
 
     // Set today as default
     $("#check_in_date").val(new Date().toISOString().split("T")[0]);
@@ -101,7 +96,7 @@ $(document).ready(function () {
             capacityMax: selectedOption.data("max") || null
         };
 
-        console.log("FINAL DATA:", JSON.stringify(data));
+       
 
         if (!data.volunteerId || !data.teamLeadId || !data.emotionalTone) {
             setMessage("Volunteer, Team Lead and Emotional Tone are required.", "red");
@@ -118,13 +113,13 @@ $(document).ready(function () {
             contentType: "application/json",
             data: JSON.stringify(data),
             success: function (res) {
-                console.log("SUCCESS:", res);
+               
                 setMessage(res.message || "Check-in saved successfully!", "green");
                 showToast(res.message || "Check-in saved successfully!", "success");
                 resetForm();
             },
             error: function (err) {
-                console.error("ERROR:", err.responseText);
+                
                 const msg = err.responseJSON?.message || err.responseText || "An error occurred.";
                 setMessage(msg, "red");
                 showToast(msg, "error");

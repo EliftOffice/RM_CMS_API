@@ -265,7 +265,13 @@ $(function () {
 
         var modal = new bootstrap.Modal(document.getElementById('esclationModel'));
         modal.show();
+       
     }
+    var modalEl = document.getElementById('esclationModel');
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        loadMetrics(TLID);
+    });
+
 
     $(document).on('click', '.checkin-ele', function () {
         const id = $(this).data('id');

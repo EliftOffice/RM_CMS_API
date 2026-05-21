@@ -595,9 +595,7 @@
             function loadEscalation(id) {
                 $.get(API_BASE_URL + "/escalations/" + id)
                     .done(res => {
-                        const e = res.data;
-                        debugger;
-                        console.log(e)
+                        const e = res.data;                        
                         $("#escId").text(e.escalationId);
                         $("#personId").text(e.personName);
                         $("#personPhone").text( '📞 '+e.personPhone);
