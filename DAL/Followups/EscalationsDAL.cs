@@ -232,7 +232,9 @@ namespace RM_CMS.DAL.Followups
                                     SELECT 
                                         escalation_id        AS EscalationId,
                                         follow_up_id         AS FollowUpId,
-                                        person_id            AS PersonId,
+                                        e.person_id            AS PersonId,
+                                        concat(p.last_name,' ',p.first_name) AS PersonName,
+                                        p.phone         AS PersonPhone,
                                         volunteer_id         AS VolunteerId,
                                         team_lead_id         AS TeamLeadId,
 
@@ -257,10 +259,11 @@ namespace RM_CMS.DAL.Followups
                                         authorities_contacted    AS AuthoritiesContacted,
                                         volunteer_debriefed      AS VolunteerDebriefed,
 
-                                        created_at           AS CreatedAt,
+                                        e.created_at           AS CreatedAt,
                                         notified_at          AS NotifiedAt
 
-                                    FROM escalations
+                                    FROM escalations e
+                                    inner join people p on e.person_id = p.person_id
                                     WHERE escalation_id = @EscalationId;";
 
                 using var connection = _dbConnectionFactory.GetConnection();

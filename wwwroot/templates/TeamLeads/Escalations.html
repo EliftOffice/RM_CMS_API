@@ -488,6 +488,10 @@
                     <span class="detail-value" id="personId">—</span>
                 </div>
                 <div class="detail-row">
+                    <span class="detail-label">Contact 📞</span>
+                    <span class="detail-value" id="personPhone">—</span>
+                </div>
+                <div class="detail-row">
                     <span class="detail-label">Reason</span>
                     <span class="detail-value" id="reason">—</span>
                 </div>
@@ -591,9 +595,11 @@
                 $.get(API_BASE_URL + "/escalations/" + id)
                     .done(res => {
                         const e = res.data;
-
+                        debugger;
+                        console.log(e)
                         $("#escId").text(e.escalationId);
-                        $("#personId").text(e.personId);
+                        $("#personId").text(e.personName);
+                        $("#personPhone").text( e.personPhone);
                         $("#reason").text(e.escalationReason);
                         $("#tier").text(e.escalationTier);
                         $("#status").text(e.status);

@@ -1,8 +1,9 @@
 ﻿using RM_CMS.DAL.TeamLeads;
+using RM_CMS.Data.DTO.Jobs;
 using RM_CMS.Data.DTO.TeamLeads;
+using RM_CMS.Data.Models; // added to reference FollowUp
 using RM_CMS.Utilities;
 using System.Globalization;
-using RM_CMS.Data.Models; // added to reference FollowUp
 
 namespace RM_CMS.BLL.TeamLeads
 {
@@ -16,6 +17,7 @@ namespace RM_CMS.BLL.TeamLeads
         // New: team huddle follow-ups
         Task<ApiResponse<IEnumerable<FollowUp>>> GetTeamHuddleFollowUpsAsync(string teamLeadId, int? week = null);
         Task<ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>> GetTeamHuddleFollowUpsDtoAsync(string teamLeadId, int? week = null);
+        Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithPendingAssignmentsAsync();
     }
 
     public class TeamLeadDashBoardBLL : ITeamLeadDashBoardBLL
@@ -396,6 +398,24 @@ namespace RM_CMS.BLL.TeamLeads
             catch (Exception ex)
             {
                 return new ApiResponse<IEnumerable<FollowUp>>(ResponseType.Error, $"Error retrieving team huddle follow-ups: {ex.Message}", null);
+            }
+        }
+
+
+
+        public async Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithPendingAssignmentsAsync()
+        {
+            try
+            {
+                return await _dal.GetTeamLeadsWithPendingAssignmentsAsync();
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<TeamLeadPendingAssignmentDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteers with pending assignments: {ex.Message}",
+                    new List<TeamLeadPendingAssignmentDto>()
+                );
             }
         }
     }

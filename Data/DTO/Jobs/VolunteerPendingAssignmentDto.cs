@@ -16,4 +16,15 @@
 
         public int PendingAssignmentsCount { get; set; }
     }
+
+    public class TeamLeadPendingAssignmentDto
+    {
+        public string TeamLeadName { get; set; } = string.Empty;
+
+        public string Description { get; set; } = string.Empty;      
+
+        public long? TelegramChatId { get; set; }
+
+        public int PendingAssignmentsCount { get; set; }
+    }
 }

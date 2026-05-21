@@ -5,6 +5,8 @@
         public string EscalationId { get; set; }
         public string FollowUpId { get; set; }
         public string PersonId { get; set; }
+        public string PersonName { get; set; }
+        public string PersonPhone { get; set; }
         public string VolunteerId { get; set; }
         public string TeamLeadId { get; set; }
 

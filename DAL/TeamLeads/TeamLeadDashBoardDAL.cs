@@ -1,9 +1,10 @@
 ﻿using Dapper;
 using RM_CMS.Data;
+using RM_CMS.Data.DTO.Jobs;
 using RM_CMS.Data.DTO.TeamLeads;
+using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
 using System.Globalization;
-using RM_CMS.Data.Models;
 
 namespace RM_CMS.DAL.TeamLeads
 {
@@ -32,6 +33,8 @@ namespace RM_CMS.DAL.TeamLeads
         Task<ApiResponse<IEnumerable<FollowUp>>> GetTeamHuddleFollowUpsAsync(string teamLeadId, int? week = null);
 
         Task<ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>> GetTeamHuddleFollowUpsDtoAsync(string teamLeadId, int? week = null);
+
+        Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithPendingAssignmentsAsync();
     }
 
     public class TeamLeadDashBoardDAL : ITeamLeadDashBoardDAL
@@ -728,6 +731,70 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
             }
         }
 
-        // rest of class unchanged...
+
+
+
+
+
+        public async Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithPendingAssignmentsAsync()
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+SELECT 
+    COUNT(*) AS PendingAssignmentsCount,
+
+    GROUP_CONCAT(
+        CONCAT(
+            CASE 
+                WHEN e.escalation_reason = 'Needs Follow-Up' THEN '⚠️ '
+                WHEN e.escalation_reason = 'Crisis' THEN '🚨 '
+                ELSE '• '
+            END,
+            p.last_name, ' ', p.first_name,
+            ' 📞 ', p.phone,
+            '\n   ➜ ', e.description
+        )
+        SEPARATOR '\n\n'
+    ) AS Description,
+
+    CONCAT(t.last_name, ' ', t.first_name) AS TeamLeadName,
+    t.telegram_chat_id AS TelegramChatId
+
+FROM escalations e
+INNER JOIN team_leads t 
+    ON t.team_lead_id = e.team_lead_id
+INNER JOIN people p 
+    ON p.person_id = e.person_id
+
+WHERE e.status IN ('NEW', 'In Progress')
+
+GROUP BY e.team_lead_id;
+";
+
+                    var volunteers = await connection
+                        .QueryAsync<TeamLeadPendingAssignmentDto>(query);
+
+                    var list = volunteers?.ToList()
+                               ?? new List<TeamLeadPendingAssignmentDto>();
+
+                    return new ApiResponse<List<TeamLeadPendingAssignmentDto>>(
+                        ResponseType.Success,
+                        "Pending assignment volunteers retrieved successfully",
+                        list
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<TeamLeadPendingAssignmentDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteers: {ex.Message}",
+                    null
+                );
+            }
+        }
     }
 }

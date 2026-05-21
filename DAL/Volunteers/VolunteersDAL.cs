@@ -815,9 +815,10 @@ WHERE LOWER(email) = @Email;";
 
                 await client.GetAsync(url);
             }
-            catch
+            catch(Exception ex)
             {
                 // Optional: log error
+              
             }
         }
 
