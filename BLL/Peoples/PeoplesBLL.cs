@@ -99,10 +99,10 @@ namespace RM_CMS.BLL.Peoples
                         return new ApiResponse<People>(ResponseType.Error, "Reference details are required", null);
                     }
 
-                    //if (!System.Text.RegularExpressions.Regex.IsMatch(dto.RefPhone, @"^\d{10}$"))
-                    //{
-                    //    return new ApiResponse<People>(ResponseType.Error, "Invalid reference phone number", null);
-                    //}
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(dto.RefPhone, @"^\d{10}$"))
+                    {
+                        return new ApiResponse<People>(ResponseType.Error, "Invalid reference phone number", null);
+                    }
                 }
 
                 // 4. Check duplicates (based on phone or email)
