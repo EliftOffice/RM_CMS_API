@@ -23,6 +23,62 @@ $(document).ready(function () {
     $('#sendBroadcastBtn').on('click', function () {
         sendBroadcastMessage();
     });
+
+    // Maintenance job buttons
+    $('#sendRemindersBtn').on('click', function () {
+        if (!confirm('Execute reminders job now?')) return;
+        const btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...');
+
+        $.ajax({
+            url: `${API_BASE_URL}/cornjobs/send-reminders`,
+            type: 'POST',
+            contentType: 'application/json',
+            success: function (response) {
+                // if API uses ApiResponse wrapper
+                if (response && (response.responseType === 0 || response.success)) {
+                    showToast(response.message || 'Reminders executed', 'success');
+                } else {
+                    const msg = response?.message || 'Reminders executed';
+                    showToast(msg, 'success');
+                }
+            },
+            error: function (xhr) {
+                const errorMsg = xhr.responseJSON?.message || xhr.responseText || 'Server error';
+                showToast(`Error executing reminders: ${errorMsg}`, 'error');
+            },
+            complete: function () {
+                btn.prop('disabled', false).text('Send Reminders');
+            }
+        });
+    });
+
+    $('#assignNewPeopleBtn').on('click', function () {
+        if (!confirm('Assign new people now?')) return;
+        const btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...');
+
+        $.ajax({
+            url: `${API_BASE_URL}/cornjobs/assign-new-people`,
+            type: 'POST',
+            contentType: 'application/json',
+            success: function (response) {
+                if (response && (response.responseType === 0 || response.success)) {
+                    showToast(response.message || 'Assign job executed', 'success');
+                } else {
+                    const msg = response?.message || 'Assign job executed';
+                    showToast(msg, 'success');
+                }
+            },
+            error: function (xhr) {
+                const errorMsg = xhr.responseJSON?.message || xhr.responseText || 'Server error';
+                showToast(`Error assigning new people: ${errorMsg}`, 'error');
+            },
+            complete: function () {
+                btn.prop('disabled', false).text('Assign New People');
+            }
+        });
+    });
 });
 
 function loadSystemConfig() {

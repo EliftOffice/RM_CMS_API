@@ -110,6 +110,12 @@
             color: #9ca3af;
             font-size: 1.1rem;
         }
+
+        .admin-wrap { max-width: 1000px; margin: 0 auto; }
+        .admin-panel { background: #fff; border: 1px solid #e5e7eb; padding: 18px; border-radius: 8px; }
+        .admin-actions { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+        .admin-actions button { padding:10px 14px; border-radius:8px; border:1px solid #ccc; cursor:pointer; background:#f3f4f6; }
+        .admin-iframe { width:100%; height:70vh; border:1px solid #ddd; border-radius:6px; }
     </style>
 </head>
 <body>
@@ -146,6 +152,78 @@
         </a>
     </div>
 
+    <div class="admin-wrap">
+        <h2>Site Admin</h2>
+        <div class="admin-panel">
+            <div class="admin-actions">
+                <button id="btnSendReminders">Send Reminders (Volunteers & Team Leads)</button>
+                <button id="btnAssignNew">Assign New People</button>
+                <button id="btnRefreshFrame">Open Frontend Index</button>
+            </div>
+            <div id="adminStatus"></div>
+        </div>
+
+        <div style="margin-top:16px;">
+            <iframe id="adminFrame" class="admin-iframe" src="/templates/index.html"></iframe>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/templates/assets/js/api-config.js"></script>
     <script src="/templates/assets/js/toast.js"></script>
+    <script src="/templates/assets/js/session.js"></script>
+    <script>
+        $(function(){
+            function showMsg(msg, type){
+                if(window.showToast) showToast(msg, type || 'success');
+                else alert(msg);
+                $('#adminStatus').text(msg);
+            }
+
+            $('#btnSendReminders').on('click', function(){
+                if(!confirm('Execute reminders job now?')) return;
+                $(this).prop('disabled', true).text('Running...');
+                $.ajax({
+                    url: API_BASE_URL + '/cornjobs/send-reminders',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    success: function(res){
+                        showMsg(res.message || 'Reminders executed', 'success');
+                    },
+                    error: function(xhr){
+                        const msg = xhr.responseJSON?.message || xhr.responseText || 'Error executing job';
+                        showMsg(msg, 'error');
+                    },
+                    complete: function(){
+                        $('#btnSendReminders').prop('disabled', false).text('Send Reminders (Volunteers & Team Leads)');
+                    }
+                });
+            });
+
+            $('#btnAssignNew').on('click', function(){
+                if(!confirm('Assign new people now?')) return;
+                $(this).prop('disabled', true).text('Running...');
+                $.ajax({
+                    url: API_BASE_URL + '/cornjobs/assign-new-people',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    success: function(res){
+                        showMsg(res.message || 'Assign job executed', 'success');
+                    },
+                    error: function(xhr){
+                        const msg = xhr.responseJSON?.message || xhr.responseText || 'Error executing job';
+                        showMsg(msg, 'error');
+                    },
+                    complete: function(){
+                        $('#btnAssignNew').prop('disabled', false).text('Assign New People');
+                    }
+                });
+            });
+
+            $('#btnRefreshFrame').on('click', function(){
+                $('#adminFrame').attr('src', '/templates/index.html');
+            });
+        });
+    </script>
 </body>
 </html>

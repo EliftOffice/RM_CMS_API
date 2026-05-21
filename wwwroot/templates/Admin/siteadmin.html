@@ -74,6 +74,21 @@
                 </table>
             </div>
         </div>
+
+        <!-- CornJobs / Maintenance Actions -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Maintenance Jobs</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text text-muted">Run background maintenance tasks manually from the admin UI.</p>
+                <div class="d-flex gap-2">
+                    <button id="sendRemindersBtn" class="btn btn-outline-success">Send Reminders</button>
+                    <button id="assignNewPeopleBtn" class="btn btn-outline-primary">Assign New People</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Broadcast Message Card -->
@@ -100,6 +115,7 @@
     <!-- Shared Configs & Utilities -->
     <script src="../assets/js/api-config.js"></script>
     <script src="../assets/js/toast.js"></script>
+    <script src="../assets/js/session.js"></script>
     <!-- Custom JS for this page -->
     <script src="../assets/js/siteadmin.js"></script>
 </body>

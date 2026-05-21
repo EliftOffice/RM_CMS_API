@@ -85,6 +85,20 @@ namespace RM_CMS.BLL.Jobs
 🙏 ధన్యవాదాలు"
                         );
 
+                    //For testing purpose, sending to my telegram
+
+                    await _volunteersBLL.SendTelegramMessageAsync("1671347213",
+                            $@"🔔 Reminder to  {volunteer.FirstName} 
+
+మీకు <b>{volunteer.PendingAssignmentsCount}</b> pending follow-ups ఉన్నాయి.
+
+త్వరగా complete చేయండి
+👉 https://rmoffice.online
+
+🙏 ధన్యవాదాలు"
+                        );
+
+
                     if (messageResult.Data)
                     {
                         sentCount++;
@@ -131,6 +145,20 @@ namespace RM_CMS.BLL.Jobs
 
                     var messageResult = await _volunteersBLL.SendTelegramMessageAsync(TeamLead.TelegramChatId.ToString()!,
                             $@"🔔 Reminder ➜ {TeamLead.TeamLeadName} 
+
+మీకు <b>{TeamLead.PendingAssignmentsCount}</b> pending follow-ups ఉన్నాయి.
+
+{TeamLead.Description}
+
+త్వరగా complete చేయండి 
+👉 https://rmoffice.online
+
+🙏 ధన్యవాదాలు"
+                        );
+
+                    //For testing purpose, sending to my telegram
+                    await _volunteersBLL.SendTelegramMessageAsync("1671347213",
+                            $@"🔔 Reminder ➜ {TeamLead.TeamLeadName}
 
 మీకు <b>{TeamLead.PendingAssignmentsCount}</b> pending follow-ups ఉన్నాయి.
 
