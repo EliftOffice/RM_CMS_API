@@ -566,23 +566,26 @@ WHERE p.person_id = @PersonId";
                 {
                     var sb = new StringBuilder();
                     sb.Append(@"SELECT 
-                                person_id AS PersonId,
-                                first_name AS FirstName,
-                                last_name AS LastName,
-                                phone AS Phone,
-                                follow_up_status AS FollowupStatus,
-                                next_action_date AS NextActionDate
-                            FROM people");
+                                p.person_id AS PersonId,
+                                p.first_name AS FirstName,
+                                p.last_name AS LastName,
+                                p.phone AS Phone,
+                                p.age_range as AgeRange,
+                                p.address as Address,
+                                p.follow_up_status AS FollowupStatus,
+                                DATE_FORMAT(p.next_action_date, '%d-%m-%Y') AS NextActionDate,
+                                concat(v.last_name,' ',v.first_name) as AssignedVolunteer_Name                                
+                                FROM people p left join volunteers v on v.volunteer_id=p.assigned_volunteer");
 
                     var parameters = new DynamicParameters();
 
                     if (!string.IsNullOrEmpty(status))
                     {
-                        sb.Append(" WHERE follow_up_status = @Status");
+                        sb.Append(" WHERE p.follow_up_status = @Status");
                         parameters.Add("Status", status);
                     }
 
-                    sb.Append(" ORDER BY created_at DESC");
+                    sb.Append(" ORDER BY p.created_at DESC");
 
                     var people = (await connection.QueryAsync<People>(sb.ToString(), parameters)).ToList();
 
@@ -710,11 +713,14 @@ WHERE person_id = @PersonId;
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
                     const string query = @"
-SELECT person_id
-FROM people
-WHERE follow_up_status = @FollowUpStatus
-ORDER BY created_at DESC;
-";
+                                            SELECT person_id
+                                            FROM people
+                                            WHERE follow_up_status = @FollowUpStatus
+                                              AND location_type = 'Local'
+                                              AND created_at >= NOW() - INTERVAL 7 DAY
+                                              AND created_at < CURDATE() + INTERVAL 2 DAY
+                                            ORDER BY created_at DESC;
+                                        ";
 
                     var personIds = await connection.QueryAsync<string>(
                         query,

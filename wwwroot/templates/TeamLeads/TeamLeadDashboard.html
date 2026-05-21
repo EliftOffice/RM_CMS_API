@@ -614,6 +614,25 @@
                 grid-template-columns: 1fr 1fr;
             }
         }
+
+        @keyframes blink {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.2;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .blink-siren {
+            animation: blink 1s infinite;
+            font-size:25px;
+        }
     </style>
 </head>
 <body>
@@ -726,7 +745,7 @@
                 <div class="card">
                     <div class="card-header-strip">
                         <div class="card-strip-icon">📋</div>
-                        <h3 class="card-strip-title">Check-ins &amp; Escalations</h3>
+                        <h3 class="card-strip-title">Escalations &amp; Check-ins</h3>
                     </div>
                     <div class="card-body">
                         <ul id="checkinsList" class="list-group list-group-flush"></ul>

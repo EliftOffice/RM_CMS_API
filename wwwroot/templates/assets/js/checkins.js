@@ -105,6 +105,8 @@ $(document).ready(function () {
 
         if (!data.volunteerId || !data.teamLeadId || !data.emotionalTone) {
             setMessage("Volunteer, Team Lead and Emotional Tone are required.", "red");
+            showToast("Volunteer, Team Lead and Emotional Tone are required.", "warning");
+            
             return;
         }
 
@@ -118,12 +120,14 @@ $(document).ready(function () {
             success: function (res) {
                 console.log("SUCCESS:", res);
                 setMessage(res.message || "Check-in saved successfully!", "green");
+                showToast(res.message || "Check-in saved successfully!", "success");
                 resetForm();
             },
             error: function (err) {
                 console.error("ERROR:", err.responseText);
                 const msg = err.responseJSON?.message || err.responseText || "An error occurred.";
                 setMessage(msg, "red");
+                showToast(msg, "error");
             },
             complete: function () {
                 $("#saveBtn").prop("disabled", false).text("Save");

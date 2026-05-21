@@ -10,6 +10,7 @@
 
     <script src="../assets/js/api-config.js"></script>
     <script src="../assets/js/escalations.js"></script>
+    <script src="../assets/js/toast.js"></script>
 
     <style>
         :root {
@@ -488,7 +489,7 @@
                     <span class="detail-value" id="personId">—</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Contact 📞</span>
+                    <span class="detail-label">Contact </span>
                     <span class="detail-value" id="personPhone">—</span>
                 </div>
                 <div class="detail-row">
@@ -599,7 +600,7 @@
                         console.log(e)
                         $("#escId").text(e.escalationId);
                         $("#personId").text(e.personName);
-                        $("#personPhone").text( e.personPhone);
+                        $("#personPhone").text( '📞 '+e.personPhone);
                         $("#reason").text(e.escalationReason);
                         $("#tier").text(e.escalationTier);
                         $("#status").text(e.status);

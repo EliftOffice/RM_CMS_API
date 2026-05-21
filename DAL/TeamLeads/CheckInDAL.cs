@@ -92,27 +92,31 @@ namespace RM_CMS.DAL.TeamLeads
                     nextCheckInDate
                 }, transaction);
 
-                // 🔹 3. Update volunteer
-                const string updateVolunteerQuery = @"
-        UPDATE volunteers SET
-            last_check_in = @CheckInDate,
-            next_check_in = @NextCheckInDate,
-            emotional_tone = @EmotionalTone,
-            capacity_band=@NewCapacityBand,
-capacity_min=@capacityMin,
-capacity_max=@capacityMax
-        WHERE volunteer_id = @VolunteerId";
+                if (dto.CapacityAdjustment)
+                {  // 🔹 3. Update volunteer
+                    const string updateVolunteerQuery = @"
+                                                            UPDATE volunteers SET
+                                                                last_check_in = @CheckInDate,
+                                                                next_check_in = @NextCheckInDate,
+                                                                emotional_tone = @EmotionalTone,
+                                                                capacity_band=@NewCapacityBand,
+                                                                capacity_min=@capacityMin,
+                                                                capacity_max=@capacityMax
+                                                                WHERE volunteer_id = @VolunteerId";
 
-                await connection.ExecuteAsync(updateVolunteerQuery, new
-                {
-                    CheckInDate = dto.CheckInDate ?? DateTime.UtcNow,
-                    nextCheckInDate,
-                    dto.NewCapacityBand,
-                    dto.CapacityMin,
-                    dto.CapacityMax,
-                    dto.EmotionalTone,
-                    dto.VolunteerId
-                }, transaction);
+                    await connection.ExecuteAsync(updateVolunteerQuery, new
+                    {
+                        CheckInDate = dto.CheckInDate ?? DateTime.UtcNow,
+                        nextCheckInDate,
+                        dto.NewCapacityBand,
+                        dto.CapacityMin,
+                        dto.CapacityMax,
+                        dto.EmotionalTone,
+                        dto.VolunteerId
+                    }, transaction);
+
+                }
+              
 
                 // 🔹 4. Commit
                 transaction.Commit();

@@ -53,6 +53,8 @@ namespace RM_CMS.Data.Models
         public string? FollowUpPriority { get; set; }
         
         public string? AssignedVolunteer { get; set; }
+        public string? AssignedVolunteer_Name { get; set; }
+        public string? AssignedVolunteer_Contact { get; set; }
         
         public DateTime? AssignedDate { get; set; }
         

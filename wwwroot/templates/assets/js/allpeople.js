@@ -24,13 +24,13 @@
                     return;
                 }
                 const rows = res.data.map(p => `
-                    <tr>
-                        <td>${p.personId || p.PersonId}</td>
-                        <td>${(p.firstName || p.FirstName || '') + ' ' + (p.lastName || p.LastName || '')}</td>
-                        <td>${p.email || p.Email || ''}</td>
-                        <td>${p.phone || p.Phone || ''}</td>
-                        <td>${p.campus || p.Campus || ''}</td>
-                        <td>${p.followupStatus || p.FollowupStatus || ''}</td>
+                    <tr>                       
+                        <td>${(p.firstName || p.FirstName || '') + ' ' + (p.lastName || p.LastName || '')}</td>                       
+                        <td>${p.phone || p.Phone || ''}</td>                        
+                        <td>${p.ageRange || ''}</td>                        
+                        <td>${p.address || ''}</td>                        
+                        <td>${p.followUpStatus || ''}</td>                        
+                        <td>${p.assignedVolunteer_Name || ''}</td>                        
                         <td>${p.nextActionDate || p.NextActionDate || ''}</td>
                         <td>
                             <button class="btn btn-sm btn-primary action-btn edit" data-id="${p.personId || p.PersonId}">Edit</button>
@@ -59,12 +59,12 @@
                 }
                 const p = res.data;
                 $('#person_id').val(p.person_id || p.PersonId);
-                $('#first_name').val(p.first_name || p.FirstName);
-                $('#last_name').val(p.last_name || p.LastName);
+                $('#first_name').val(p.firstName || '');
+                $('#last_name').val(p.lastName || '');
                 $('#email').val(p.email || p.Email);
                 $('#phone').val(p.phone || p.Phone);
                 $('#campus').val(p.campus || p.Campus);
-                $('#visit_type').val(p.visit_type || p.VisitType);
+                $('#visit_type').val(p.visitType);
                 $('#follow_up_status').val(p.follow_up_status || p.FollowUpStatus);
                 $('#follow_up_priority').val(p.follow_up_priority || p.FollowUpPriority);
                 $('#assigned_volunteer').val(p.assigned_volunteer || p.AssignedVolunteer);

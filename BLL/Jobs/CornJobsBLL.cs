@@ -78,7 +78,9 @@ namespace RM_CMS.BLL.Jobs
                             $@"🔔 Reminder to  {volunteer.FirstName} 
 
 మీకు <b>{volunteer.PendingAssignmentsCount}</b> pending follow-ups ఉన్నాయి.
-త్వరగా complete చేయండి 
+
+త్వరగా complete చేయండి
+👉 https://rmoffice.online
 
 🙏 ధన్యవాదాలు"
                         );
@@ -135,6 +137,7 @@ namespace RM_CMS.BLL.Jobs
 {TeamLead.Description}
 
 త్వరగా complete చేయండి 
+👉 https://rmoffice.online
 
 🙏 ధన్యవాదాలు"
                         );

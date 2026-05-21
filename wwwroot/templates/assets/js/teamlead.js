@@ -205,27 +205,41 @@ $(function () {
 
         const escalationsData = (data.escalationsPending || data.EscalationsPending || []);
         const escalations = escalationsData.map(e => {
-            const day = new Date(e.escalationDate)
-                .toLocaleDateString('en-US', { weekday: 'short' });
+            //const weekday = new Date(e.escalationDate)
+            //    .toLocaleDateString('en-US', { weekday: 'short' });
+
+            const date = new Date(e.escalationDate);
+
+            const getDaySuffix = (d) => {
+                if (d > 3 && d < 21) return 'th';
+                switch (d % 10) {
+                    case 1: return 'st';
+                    case 2: return 'nd';
+                    case 3: return 'rd';
+                    default: return 'th';
+                }
+            };
+
+            const day = date.getDate();
+            const month = date.toLocaleString('en-US', { month: 'short' });
+            const year = date.getFullYear();
+
+            const formattedDate = `${day}${getDaySuffix(day)}, ${month}`;
 
             const reason = e.escalationReason || e.reason || e.description || 'no details';
-
+            const icon = reason == 'Crisis' ? '<div class="blink-siren">🚨</div>' : '⚠️';
             return `
             <div class="escalation-item"
                  data-id="${e.escalationId}"
                  style="cursor:pointer; padding:6px; border-radius:5px;">
-                - ${e.personName} (escalated ${day}, ${reason})
+                ${icon} ${e.personName} -  Escalated on ${formattedDate}
             </div>
         `;
         }).join('');
 
         const escalationCount = escalationsData.length;
 
-        const finalHtml = `
-        <h5>Check-ins</h5>
-        <dl class="mb-3">
-            ${cis || '<dd>No upcoming check-ins</dd>'}
-        </dl>
+        const finalHtml = `     
 
         <h5>Escalations Pending</h5>
         <h6 class="text-muted">
@@ -235,6 +249,11 @@ $(function () {
         <div>
             ${escalations || 'No pending escalations'}
         </div>
+
+         <h5 class="mt-4">Check-ins</h5>
+        <dl class="mb-3">
+            ${cis || '<dd>No upcoming check-ins</dd>'}
+        </dl>
         `;
 
         $('#checkinsList').html(finalHtml);
@@ -296,7 +315,7 @@ $(function () {
 
     $(document).on('click', '#teamHuddleBtn', function () {
         const teamLeadId = TLID;
-        if (!teamLeadId) return alert('TeamLeadId required');
+        if (!teamLeadId) return showToast('TeamLeadId required','warning');
         // call DTO endpoint to get rich data
         TLID = teamLeadId;
         var modal = new bootstrap.Modal(document.getElementById('teamHuddleModal'));
@@ -350,7 +369,7 @@ $(function () {
 
                
             },
-            error: function () { alert('Error loading team huddle follow-ups'); }
+            error: function () { showToast('Error loading team huddle follow-ups','error'); }
         });
     }
     $(document).on('click', '.update-escalation', function () {
@@ -360,9 +379,10 @@ $(function () {
         const selectedValue = $(`.escalation-dropdown[data-id="${followUpId}"]`).val();
 
         if (!selectedValue) {
-            alert('Please select escalation value');
+            showToast('Please select escalation value','warning');
             return;
         }
+        if (!confirm('Are You Sure You want to Update')) return;
 
         $.ajax({
             url: API_BASE_URL + '/escalations/update-escalation',
@@ -381,9 +401,9 @@ $(function () {
                     $('#huddleTable tbody').empty(); // clear first
 
                     TeamHuddleFollowsDataAjax(TLID);
-                    alert(res.message || res.Message || 'Updated successfully');
+                    showToast(res.message || res.Message || 'Updated successfully','success');
                 } else {
-                    alert(res.message || res.Message || 'Update failed');
+                    showToast(res.message || res.Message || 'Update failed','error');
                 }
             },
             error: function (xhr) {
@@ -391,7 +411,7 @@ $(function () {
                 // optional: show backend error message if available
                 const errMsg = xhr?.responseJSON?.message || xhr?.responseJSON?.Message;
 
-                alert(errMsg || 'Error updating escalation');
+                showToast(errMsg || 'Error updating escalation','error');
             }
         });
     });

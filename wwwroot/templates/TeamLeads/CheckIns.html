@@ -7,6 +7,7 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="../assets/js/api-config.js"></script>
     <script src="../assets/js/checkins.js"></script>
+    <script src="../assets/js/toast.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -143,7 +144,7 @@
 
     <div class="card">
 
-        <p id="message"></p>
+
         <!-- Hidden IDs -->
         <input type="hidden" id="volunteer_id" />
         <input type="hidden" id="team_lead_id" />
@@ -155,7 +156,7 @@
         </div>
 
         <div class="form-group">
-            <label for="team_lead_name" >Team Lead</label>
+            <label for="team_lead_name">Team Lead</label>
             <input type="text" id="team_lead_name" readonly />
         </div>
 
@@ -272,6 +273,7 @@
         </div>
 
         <button class="btn-save" id="saveBtn">Save</button>
+        <p id="message"></p>
 
     </div>
 
