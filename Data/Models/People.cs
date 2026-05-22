@@ -6,12 +6,13 @@ namespace RM_CMS.Data.Models
     public class People
     {        
         public string PersonId { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
 
         // Basic Information
         
         public string FirstName { get; set; } = string.Empty;
         public string volunteerId { get; set; } = string.Empty;
-        public string LocationType { get; set; } = string.Empty;
+        public string LocationType { get; set; } = "Local";
         
         public string LastName { get; set; } = string.Empty;
         
@@ -60,7 +61,7 @@ namespace RM_CMS.Data.Models
         
         public DateTime? LastContactDate { get; set; }
         
-        public DateTime? NextActionDate { get; set; }
+        public string? NextActionDate { get; set; }
 
         // Interests & Needs
         

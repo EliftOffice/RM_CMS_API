@@ -12,8 +12,8 @@
         public string? ConnectionSource { get; set; }
         public string? RefName { get; set; }
         public string? RefPhone { get; set; }
-        public string? PrayerRequests { get; set; }       
-        public string? locationType { get; set; }       
+        public string? PrayerRequests { get; set; }
+        public string locationType { get; set; } = "Local"; 
     }
 
     public class CreatePeopleDto

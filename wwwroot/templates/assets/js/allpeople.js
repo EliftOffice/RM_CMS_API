@@ -23,12 +23,21 @@
                     $('#peopleTable tbody').html('<tr><td colspan="8">No data</td></tr>');
                     return;
                 }
+                $('#people_count').text(`(${res.data.length})`)
                 const rows = res.data.map(p => `
                     <tr>                       
                         <td>${(p.firstName || p.FirstName || '') + ' ' + (p.lastName || p.LastName || '')}</td>                       
                         <td>${p.phone || p.Phone || ''}</td>                        
                         <td>${p.ageRange || ''}</td>                        
-                        <td>${p.address || ''}</td>                        
+                       <td title="${p.address || ''}">
+                         ${p.address
+                        ? (p.address.length > 15
+                            ? p.address.substring(0, 15) + '...'
+                            : p.address)
+                        : ''
+                          }
+                        </td>                        
+                        <td>${p.Location || ''}</td>                        
                         <td>${p.followUpStatus || ''}</td>                        
                         <td>${p.assignedVolunteer_Name || ''}</td>                        
                         <td>${p.nextActionDate || p.NextActionDate || ''}</td>

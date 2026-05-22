@@ -165,7 +165,7 @@ namespace RM_CMS.BLL.Pastors
 
             var stages = data.Select(p =>
             {
-                p.Percentage = total == 0 ? 0 : (p.Count * 100.0 / total);
+                p.Percentage = total == 0 ? 0 : Math.Round((p.Count * 100.0 / total),2);
                 return p;
             }).ToList();
 
@@ -174,7 +174,9 @@ namespace RM_CMS.BLL.Pastors
             return new PipelineHealthSummaryDTO
             {
                 Stages = stages,
-                SuccessRate = total == 0 ? 0 : (success * 100.0 / total)
+                SuccessRate = total == 0
+         ? 0
+         : Math.Round(success * 100.0 / total, 2)
             };
         }
 

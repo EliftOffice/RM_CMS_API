@@ -1,6 +1,7 @@
 ﻿
 $(document).ready(function () {
     sessionStorage.setItem("login_otp", "");
+   
     setLoginSession(false);
 
     let currentVolunteerId = "";
@@ -8,9 +9,13 @@ $(document).ready(function () {
 
     // ================= LOGIN =================
     $('#loginForm').submit(function (e) {
+        $('#loadingOverlay').show();
 
-        if (!sessionStorage.getItem("login_otp") == "") return false;
-        debugger;
+        if (!sessionStorage.getItem("login_otp") == "") {
+            $('#loadingOverlay').hide();
+            return false;
+        }
+      
 
         e.preventDefault();
 
@@ -22,10 +27,12 @@ $(document).ready(function () {
         if (!/^\d{10}$/.test(mobile)) {
 
             showToast('Invalid mobile number', 'warning');
+            $('#loadingOverlay').hide();
             return;
         }
 
         $.get(API_BASE_URL + `/volunteers/GetVolunteersByMobileAsyncV1/${mobile}`, function (res) {
+            $('#loadingOverlay').hide();
 
             if (res.data && res.data.length > 0) {
 
@@ -55,7 +62,7 @@ $(document).ready(function () {
                 autoFillFromClipboard();
 
             } else {
-
+                $('#loadingOverlay').hide();
                 showToast('Volunteer not found', 'error');
             }
 

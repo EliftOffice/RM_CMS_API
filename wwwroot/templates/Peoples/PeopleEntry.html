@@ -420,7 +420,7 @@
                         <label for="ddlLocationType" class="form-label">Location Type</label>
 
                         <select class="form-select" id="ddlLocationType" name="ddlLocationType">
-                            <option value="Local" selected>Local</option>
+                            <option value="Local" selected="selected">Local</option>
                             <option value="Non-Local">Non-Local</option>
                         </select>
                     </div>
@@ -535,7 +535,7 @@
                     refPhone: refPhone,
                     prayerRequests: $('#prayer_requests').val(),
                     householdType: $('#household_type').val(),
-                    LocationType: $('#ddlLocationType').val()
+                    LocationType: $('#ddlLocationType').val() || 'Local'
                 };
 
                 const btn = $('#submitBtn');

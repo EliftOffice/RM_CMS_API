@@ -4,8 +4,10 @@ using RM_CMS.Data;
 using RM_CMS.Data.DTO.Peoples;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
+using System.Diagnostics.Metrics;
 using System.Reflection.Emit;
 using System.Text;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace RM_CMS.DAL.Peoples
 {
@@ -42,20 +44,20 @@ namespace RM_CMS.DAL.Peoples
 
                     // 1. Insert the record WITHOUT person_id to get the auto-increment id
                     const string insertWithoutPersonId = @"
-                INSERT INTO people (person_id,
-                    first_name, last_name, email, phone,
-                    visit_type, first_visit_date, last_visit_date, visit_count,
-                    follow_up_status, follow_up_priority, campus, connection_source,
-                    interested_in, prayer_requests, specific_needs,
-                    created_at, created_by, age_range, zip_code, household_type,reference_name, reference_phone,address,location_type
-                ) VALUES (
-                    @PersonId,@FirstName, @LastName, @Email, @Phone,
-                    @VisitType, @FirstVisitDate, @LastVisitDate, @VisitCount,
-                    @FollowUpStatus, @FollowUpPriority, @Campus, @ConnectionSource,
-                    @InterestedIn, @PrayerRequests, @SpecificNeeds,
-                    @CreatedAt, @CreatedBy,@AgeRange, @ZipCode, @HouseholdType,@RefName, @RefPhone, @Address,@LocationType
-                );
-                SELECT LAST_INSERT_ID();";  // Get auto-increment id of the inserted row
+          INSERT INTO people (person_id,
+              first_name, last_name, email, phone,
+              visit_type, first_visit_date, last_visit_date, visit_count,
+              follow_up_status, follow_up_priority, campus, connection_source,
+              interested_in, prayer_requests, specific_needs,
+              created_at, created_by, age_range, zip_code, household_type,reference_name, reference_phone,address,location_type
+          ) VALUES (
+              @PersonId,@FirstName, @LastName, @Email, @Phone,
+              @VisitType, @FirstVisitDate, @LastVisitDate, @VisitCount,
+              @FollowUpStatus, @FollowUpPriority, @Campus, @ConnectionSource,
+              @InterestedIn, @PrayerRequests, @SpecificNeeds,
+              @CreatedAt, @CreatedBy,@AgeRange, @ZipCode, @HouseholdType,@RefName, @RefPhone, @Address,@LocationType
+          );
+          SELECT LAST_INSERT_ID();";  // Get auto-increment id of the inserted row
 
                     var parameters = new
                     {
@@ -83,7 +85,7 @@ namespace RM_CMS.DAL.Peoples
                         person.refPhone,
                         person.RefName,
                         person.Address,
-                                                person.LocationType
+                        person.LocationType
                     };
 
                     // 2. Insert and get the new auto-increment ID
@@ -94,11 +96,11 @@ namespace RM_CMS.DAL.Peoples
 
                     // 4. Update the record with the generated person_id
                     const string updatePersonId = @"
-                UPDATE people
-                SET person_id = @PersonId,
-                    updated_at = @UpdatedAt
-                WHERE id = @Id;
-            ";
+          UPDATE people
+          SET person_id = @PersonId,
+              updated_at = @UpdatedAt
+          WHERE id = @Id;
+      ";
 
                     await connection.ExecuteAsync(updatePersonId, new
                     {
@@ -120,6 +122,8 @@ namespace RM_CMS.DAL.Peoples
                 return new ApiResponse<People>(ResponseType.Error, $"Error creating person: {ex.Message}", null);
             }
         }
+
+        
         public async Task<ApiResponse<People>> FindByEmailOrPhoneAsync(string? email, string? phone)
         {
             try
@@ -232,24 +236,66 @@ namespace RM_CMS.DAL.Peoples
                     else
                         connection.Open();
 
+                    // ✅ Check already updated today
+                    const string checkQuery = @"
+                SELECT COUNT(*)
+                FROM people
+                WHERE person_id = @PersonId
+                  AND DATE(updated_at) = CURDATE();
+            ";
+
+                    var alreadyUpdatedToday = await connection.ExecuteScalarAsync<int>(
+                        checkQuery,
+                        new { PersonId = personId }
+                    );
+
+                    if (alreadyUpdatedToday > 0)
+                    {
+                        return new ApiResponse<bool>(
+                            ResponseType.Warning,
+                            "Visit already updated today.",
+                            false
+                        );
+                    }
+
                     const string query = @"
                 UPDATE people
-                SET visit_count = IFNULL(visit_count, 0) + 1,visit_type='Returning Visitor',
+                SET visit_count = IFNULL(visit_count, 0) + 1,
+                    visit_type = 'Returning Visitor',
                     updated_at = NOW()
                 WHERE person_id = @PersonId;
             ";
 
-                    var rowsAffected = await connection.ExecuteAsync(query, new { PersonId = personId });
+                    var rowsAffected = await connection.ExecuteAsync(
+                        query,
+                        new { PersonId = personId }
+                    );
 
                     if (rowsAffected > 0)
-                        return new ApiResponse<bool>(ResponseType.Success, "Visit count incremented", true);
+                    {
+                        return new ApiResponse<bool>(
+                            ResponseType.Success,
+                            "Visit count incremented",
+                            true
+                        );
+                    }
                     else
-                        return new ApiResponse<bool>(ResponseType.Warning, "Person not found", false);
+                    {
+                        return new ApiResponse<bool>(
+                            ResponseType.Warning,
+                            "Person not found",
+                            false
+                        );
+                    }
                 }
             }
             catch (Exception ex)
             {
-                return new ApiResponse<bool>(ResponseType.Error, $"Error incrementing visit count: {ex.Message}", false);
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    $"Error incrementing visit count: {ex.Message}",
+                    false
+                );
             }
         }
         public async Task<ApiResponse<People>> GetPersonByIdAsync(string personId)
@@ -572,6 +618,7 @@ WHERE p.person_id = @PersonId";
                                 p.phone AS Phone,
                                 p.age_range as AgeRange,
                                 p.address as Address,
+                                p.location_type as Location,
                                 p.follow_up_status AS FollowupStatus,
                                 DATE_FORMAT(p.next_action_date, '%d-%m-%Y') AS NextActionDate,
                                 concat(v.last_name,' ',v.first_name) as AssignedVolunteer_Name                                

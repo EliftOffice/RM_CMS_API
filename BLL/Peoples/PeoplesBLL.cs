@@ -111,8 +111,11 @@ namespace RM_CMS.BLL.Peoples
 
                 if (existing.ResponseType == ResponseType.Success && existing.Data != null)
                 {
-                    await _peoplesDAL.IncrementVisitCountAsync(existing.Data.PersonId);
+                   var res= await _peoplesDAL.IncrementVisitCountAsync(existing.Data.PersonId);
+                    if(res.ResponseType == ResponseType.Success)
                     return existing;
+                    else
+                        return new ApiResponse<People>(ResponseType.Error, $"{res.Message}", null);
                 }
 
                 // 5. Create new person

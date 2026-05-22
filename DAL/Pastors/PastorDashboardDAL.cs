@@ -53,11 +53,13 @@ namespace RM_CMS.DAL.Pastors
                            AND year = YEAR(CURDATE())
                         ) as SystemVNPS,
                         (SELECT 
-                            (COUNT(CASE WHEN status = 'Active' THEN 1 END) * 100.0 / COUNT(*))
+                           ROUND(COUNT(CASE WHEN status = 'Active' THEN 1 END) * 100.0 / COUNT(*))
                          FROM volunteers
                          WHERE start_date <= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
                         ) as VolunteerRetention,
-                        ( SELECT 
+                        (
+                        SELECT 
+                            ROUND(
                                 COUNT(DISTINCT CASE 
                                     WHEN contact_status = 'Contacted'
                                      AND (
@@ -69,8 +71,9 @@ namespace RM_CMS.DAL.Pastors
                                 ) * 100.0 
                                 /
                                 COUNT(DISTINCT person_id)
-                            FROM follow_ups
-                            WHERE DATE_FORMAT(attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
+                            )
+                        FROM follow_ups
+                        WHERE DATE_FORMAT(attempt_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
                         ) AS CompletionRateMTD,
                         (SELECT AVG(TIMESTAMPDIFF(HOUR, p.assigned_date, f.attempt_date) / 24)
                          FROM follow_ups f
@@ -158,8 +161,9 @@ namespace RM_CMS.DAL.Pastors
                         ) as FirstContact48h,
 
                         -- ✅ Escalation Rate (MTD)
-                        (
-                            SELECT 
+                       (
+                        SELECT 
+                            ROUND(
                                 COUNT(*) * 100.0 /
                                 NULLIF((
                                     SELECT COUNT(*) 
@@ -167,10 +171,11 @@ namespace RM_CMS.DAL.Pastors
                                     WHERE attempt_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
                                       AND attempt_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
                                 ), 0)
-                            FROM escalations
-                            WHERE escalation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-                              AND escalation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
-                        ) as EscalationRate,
+                            )
+                        FROM escalations
+                        WHERE escalation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                          AND escalation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+                    ) AS EscalationRate,
 
                         -- ✅ Crisis Handled Safely
                         (
@@ -195,7 +200,7 @@ namespace RM_CMS.DAL.Pastors
                     result ?? new KPIDTO()
                 );
             }
-            catch (Exception)
+            catch
             {
                 return new ApiResponse<KPIDTO>(
                     ResponseType.Error,
@@ -213,50 +218,56 @@ namespace RM_CMS.DAL.Pastors
                 using var connection = _dbConnectionFactory.GetConnection();
 
                 const string query = @"
-                                    SELECT 
-                                        tl.team_lead_id AS TeamLeadId,
-                                        CONCAT(tl.first_name, ' ', tl.last_name) AS TeamLeadName,
-                                        tl.current_volunteers AS TeamSize,
+SELECT 
+    tl.team_lead_id AS TeamLeadId,
+    CONCAT(tl.first_name, ' ', tl.last_name) AS TeamLeadName,
+    tl.current_volunteers AS TeamSize,
 
-                                        -- ✅ Completion Rate (PERSON-BASED LOGIC)
-                                        (
-                                            SELECT 
-                                                COUNT(DISTINCT CASE 
-                                                    WHEN f.contact_status = 'Contacted'
-                                                     AND (
-                                                            f.response_type != 'No Response'
-                                                            OR f.next_action = 'Mark Unresponsive'
-                                                         )
-                                                    THEN f.person_id
-                                                END) * 100.0 
-                                                / NULLIF(COUNT(DISTINCT f.person_id), 0)
-                                            FROM follow_ups f
-                                            JOIN volunteers v ON f.volunteer_id = v.volunteer_id
-                                            WHERE v.team_lead = tl.team_lead_id
-                                              AND f.attempt_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-                                              AND f.attempt_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
-                                        ) AS CompletionRate,
+    -- ✅ Completion Rate (PERSON-BASED LOGIC)
+    (
+        SELECT 
+            ROUND(
+                COUNT(DISTINCT CASE 
+                    WHEN f.contact_status = 'Contacted'
+                     AND (
+                            f.response_type != 'No Response'
+                            OR f.next_action = 'Mark Unresponsive'
+                         )
+                    THEN f.person_id
+                END) * 100.0 
+                / NULLIF(COUNT(DISTINCT f.person_id), 0),
+                2
+            )
+        FROM follow_ups f
+        JOIN volunteers v ON f.volunteer_id = v.volunteer_id
+        WHERE v.team_lead = tl.team_lead_id
+          AND f.attempt_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND f.attempt_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+    ) AS CompletionRate,
 
-                                        -- ✅ Team vNPS (NULL SAFE)
-                                        (
-                                            SELECT IFNULL(ROUND(AVG(vn.vnps_score), 0), 0)
-                                            FROM vnps_surveys vn
-                                            JOIN volunteers v ON vn.volunteer_id = v.volunteer_id
-                                            WHERE v.team_lead = tl.team_lead_id
-                                        ) AS TeamVNPS,
+    -- ✅ Team vNPS (NULL SAFE)
+    (
+        SELECT IFNULL(ROUND(AVG(vn.vnps_score), 0), 0)
+        FROM vnps_surveys vn
+        JOIN volunteers v ON vn.volunteer_id = v.volunteer_id
+        WHERE v.team_lead = tl.team_lead_id
+    ) AS TeamVNPS,
 
-                                        -- ✅ Retention Rate (SAFE DIVISION)
-                                        (
-                                            SELECT 
-                                                COUNT(CASE WHEN v.status = 'Active' THEN 1 END) * 100.0 
-                                                / NULLIF(COUNT(*), 0)
-                                            FROM volunteers v
-                                            WHERE v.team_lead = tl.team_lead_id
-                                        ) AS RetentionRate
+    -- ✅ Retention Rate (SAFE DIVISION)
+    (
+        SELECT 
+            ROUND(
+                COUNT(CASE WHEN v.status = 'Active' THEN 1 END) * 100.0 
+                / NULLIF(COUNT(*), 0),
+                2
+            )
+        FROM volunteers v
+        WHERE v.team_lead = tl.team_lead_id
+    ) AS RetentionRate
 
-                                    FROM team_leads tl
-                                    WHERE tl.status = 'Active';
-                                    ";
+FROM team_leads tl
+WHERE tl.status = 'Active';
+";
 
                 var result = (await connection.QueryAsync<TeamLeadPerformanceDTO>(query)).ToList();
 
@@ -549,7 +560,7 @@ namespace RM_CMS.DAL.Pastors
                 (
                     SELECT COUNT(*) 
                     FROM escalations 
-                    WHERE escalation_reason = 'Financial Crisis'
+                    WHERE outcome = 'Benevolence Provided'
                       AND escalation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
                       AND escalation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
                 ) as BenevolenceCount,
