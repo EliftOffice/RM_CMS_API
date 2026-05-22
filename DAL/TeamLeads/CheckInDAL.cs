@@ -70,14 +70,21 @@ namespace RM_CMS.DAL.TeamLeads
             NOW()
         );";
 
-                var checkInDate = dto.CheckInDate ?? DateTime.UtcNow;
-                var nextCheckInDate = checkInDate.AddDays(30);
+                var checkInDate = DateTime.UtcNow;
+
+                var nextCheckInDate = dto.NextCheckInDate
+                    ?? checkInDate.AddDays(30);
+            
+
                 await connection.ExecuteAsync(insertQuery, new
                 {
                     CheckInId = checkInId,
                     dto.VolunteerId,
                     dto.TeamLeadId,
+
+                    // ✅ always today's date
                     CheckInDate = checkInDate,
+
                     dto.DurationMin,
                     MeetingType = dto.MeetingType ?? "Monthly",
                     dto.EmotionalTone,
@@ -89,11 +96,14 @@ namespace RM_CMS.DAL.TeamLeads
                     dto.BoundaryIssues,
                     dto.TrainingNeeds,
                     dto.ActionItems,
-                    nextCheckInDate
+
+                    // ✅ if null => today + 30 days
+                    NextCheckInDate = nextCheckInDate
+
                 }, transaction);
 
-                if (dto.CapacityAdjustment)
-                {  // 🔹 3. Update volunteer
+               // if (dto.CapacityAdjustment)
+               // {  // 🔹 3. Update volunteer
                     const string updateVolunteerQuery = @"
                                                             UPDATE volunteers SET
                                                                 last_check_in = @CheckInDate,
@@ -115,7 +125,7 @@ namespace RM_CMS.DAL.TeamLeads
                         dto.VolunteerId
                     }, transaction);
 
-                }
+              //  }
               
 
                 // 🔹 4. Commit

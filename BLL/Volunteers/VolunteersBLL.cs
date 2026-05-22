@@ -27,6 +27,9 @@ namespace RM_CMS.BLL.Volunteers
 
         Task<ApiResponse<List<VolunteerPendingAssignmentDto>>> GetVolunteersWithPendingAssignmentsAsync();
         Task<ApiResponse<bool>> SendTelegramMessageAsync(string chatId, string message);
+
+        Task<ApiResponse<List<CapacityBandDto>>> GetCapacityBandsAsync();
+        Task<ApiResponse<VolunteerDetailsDto>> GetVolunteerDetailsAsync(string volunteerId);
     }
     public class VolunteersBLL : IVolunteersBLL
     {
@@ -444,6 +447,30 @@ namespace RM_CMS.BLL.Volunteers
                     $"Error sending telegram message: {ex.Message}",
                     false
                 );
+            }
+        }
+
+        public async Task<ApiResponse<List<CapacityBandDto>>> GetCapacityBandsAsync()
+        {
+            try
+            {
+                return await _volunteersDAL.GetCapacityBandsAsync();
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<CapacityBandDto>>(ResponseType.Error, $"Error retrieving capacity bands: {ex.Message}", null);
+            }
+        }
+
+        public async Task<ApiResponse<VolunteerDetailsDto>> GetVolunteerDetailsAsync(string volunteerId)
+        {
+            try
+            {
+                return await _volunteersDAL.GetVolunteerDetailsByIdAsync(volunteerId);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<VolunteerDetailsDto>(ResponseType.Error, $"Error retrieving volunteer details: {ex.Message}", null);
             }
         }
     }

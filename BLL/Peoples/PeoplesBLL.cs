@@ -43,29 +43,30 @@ namespace RM_CMS.BLL.Peoples
                 var result = await SaveNewVisitorAsync(createDto);
                 if (result.ResponseType != ResponseType.Success)
                     return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"Error saving visitor: {result.Message}", new AssignedVolunteerDTO());
-                else
-                {
-                    if (createDto.locationType != null && createDto.locationType != string.Empty && createDto.locationType.ToLower() == "local")
-                    {
-                        var res = await _volunteersBLL.AssignToVolunteerAsync(result.Data.PersonId);
-                        if (res.ResponseType != ResponseType.Success)
-                        {
-                            return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"People Saved Succefully But Error assigning volunteer: {res.Message}", new AssignedVolunteerDTO());
-                        }
+                    return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Success, $"{result.Message}", new AssignedVolunteerDTO());
+                //else
+                //{
+                //    if (createDto.locationType != null && createDto.locationType != string.Empty && createDto.locationType.ToLower() == "local")
+                //    {
+                //        var res = await _volunteersBLL.AssignToVolunteerAsync(result.Data.PersonId);
+                //        if (res.ResponseType != ResponseType.Success)
+                //        {
+                //            return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error, $"People Saved Succefully But Error assigning volunteer: {res.Message}", new AssignedVolunteerDTO());
+                //        }
 
-                        else
-                        {
-                            res.Data.people_id = result.Data.PersonId;
-                            res.Data.people_name = result.Data.FirstName + " " + result.Data.LastName;
-                            return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Success, $"Visitor saved and assigned to {res.Data.last_name + " " + res.Data.first_name}", res.Data);
+                //        else
+                //        {
+                //            res.Data.people_id = result.Data.PersonId;
+                //            res.Data.people_name = result.Data.FirstName + " " + result.Data.LastName;
+                //            return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Success, $"Visitor saved and assigned to {res.Data.last_name + " " + res.Data.first_name}", res.Data);
 
-                        }
-                    }
-                    else
-                    {
-                        return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Success, $"Visitor saved successfully but not assigned to volunteer as location type is not local", new AssignedVolunteerDTO());
-                    }
-                }
+                //        }
+                //    }
+                //    else
+                //    {
+                //        return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Success, $"Visitor saved successfully but not assigned to volunteer as location type is not local", new AssignedVolunteerDTO());
+                //    }
+                //}
             }
             catch (Exception ex)
             {

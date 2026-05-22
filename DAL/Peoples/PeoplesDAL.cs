@@ -713,14 +713,14 @@ WHERE person_id = @PersonId;
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
                     const string query = @"
-                                            SELECT person_id
-                                            FROM people
-                                            WHERE follow_up_status = @FollowUpStatus
-                                              AND location_type = 'Local'
-                                              AND created_at >= NOW() - INTERVAL 7 DAY
-                                              AND created_at < CURDATE() + INTERVAL 2 DAY
-                                            ORDER BY created_at DESC;
-                                        ";
+    SELECT person_id
+    FROM people
+    WHERE follow_up_status = @FollowUpStatus
+      AND UPPER(location_type) = 'LOCAL'
+      AND created_at >= NOW() - INTERVAL 7 DAY
+      AND created_at < CURDATE() + INTERVAL 2 DAY
+    ORDER BY created_at DESC;
+";
 
                     var personIds = await connection.QueryAsync<string>(
                         query,

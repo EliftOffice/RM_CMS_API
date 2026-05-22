@@ -27,9 +27,23 @@
 
     // ✅ ACKNOWLEDGE
     $("#ackBtn").click(function () {
+
         $.post(API_BASE_URL + "/escalations/acknowledge/" + id)
-            .done(res => showMessage(res.message, "success"))
+
+            .done(res => {
+
+                showMessage(res.message, "success");
+
+                // ✅ hide details div
+             //   $("#detailsDiv").hide();
+
+                // ✅ show resolve div
+               // $("#resolveDiv").show();
+
+            })
+
             .fail(xhr => showMessage(getError(xhr), "error"));
+
     });
 
     // ✅ RESOLVE

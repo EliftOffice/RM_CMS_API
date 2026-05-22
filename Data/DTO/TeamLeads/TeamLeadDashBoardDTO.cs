@@ -168,7 +168,9 @@
         public string VolunteerId { get; set; }
         public string PersonId { get; set; }
         public string PersonFirstName { get; set; }
+        public string VolunteerLastName { get; set; }
         public string PersonLastName { get; set; }
+        public string VolunteerFirstName { get; set; }
         public string FollowUpId { get; set; }
         public string ContactStatus { get; set; }
         public string ResponseType { get; set; }

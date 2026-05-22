@@ -115,7 +115,7 @@
         }
 
         .btn-save {
-            width: 100%;
+            width: 35%;
             padding: 13px;
             background: #1a5c4a;
             color: #fff;
@@ -150,30 +150,34 @@
         <input type="hidden" id="team_lead_id" />
 
         <!-- Visible Names -->
-        <div class="form-group">
-            <label for="volunteer_name">Volunteer</label>
-            <input type="text" id="volunteer_name" readonly />
+        <div class="d-flex flex-wrap gap-4">
+
+            <div>
+                <strong>Volunteer:</strong>
+                <span id="volunteer_name"></span>
+            </div>
+
+            <div>
+                <strong>Team Lead:</strong>
+                <span id="team_lead_name"></span>
+            </div>
+            <br />
         </div>
 
-        <div class="form-group">
-            <label for="team_lead_name">Team Lead</label>
-            <input type="text" id="team_lead_name" readonly />
-        </div>
-
-        <div class="form-group">
-            <label>Check-In Date</label>
-            <input type="date" id="check_in_date" />
-        </div>
+        <!--<div class="form-group">
+        <label>Check-In Date</label>
+        <input type="date" id="check_in_date" />
+    </div>-->
 
         <div class="form-group">
             <label>Duration (minutes)</label>
-            <input type="number" id="duration_min" placeholder="30" min="1" />
+            <input type="number" id="duration_min" min="1" />
         </div>
 
         <div class="form-group">
             <label>Meeting Type</label>
-            <select id="meeting_type">
-                <option value="Monthly">Monthly</option>
+            <select id="meeting_type" disabled>
+                <option selected="selected" value="Monthly">Monthly</option>
                 <option value="Bi-Weekly">Bi-Weekly</option>
                 <option value="Ad-Hoc">Ad-Hoc</option>
                 <option value="Onboarding">Onboarding</option>
@@ -211,27 +215,6 @@
             <label>New Capacity Band</label>
 
             <select id="new_capacity_band">
-
-                <option value="">Select Capacity</option>
-
-                <option value="Consistent"
-                        data-min="4"
-                        data-max="6">
-                    Consistent (4-6)
-                </option>
-
-                <option value="Balanced"
-                        data-min="2"
-                        data-max="3">
-                    Balanced (2-3)
-                </option>
-
-                <option value="Limited"
-                        data-min="1"
-                        data-max="2">
-                    Limited (1-2)
-                </option>
-
             </select>
 
         </div>
@@ -240,6 +223,17 @@
             <input type="checkbox" id="follow_up_needed" />
             <label for="follow_up_needed">Follow-Up Needed</label>
         </div>
+        <!--<div class="section-label">Next Steps</div>-->
+        <div id="nextcheckindate" class="form-group " style="display:none">
+            <label>Next Check-In Date</label>
+            <input type="date" id="next_check_in_date" />
+        </div>
+        <div id="action_itemsDiv" class="form-group " style="display:none">
+            <label>Action Items</label>
+            <textarea id="action_items" placeholder="Action items from this meeting…"></textarea>
+        </div>
+
+
 
         <!-- Performance -->
         <div class="section-label">Performance Discussion</div>
@@ -260,19 +254,11 @@
         </div>
 
         <!-- Next Steps -->
-        <div class="section-label">Next Steps</div>
 
-        <div class="form-group">
-            <label>Action Items</label>
-            <textarea id="action_items" placeholder="Action items from this meeting…"></textarea>
-        </div>
 
-        <div class="form-group">
-            <label>Next Check-In Date</label>
-            <input type="date" id="next_check_in_date" />
-        </div>
 
-        <button class="btn-save" id="saveBtn">Save</button>
+
+        <button style="margin-left:30%" class="btn-save" id="saveBtn">Save</button>
         <p id="message"></p>
 
     </div>

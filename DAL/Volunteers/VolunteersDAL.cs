@@ -1,4 +1,4 @@
-﻿﻿using Dapper;
+﻿using Dapper;
 using RM_CMS.DAL.CommonDAL;
 using RM_CMS.DAL.Peoples;
 using RM_CMS.Data;
@@ -34,7 +34,8 @@ namespace RM_CMS.DAL.Volunteers
         Task<ApiResponse<TeamLeadLookupDto>> GetUserByMobileAsync(string mobile);
         Task SendTelegramMessageAsync(string chatId, string message);
         Task<ApiResponse<List<VolunteerPendingAssignmentDto>>> GetVolunteersWithPendingAssignmentsAsync();
-
+        Task<ApiResponse<List<CapacityBandDto>>> GetCapacityBandsAsync();
+        Task<ApiResponse<VolunteerDetailsDto>> GetVolunteerDetailsByIdAsync(string volunteerId);
     }
 
     public class VolunteersDAL : IVolunteersDAL
@@ -190,7 +191,7 @@ namespace RM_CMS.DAL.Volunteers
 
 📌 మీకు కొత్త Follow-Up కేటాయించబడింది.
 
-ఈ link open చేసి complete చేయండి:
+ఈ link openించి complete చేయండి:
 👉 https://rmoffice.online
 
 🙏 ధన్యవాదాలు!
@@ -1221,6 +1222,61 @@ ORDER BY PendingAssignmentsCount DESC;
                     $"Error retrieving volunteers: {ex.Message}",
                     null
                 );
+            }
+        }
+
+        public async Task<ApiResponse<List<CapacityBandDto>>> GetCapacityBandsAsync()
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+                const string q = @"
+                    SELECT band_name AS BandName, min_per_week AS MinPerWeek, max_per_week AS MaxPerWeek, description
+                    FROM capacity_bands
+                    ORDER BY min_per_week DESC;";
+
+                var list = (await connection.QueryAsync<CapacityBandDto>(q)).ToList();
+
+                if (list == null || !list.Any())
+                    return new ApiResponse<List<CapacityBandDto>>(ResponseType.Warning, "No capacity bands found", new List<CapacityBandDto>());
+
+                return new ApiResponse<List<CapacityBandDto>>(ResponseType.Success, "Capacity bands retrieved", list);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<CapacityBandDto>>(ResponseType.Error, $"Error fetching capacity bands: {ex.Message}", null);
+            }
+        }
+
+        public async Task<ApiResponse<VolunteerDetailsDto>> GetVolunteerDetailsByIdAsync(string volunteerId)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+                const string q = @"
+                    SELECT v.volunteer_id AS VolunteerId,
+                           v.first_name AS FirstName,
+                           v.last_name AS LastName,
+                           v.phone AS Phone,
+                           v.team_lead AS TeamLeadId,
+                           CONCAT(tl.first_name, ' ', tl.last_name) AS TeamLeadName,
+                           v.capacity_band AS CapacityBand,
+                           v.capacity_min AS CapacityMin,
+                           v.capacity_max AS CapacityMax
+                    FROM volunteers v
+                    LEFT JOIN team_leads tl ON tl.team_lead_id = v.team_lead
+                    WHERE v.volunteer_id = @VolunteerId
+                    LIMIT 1;";
+
+                var dto = await connection.QueryFirstOrDefaultAsync<VolunteerDetailsDto>(q, new { VolunteerId = volunteerId });
+                if (dto == null)
+                    return new ApiResponse<VolunteerDetailsDto>(ResponseType.Warning, "Volunteer not found", null);
+
+                return new ApiResponse<VolunteerDetailsDto>(ResponseType.Success, "Volunteer details retrieved", dto);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<VolunteerDetailsDto>(ResponseType.Error, $"Error fetching volunteer details: {ex.Message}", null);
             }
         }
     }

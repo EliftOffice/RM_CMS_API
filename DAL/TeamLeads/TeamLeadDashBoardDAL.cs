@@ -707,19 +707,56 @@ ORDER BY e.escalation_tier DESC, e.escalation_date;
 
                 // var targetWeek = week ?? ISOWeek.GetWeekOfYear(DateTime.Now);
                 // f.week_number = @Week
-               // AND
+                // AND
+
+                //const string q = @"
+                //SELECT f.follow_up_id FollowUpId, f.person_id PersonId, p.first_name PersonFirstName, p.last_name PersonLastName,
+                //       f.volunteer_id VolunteerId, f.contact_status ContactStatus, f.response_type ResponseType,
+                //      f.attempt_date AS AttemptDate, f.notes Notes
+                //FROM follow_ups f
+                //JOIN people p ON p.person_id = f.person_id
+                //WHERE f.escalation_appropriate='Not-Assessed' and f.volunteer_id IN (
+                //        SELECT volunteer_id FROM volunteers WHERE team_lead = @TeamLeadId
+                //      )
+                //ORDER BY f.volunteer_id, f.attempt_date DESC, f.attempt_time DESC
+                //";
 
                 const string q = @"
-                SELECT f.follow_up_id FollowUpId, f.person_id PersonId, p.first_name PersonFirstName, p.last_name PersonLastName,
-                       f.volunteer_id VolunteerId, f.contact_status ContactStatus, f.response_type ResponseType,
-                      f.attempt_date AS AttemptDate, f.notes Notes
-                FROM follow_ups f
-                JOIN people p ON p.person_id = f.person_id
-                WHERE f.escalation_appropriate='Not-Assessed' and f.volunteer_id IN (
-                        SELECT volunteer_id FROM volunteers WHERE team_lead = @TeamLeadId
-                      )
-                ORDER BY f.volunteer_id, f.attempt_date DESC, f.attempt_time DESC
-                ";
+SELECT 
+    f.follow_up_id AS FollowUpId,
+    f.person_id AS PersonId,
+    p.first_name AS PersonFirstName,
+    p.last_name AS PersonLastName,
+
+    f.volunteer_id AS VolunteerId,
+    v.first_name AS VolunteerFirstName,
+    v.last_name AS VolunteerLastName,
+
+    f.contact_status AS ContactStatus,
+    f.response_type AS ResponseType,
+    f.attempt_date AS AttemptDate,
+    f.notes AS Notes
+
+FROM follow_ups f
+
+JOIN people p 
+    ON p.person_id = f.person_id
+
+JOIN volunteers v
+    ON v.volunteer_id = f.volunteer_id
+
+WHERE f.escalation_appropriate = 'Not-Assessed'
+AND f.volunteer_id IN (
+    SELECT volunteer_id 
+    FROM volunteers 
+    WHERE team_lead = @TeamLeadId
+)
+
+ORDER BY 
+    f.volunteer_id,
+    f.attempt_date DESC,
+    f.attempt_time DESC
+";
 
                 var list = await connection.QueryAsync<TeamHuddleFollowUpDTO>(q, new {  TeamLeadId = teamLeadId });
 

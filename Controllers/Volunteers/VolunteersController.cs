@@ -259,5 +259,34 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
+        [HttpGet("capacity-bands")]
+        public async Task<ActionResult<ApiResponse<List<CapacityBandDto>>>> GetCapacityBands()
+        {
+            try
+            {
+                var result = await _VolunteersBLL.GetCapacityBandsAsync();
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching capacity bands");
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<List<CapacityBandDto>>(ResponseType.Error, "Error retrieving capacity bands", null));
+            }
+        }
+
+        [HttpGet("GetVolunteerDetails/{volunteerId}")]
+        public async Task<ActionResult<ApiResponse<VolunteerDetailsDto>>> GetVolunteerDetails(string volunteerId)
+        {
+            try
+            {
+                var result = await _VolunteersBLL.GetVolunteerDetailsAsync(volunteerId);
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching volunteer details");
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<VolunteerDetailsDto>(ResponseType.Error, "Error retrieving volunteer details", null));
+            }
+        }
     }
 }

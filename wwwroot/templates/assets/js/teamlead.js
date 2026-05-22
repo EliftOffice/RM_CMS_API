@@ -288,7 +288,7 @@ $(function () {
     //}
 
     function goToCheckIns(id, teamLeadId, vName, tName) {
-        const url = `CheckIns.html?id=${id}&teamLeadId=${teamLeadId}&vName=${encodeURIComponent(vName)}&tName=${encodeURIComponent(tName)}`;
+        const url = `CheckIns.html?id=${id}&teamLeadId=${teamLeadId}`;
 
         openInModal(url, 'CheckIns');
     }
@@ -348,6 +348,7 @@ $(function () {
                     const rows = res.data.map(r => `
     <tr>
                               
+        <td>${r.volunteerFirstName || r.VolunteerFirstName} ${r.volunteerLastName || r.VolunteerLastName}</td>
         <td>${r.personFirstName || r.PersonFirstName} ${r.personLastName || r.PersonLastName}</td>
         <td>${r.contactStatus || r.ContactStatus}</td>
         <td>${r.responseType || r.ResponseType}</td>

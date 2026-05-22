@@ -452,7 +452,7 @@
 <body>
 
     <!-- Navbar -->
-    <nav class="site-navbar">
+    <!--<nav class="site-navbar">
         <a class="navbar-brand" href="#">
             <img src="../assets/Images/logo.jpeg" alt="Logo" class="navbar-logo"
                  onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
@@ -466,7 +466,7 @@
 
     <div>
         <a class="page-eyebrow" href="TeamLeadDashboard.html"> Back</a>
-    </div>
+    </div>-->
     <div class="page-wrap">
 
         <p class="page-eyebrow">Case Management</p>
@@ -474,7 +474,7 @@
         <div class="page-divider"></div>
 
         <!-- ── Details Card ── -->
-        <div class="form-card">
+        <div id="detailsDiv" class="form-card">
             <div class="form-card-header">
                 <div class="form-card-icon">📋</div>
                 <h2 class="form-card-title">Case Information</h2>
@@ -508,22 +508,24 @@
                     <span class="detail-label">Description</span>
                     <span class="detail-value" id="desc">—</span>
                 </div>
+
+            </div>
+            <div class="form-card-body" style="text-align:center">
+                <button id="ackBtn">Acknowledge</button>
             </div>
         </div>
-
+       
         <!-- ── Acknowledge Card ── -->
-        <div class="form-card">
+        <!--<div class="form-card">
             <div class="form-card-header">
                 <div class="form-card-icon">✅</div>
                 <h2 class="form-card-title">Actions</h2>
             </div>
-            <div class="form-card-body">
-                <button id="ackBtn">Acknowledge</button>
-            </div>
-        </div>
+
+        </div>-->
 
         <!-- ── Resolve Card ── -->
-        <div class="form-card">
+        <div id="resolveDiv" class="form-card" style="display:">
             <div class="form-card-header">
                 <div class="form-card-icon">🔒</div>
                 <h2 class="form-card-title">Resolve / Refer / Close</h2>
@@ -585,7 +587,7 @@
             const id = new URLSearchParams(window.location.search).get("id");
 
             if (!id) {
-                alert("Invalid escalation ID");
+                showToast('Invalid escalation ID', 'warning');
                 return;
             }
 
@@ -595,25 +597,32 @@
             function loadEscalation(id) {
                 $.get(API_BASE_URL + "/escalations/" + id)
                     .done(res => {
-                        const e = res.data;                        
+                        const e = res.data;
+
                         $("#escId").text(e.escalationId);
                         $("#personId").text(e.personName);
-                        $("#personPhone").text( '📞 '+e.personPhone);
+                        $("#personPhone").text('📞 ' + e.personPhone);
                         $("#reason").text(e.escalationReason);
                         $("#tier").text(e.escalationTier);
                         $("#status").text(e.status);
                         $("#desc").text(e.description);
+
+                        // ✅ SUCCESS TOAST
+                       // showToast('Escalation loaded successfully', 'success');
                     })
-                    .fail(() => alert("Failed to load"));
+                    .fail(() => {
+                        showToast("Failed to load escalation", "error");
+                    });
             }
 
             // ✅ ACKNOWLEDGE
             $("#ackBtn").click(function () {
                 $.post(API_BASE_URL + "/escalations/acknowledge/" + id)
-                    .done(res => showMessage(res.message, "success"))
-                    .fail(xhr => showMessage(getError(xhr), "error"));
+                    .done(res => showToast(res.message, "success"))
+                    .fail(xhr => showToast(getError(xhr), "error"));
             });
 
+            // ✅ RESOLVE
             // ✅ RESOLVE
             $("#resolveBtn").click(function () {
 
@@ -627,7 +636,7 @@
                 };
 
                 if (!payload.status || !payload.outcome) {
-                    showMessage("Status & Outcome required", "error");
+                    showToast("Status & Outcome required", "warning");
                     return;
                 }
 
@@ -636,19 +645,23 @@
                     method: "POST",
                     contentType: "application/json",
                     data: JSON.stringify(payload),
-                    success: res => showMessage(res.message, "success"),
-                    error: xhr => showMessage(getError(xhr), "error")
+
+                    success: res => {
+
+                        showToast(res.message, "success");
+
+                        // ✅ Parent modal close
+                        window.parent.$('#esclationModel').modal('hide');
+
+                        // OPTIONAL → refresh parent table/page
+                        // window.parent.location.reload();
+                    },
+
+                    error: xhr => showToast(getError(xhr), "error")
                 });
             });
 
             // 🔧 HELPERS
-            function showMessage(msg, type) {
-                $("#message")
-                    .removeClass()
-                    .addClass(type)
-                    .text(msg);
-            }
-
             function getError(xhr) {
                 return xhr.responseJSON?.message || "Error occurred";
             }
