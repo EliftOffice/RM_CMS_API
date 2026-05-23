@@ -1,7 +1,7 @@
 ﻿
 $(document).ready(function () {
     sessionStorage.setItem("login_otp", "");
-   
+
     setLoginSession(false);
 
     let currentVolunteerId = "";
@@ -9,13 +9,13 @@ $(document).ready(function () {
 
     // ================= LOGIN =================
     $('#loginForm').submit(function (e) {
-        $('#loadingOverlay').show();
+       // $('#loadingOverlay').show();
 
         if (!sessionStorage.getItem("login_otp") == "") {
             $('#loadingOverlay').hide();
             return false;
         }
-      
+
 
         e.preventDefault();
 
@@ -40,26 +40,41 @@ $(document).ready(function () {
 
                 currentVolunteerId =
                     volunteer.id;
+                var role = volunteer.role;
+                if (currentMobile = mobile) {
 
-                currentMobile = mobile;
+                    Navigation(currentVolunteerId, role);
+
+
+                  
+                }
+                else {
+                    showToast('Mobile number mismatch. Contact admin.', 'error');
+                }
 
                 // Demo OTP
-                const otp = volunteer.otp;
+                // const otp = volunteer.otp;
 
-                sessionStorage.setItem("login_otp", otp);
-                sessionStorage.setItem("login_role", volunteer.role);
+                // sessionStorage.setItem("login_otp", otp);
+                // sessionStorage.setItem("login_role", volunteer.role);
 
-                showToast('📩 OTP sent to Telegram successfully', 'success');
+                // showToast('📩 OTP sent to Telegram successfully', 'success');
 
                 // Hide mobile section
-                $('#mobileSection').hide();
+                //  $('#mobileSection').hide();
 
                 // Show OTP section
-                $('#otpSection').fadeIn();
+                //  $('#otpSection').fadeIn();
 
                 // Focus first OTP
-                $('.otp-input').first().focus();
-                autoFillFromClipboard();
+                // $('.otp-input').first().focus();
+                // autoFillFromClipboard();
+
+
+
+
+
+
 
             } else {
                 $('#loadingOverlay').hide();
@@ -157,7 +172,46 @@ $(document).ready(function () {
 
     });
 
+    function Navigation(currentVolunteerId, role) {
 
+        setLoginSession(true);
+        let redirectUrl = "";
+
+        if (role === "volunteer") {
+
+            redirectUrl = `../../templates/Volunteers/Assignments.html?volunteerid=${currentVolunteerId}`;
+
+        }
+        else if (role === "TeamLead") {
+
+            redirectUrl = `../../templates/TeamLeads/TeamLeadDashboard.html?teamleadid=${currentVolunteerId}`;
+
+        }
+        else if (role === "Pastor") {
+
+            redirectUrl = `../../templates/Pastor/Dashboard.html`;
+
+        }
+        else if (role === "Admin") {
+
+            redirectUrl = `../../templates/Admin/siteadmin.html`;
+
+        }
+        else {
+            $('#loadingOverlay').hide();
+            showToast('Unknown role. Contact admin', 'error');
+            return;
+        }
+
+        showToast('✅ Login successful', 'success');
+
+        setTimeout(() => {
+
+            window.location.href = redirectUrl;
+            return false;
+
+        }, 800);
+    }
     // ================= LOAD VOLUNTEERS =================
     function loadVolunteers() {
 

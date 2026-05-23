@@ -703,7 +703,7 @@ WHERE LOWER(email) = @Email;";
                     else
                     {
                         volunteers[0].OTP = GenerateOtp();                       
-                        SendTelegramMessageAsync(volunteers[0].ChatID, $" <b>{volunteers[0].OTP}</b> : is  Your RM CMS secure login OTP ;  Please do not share this code ⚠️.");
+                       // SendTelegramMessageAsync(volunteers[0].ChatID, $" <b>{volunteers[0].OTP}</b> : is  Your RM CMS secure login OTP ;  Please do not share this code ⚠️.");
                     }
 
                     return new ApiResponse<List<VolunteerLookupDto>>(
@@ -1034,7 +1034,7 @@ WHERE LOWER(email) = @Email;";
                 // Generate OTP
                 teamLead.OTP = GenerateOtp();
                 string Message = $"  <b>{teamLead.OTP}</b> : is  Your RM CMS secure login OTP ; Please do not share this code ⚠️.";
-                var res =SendTelegramMessageAsync(teamLead.ChatID, Message);
+              //  var res =SendTelegramMessageAsync(teamLead.ChatID, Message);
 
 
                 // Send Telegram Message
@@ -1101,7 +1101,7 @@ WHERE LOWER(email) = @Email;";
                 // Generate OTP
                 teamLead.OTP = GenerateOtp();
                 string Message = $"  <b>{teamLead.OTP}</b> : is  Your RM CMS secure login OTP ;  Please do not share this code ⚠️.";
-                var res = SendTelegramMessageAsync(teamLead.ChatID, Message);
+               // var res = SendTelegramMessageAsync(teamLead.ChatID, Message);
 
 
                 // Send Telegram Message
