@@ -214,12 +214,12 @@ namespace RM_CMS.DAL.Events
                         e.radius AS Radius,
                         CASE
                             WHEN e.recurrence_type IN ('weekly', 'every_sunday') THEN
-                                TIMESTAMP(UTC_DATE(), TIME(e.start_time))
+                                TIMESTAMP(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')), TIME(e.start_time))
                             ELSE e.start_time
                         END AS StartTime,
                         CASE
                             WHEN e.recurrence_type IN ('weekly', 'every_sunday') THEN
-                                TIMESTAMP(UTC_DATE(), TIME(e.end_time))
+                                TIMESTAMP(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')), TIME(e.end_time))
                             ELSE e.end_time
                         END AS EndTime,
                         CASE
@@ -229,7 +229,7 @@ namespace RM_CMS.DAL.Events
                                 FROM attendances a
                                 WHERE a.user_id = @UserId
                                   AND a.event_id = e.id
-                                  AND a.attendance_day = UTC_DATE()
+                                  AND a.attendance_day = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))
                             ) THEN 1
                             ELSE 0
                         END AS IsAttended,
@@ -244,23 +244,23 @@ namespace RM_CMS.DAL.Events
                         (
                             e.recurrence_type = 'once'
                             AND e.is_active = 1
-                            AND UTC_TIMESTAMP() BETWEEN e.start_time AND e.end_time
+                            AND CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30') BETWEEN e.start_time AND e.end_time
                         )
                         OR
                         (
                             e.recurrence_type = 'weekly'
                             AND e.auto_activate_recurring = 1
-                            AND (e.repeat_until IS NULL OR UTC_DATE() <= e.repeat_until)
-                            AND DAYNAME(UTC_DATE()) = e.recurrence_day
-                            AND TIME(UTC_TIME()) BETWEEN TIME(e.start_time) AND TIME(e.end_time)
+                            AND (e.repeat_until IS NULL OR DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) <= e.repeat_until)
+                            AND DAYNAME(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))) = e.recurrence_day
+                            AND TIME(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) BETWEEN TIME(e.start_time) AND TIME(e.end_time)
                         )
                         OR
                         (
                             e.recurrence_type = 'every_sunday'
                             AND e.auto_activate_recurring = 1
-                            AND (e.repeat_until IS NULL OR UTC_DATE() <= e.repeat_until)
-                            AND DAYNAME(UTC_DATE()) = 'Sunday'
-                            AND TIME(UTC_TIME()) BETWEEN TIME(e.start_time) AND TIME(e.end_time)
+                            AND (e.repeat_until IS NULL OR DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) <= e.repeat_until)
+                            AND DAYNAME(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))) = 'Sunday'
+                            AND TIME(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) BETWEEN TIME(e.start_time) AND TIME(e.end_time)
                         )
                     ORDER BY e.start_time ASC;";
 
@@ -287,23 +287,23 @@ namespace RM_CMS.DAL.Events
                           (
                               e.recurrence_type = 'once'
                               AND e.is_active = 1
-                              AND UTC_TIMESTAMP() BETWEEN e.start_time AND e.end_time
+                              AND CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30') BETWEEN e.start_time AND e.end_time
                           )
                           OR
                           (
                               e.recurrence_type = 'weekly'
                               AND e.auto_activate_recurring = 1
-                              AND (e.repeat_until IS NULL OR UTC_DATE() <= e.repeat_until)
-                              AND DAYNAME(UTC_DATE()) = e.recurrence_day
-                              AND TIME(UTC_TIME()) BETWEEN TIME(e.start_time) AND TIME(e.end_time)
+                              AND (e.repeat_until IS NULL OR DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) <= e.repeat_until)
+                              AND DAYNAME(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))) = e.recurrence_day
+                              AND TIME(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) BETWEEN TIME(e.start_time) AND TIME(e.end_time)
                           )
                           OR
                           (
                               e.recurrence_type = 'every_sunday'
                               AND e.auto_activate_recurring = 1
-                              AND (e.repeat_until IS NULL OR UTC_DATE() <= e.repeat_until)
-                              AND DAYNAME(UTC_DATE()) = 'Sunday'
-                              AND TIME(UTC_TIME()) BETWEEN TIME(e.start_time) AND TIME(e.end_time)
+                              AND (e.repeat_until IS NULL OR DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) <= e.repeat_until)
+                              AND DAYNAME(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))) = 'Sunday'
+                              AND TIME(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) BETWEEN TIME(e.start_time) AND TIME(e.end_time)
                           )
                       );";
 
