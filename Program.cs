@@ -62,6 +62,18 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.DAL.Pastors.IPastorDashboardDAL, RM_CMS.DAL.Pastors.PastorDashboardDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.Pastors.IPastorDashboardBLL, RM_CMS.BLL.Pastors.PastorDashBoardBLL>();
 
+            // Register Users Module
+            builder.Services.AddScoped<RM_CMS.DAL.Users.IUsersDAL, RM_CMS.DAL.Users.UsersDAL>();
+            builder.Services.AddScoped<RM_CMS.BLL.Users.IUsersBLL, RM_CMS.BLL.Users.UsersBLL>();
+
+            // Register Events Module
+            builder.Services.AddScoped<RM_CMS.DAL.Events.IEventsDAL, RM_CMS.DAL.Events.EventsDAL>();
+            builder.Services.AddScoped<RM_CMS.BLL.Events.IEventsBLL, RM_CMS.BLL.Events.EventsBLL>();
+
+            // Register Attendance Module
+            builder.Services.AddScoped<RM_CMS.DAL.Attendance.IAttendanceDAL, RM_CMS.DAL.Attendance.AttendanceDAL>();
+            builder.Services.AddScoped<RM_CMS.BLL.Attendance.IAttendanceBLL, RM_CMS.BLL.Attendance.AttendanceBLL>();
+
             //Register CornJobs
             builder.Services.AddScoped<RM_CMS.BLL.Jobs.ICornJobsBLL,RM_CMS.BLL.Jobs.CornJobsBLL > ();
 
