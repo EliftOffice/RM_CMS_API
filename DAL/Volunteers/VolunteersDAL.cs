@@ -781,7 +781,7 @@ ORDER BY p.next_action_date;";
                         @CapacityMax,
                         'Active',
                         CURRENT_DATE,         
-                        CURRENT_DATE,         
+                        DATE_ADD(CURRENT_DATE, INTERVAL 30 DAY),         
                         NOW(),
                         NOW(),'Level 1',@TelegramChatId
                     );";
