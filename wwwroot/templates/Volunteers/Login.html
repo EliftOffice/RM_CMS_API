@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volunteer Login - RM CMS</title>
 
-    <link rel="icon" href="../../templates/assets/Images/favicon.ico">
+    <!--<link rel="icon" href="../../templates/assets/Images/favicon.ico">
     <link rel="icon" type="image/png" href="../../templates/assets/Images/logo.png">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -16,8 +16,32 @@
 
     <script src="../../templates/assets/js/toast.js"></script>
 
-    <script src="../../templates/assets/js/VolunteerLogin.js"></script>
-   
+    <script src="../../templates/assets/js/VolunteerLogin.js"></script>-->
+
+
+    <link rel="icon"
+          href="../../templates/assets/Images/favicon.ico"
+          asp-append-version="true">
+
+    <link rel="icon"
+          type="image/png"
+          href="../../templates/assets/Images/logo.png"
+          asp-append-version="true">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+          rel="stylesheet">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script src="../../templates/assets/js/api-config.js"
+            asp-append-version="true"></script>
+
+    <script src="../../templates/assets/js/toast.js"
+            asp-append-version="true"></script>
+
+    <script src="../../templates/assets/js/VolunteerLogin.js"
+            asp-append-version="true"></script>
+
 
     <style>
 
@@ -113,7 +137,7 @@
         }
 
         .vl-input {
-            font-size:25px !important;
+            font-size: 25px !important;
             width: 100%;
             padding: 10px 14px;
             border: 4px solid black;
@@ -124,12 +148,13 @@
             margin-bottom: 20px;
             background: #fff;
         }
+
         }
 
-            .vl-input:focus {
-                border-color: #085c40;
-                box-shadow: 0 0 0 3px rgba(8,92,64,0.08);
-            }
+        .vl-input:focus {
+            border-color: #085c40;
+            box-shadow: 0 0 0 3px rgba(8,92,64,0.08);
+        }
 
         .vl-btn-wrap {
             display: flex;
@@ -178,6 +203,7 @@
         #otpSection {
             display: none;
         }
+
         #loadingOverlay {
             display: none;
             position: fixed;

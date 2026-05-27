@@ -1,5 +1,10 @@
 ﻿
 $(document).ready(function () {
+
+    if (!sessionStorage.getItem("reloaded")) {
+        sessionStorage.setItem("reloaded", "1");
+        location.reload();
+    }
     sessionStorage.setItem("login_otp", "");
 
     setLoginSession(false);

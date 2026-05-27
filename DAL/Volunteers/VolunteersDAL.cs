@@ -44,13 +44,13 @@ namespace RM_CMS.DAL.Volunteers
         private readonly IConfiguration _configuration;
         private readonly ITelegram _telegram;
 
-        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory,IConfiguration config,ITelegram tel)
+        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory, IConfiguration config, ITelegram tel)
         {
             _dbConnectionFactory = dbConnectionFactory;
             _configuration = config;
             _telegram = tel;
         }
-        public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
+        public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsyncV1(string personId)
         {
             try
             {
@@ -180,7 +180,7 @@ namespace RM_CMS.DAL.Volunteers
                             transaction);
 
                         // 🔥 5. Send Telegram AFTER commit
-                       
+
 
                         transaction.Commit();
 
@@ -203,6 +203,234 @@ namespace RM_CMS.DAL.Volunteers
                         return new ApiResponse<AssignedVolunteerDTO>(
                             ResponseType.Success,
 
+                            "Volunteer assigned successfully",
+                            volunteer
+                        );
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<AssignedVolunteerDTO>(
+                    ResponseType.Error,
+                    $"Error assigning volunteer: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+
+        public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    // ✅ Open connection
+                    if (connection is System.Data.Common.DbConnection dbConn)
+                    {
+                        await dbConn.OpenAsync();
+                    }
+                    else
+                    {
+                        connection.Open();
+                    }
+
+                    // ✅ Get person details
+                    var response = await new PeoplesDAL(_dbConnectionFactory)
+                        .GetPersonByIdAsync(personId);
+
+                    if (response.Data == null)
+                    {
+                        return new ApiResponse<AssignedVolunteerDTO>(
+                            ResponseType.Error,
+                            "Person not found",
+                            null
+                        );
+                    }
+
+                    var campus = response.Data.Campus;
+
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        // =========================================================
+                        // STEP 1: Find Least Loaded Team Lead
+                        // =========================================================
+                        const string teamLeadQuery = @"
+                    SELECT 
+                        team_lead_id
+                    FROM volunteers
+                    WHERE status = 'Active'
+                      AND campus = @Campus
+                    GROUP BY team_lead_id
+                    ORDER BY 
+                        (
+                            SUM(current_assignments) * 1.0 
+                            / NULLIF(SUM(capacity_max), 0)
+                        ) ASC
+                    LIMIT 1
+                    FOR UPDATE;
+                ";
+
+                        var teamLeadId = await connection.QueryFirstOrDefaultAsync<string>(
+                            teamLeadQuery,
+                            new { Campus = campus },
+                            transaction
+                        );
+
+                        if (string.IsNullOrEmpty(teamLeadId))
+                        {
+                            transaction.Rollback();
+
+                            return new ApiResponse<AssignedVolunteerDTO>(
+                                ResponseType.Warning,
+                                "No available Team Leads",
+                                null
+                            );
+                        }
+
+                        // =========================================================
+                        // STEP 2: Find Best Volunteer Inside TL
+                        // =========================================================
+                        const string volunteerQuery = @"
+                    SELECT 
+                        volunteer_id,
+                        first_name,
+                        last_name,
+                        capacity_max,
+                        current_assignments,
+                        telegram_chat_id
+                    FROM volunteers
+                    WHERE status = 'Active'
+                      AND current_assignments < capacity_max
+                      AND campus = @Campus
+                      AND team_lead_id = @TeamLeadId
+                  ORDER BY
+    (
+        current_assignments * 1.0
+        / NULLIF(capacity_max, 0)
+    ) ASC,
+    COALESCE(last_assigned_at, '2000-01-01') ASC
+                    LIMIT 1
+                    FOR UPDATE;
+                ";
+
+                        var volunteer = await connection.QueryFirstOrDefaultAsync<AssignedVolunteerDTO>(
+                            volunteerQuery,
+                            new
+                            {
+                                Campus = campus,
+                                TeamLeadId = teamLeadId
+                            },
+                            transaction
+                        );
+
+                        if (volunteer == null)
+                        {
+                            transaction.Rollback();
+
+                            return new ApiResponse<AssignedVolunteerDTO>(
+                                ResponseType.Warning,
+                                "No available volunteers",
+                                null
+                            );
+                        }
+
+                        // =========================================================
+                        // STEP 3: Assign Person
+                        // Prevent Duplicate Assignment
+                        // =========================================================
+                        const string updatePerson = @"
+                    UPDATE people
+                    SET
+                        assigned_volunteer = @VolunteerId,
+                        assigned_date = NOW(),
+                        follow_up_status = 'ASSIGNED',
+                        next_action_date = NOW() + INTERVAL 48 HOUR
+                    WHERE person_id = @PersonId;
+                ";
+
+                        var affectedRows = await connection.ExecuteAsync(
+                            updatePerson,
+                            new
+                            {
+                                VolunteerId = volunteer.volunteer_id,
+                                PersonId = personId
+                            },
+                            transaction
+                        );
+
+                        // 🔴 Already assigned by another request
+                        if (affectedRows == 0)
+                        {
+                            transaction.Rollback();
+
+                            return new ApiResponse<AssignedVolunteerDTO>(
+                                ResponseType.Warning,
+                                "Person already assigned",
+                                null
+                            );
+                        }
+
+                        // =========================================================
+                        // STEP 4: Update Volunteer Stats
+                        // =========================================================
+                        const string updateVolunteer = @"
+                    UPDATE volunteers
+                    SET
+                        current_assignments = current_assignments + 1,
+                        total_assigned = total_assigned + 1,
+                        last_assigned_at = NOW(),
+                        completion_rate =
+                            CASE
+                                WHEN total_assigned = 0 THEN 0
+                                ELSE ROUND(
+                                    (total_completed * 100.0)
+                                    / (total_assigned + 1),
+                                    2
+                                )
+                            END
+                    WHERE volunteer_id = @VolunteerId;
+                ";
+
+                        await connection.ExecuteAsync(
+                            updateVolunteer,
+                            new
+                            {
+                                VolunteerId = volunteer.volunteer_id
+                            },
+                            transaction
+                        );
+
+                        // =========================================================
+                        // STEP 5: Commit Transaction
+                        // =========================================================
+                        transaction.Commit();
+
+                        // =========================================================
+                        // STEP 6: Send Telegram Message
+                        // =========================================================
+                        if (!string.IsNullOrEmpty(volunteer.telegram_chat_id))
+                        {
+                            string message = $@"
+🙏 Praise the Lord <b>{volunteer.first_name}</b> ,
+
+📌 మీకు కొత్త Follow-Up కేటాయించబడింది.
+
+ఈ link open చేసి complete చేయండి:
+👉 https://rmoffice.online
+
+🙏 ధన్యవాదాలు!
+";
+
+                            await SendTelegramMessageAsync(
+                                volunteer.telegram_chat_id,
+                                message
+                            );
+                        }
+
+                        return new ApiResponse<AssignedVolunteerDTO>(
+                            ResponseType.Success,
                             "Volunteer assigned successfully",
                             volunteer
                         );
@@ -570,7 +798,7 @@ ORDER BY p.next_action_date;";
                         volunteer.CapacityBand,
                         CapacityMin = capacity.Min,
                         CapacityMax = capacity.Max,
-                         volunteer.TelegramChatId
+                        volunteer.TelegramChatId
                     });
 
                     // 🔥 4. Fetch FULL DATA → MAP TO DTO (NO MANUAL MAPPING)
@@ -702,8 +930,8 @@ WHERE LOWER(email) = @Email;";
                     }
                     else
                     {
-                        volunteers[0].OTP = GenerateOtp();                       
-                       // SendTelegramMessageAsync(volunteers[0].ChatID, $" <b>{volunteers[0].OTP}</b> : is  Your RM CMS secure login OTP ;  Please do not share this code ⚠️.");
+                        volunteers[0].OTP = GenerateOtp();
+                        // SendTelegramMessageAsync(volunteers[0].ChatID, $" <b>{volunteers[0].OTP}</b> : is  Your RM CMS secure login OTP ;  Please do not share this code ⚠️.");
                     }
 
                     return new ApiResponse<List<VolunteerLookupDto>>(
@@ -775,8 +1003,8 @@ WHERE LOWER(email) = @Email;";
                     null
                 );
             }
-        }      
-        
+        }
+
         private async Task SendTelegramMessageAsyncv1(string chatId, string message)
         {
             try
@@ -816,10 +1044,10 @@ WHERE LOWER(email) = @Email;";
 
                 await client.GetAsync(url);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 // Optional: log error
-              
+
             }
         }
 
@@ -827,7 +1055,7 @@ WHERE LOWER(email) = @Email;";
         {
             try
             {
-               // var token = _configuration["Telegram:BotToken"];
+                // var token = _configuration["Telegram:BotToken"];
                 var token = _telegram.GetTelegramBotToken().Result.Data;
                 if (string.IsNullOrEmpty(token))
                     return new ApiResponse<TelegramChatDto>(ResponseType.Error, "Bot token not configured", null);
@@ -981,7 +1209,7 @@ WHERE LOWER(email) = @Email;";
                     await SendTelegramMessageAsync(telegramChatId, message);
                 }
 
-                    return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Success, "Manual assignment completed", assigned);
+                return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Success, "Manual assignment completed", assigned);
             }
             catch (Exception ex)
             {
@@ -1034,7 +1262,7 @@ WHERE LOWER(email) = @Email;";
                 // Generate OTP
                 teamLead.OTP = GenerateOtp();
                 string Message = $"  <b>{teamLead.OTP}</b> : is  Your RM CMS secure login OTP ; Please do not share this code ⚠️.";
-              //  var res =SendTelegramMessageAsync(teamLead.ChatID, Message);
+                //  var res =SendTelegramMessageAsync(teamLead.ChatID, Message);
 
 
                 // Send Telegram Message
@@ -1101,7 +1329,7 @@ WHERE LOWER(email) = @Email;";
                 // Generate OTP
                 teamLead.OTP = GenerateOtp();
                 string Message = $"  <b>{teamLead.OTP}</b> : is  Your RM CMS secure login OTP ;  Please do not share this code ⚠️.";
-               // var res = SendTelegramMessageAsync(teamLead.ChatID, Message);
+                // var res = SendTelegramMessageAsync(teamLead.ChatID, Message);
 
 
                 // Send Telegram Message
