@@ -1,8 +1,14 @@
 ﻿using Dapper;
+using Microsoft.AspNetCore.Connections;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Pastors;
+using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
+using TeamLeadPerformanceDTO = RM_CMS.Data.DTO.Pastors.TeamLeadPerformanceDTO;
+using TrendDTO = RM_CMS.Data.DTO.Pastors.TrendDTO;
+using PipelineHealthDTO = RM_CMS.Data.DTO.Pastors.PipelineHealthDTO;
+using EscalationReasonDTO = RM_CMS.Data.DTO.Pastors.EscalationReasonDTO;
 
 namespace RM_CMS.DAL.Pastors
 {
@@ -17,6 +23,8 @@ namespace RM_CMS.DAL.Pastors
         Task<ApiResponse<List<TrendDTO>>> GetTrendsAsync();
         Task<ApiResponse<ImpactDTO>> GetImpactAsync();
         Task<ApiResponse<DevelopmentPipelineDTO>> GetDevelopmentPipelineAsync();
+        Task<ApiResponse<List<EscalationPendingDTO>>> GetPastorCrisisEscalationsPendingAsync();
+        Task<ApiResponse<bool>> ReEscalateToTeamLeadAsync(string escalationId, string notes);
     }
 
     public class PastorDashboardDAL : IPastorDashboardDAL
@@ -670,6 +678,89 @@ WHERE tl.status = 'Active';
                 );
             }
         }
+
+        // 10. CRISIS ESCALATIONS PENDING (PASTOR VIEW)
+        public async Task<ApiResponse<List<EscalationPendingDTO>>> GetPastorCrisisEscalationsPendingAsync()
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                const string query = @"
+                    SELECT 
+                        e.escalation_id AS EscalationId,
+                        e.escalation_date AS EscalationDate,
+                        e.escalation_tier AS EscalationTier,
+                        e.escalation_reason AS EscalationReason,
+                        CONCAT(p.first_name, ' ', p.last_name) AS PersonName,
+                        CONCAT(v.first_name, ' ', v.last_name) AS VolunteerName,
+                        e.status AS Status,
+                        e.assigned_to AS AssignedTo,
+                        DATEDIFF(CURRENT_DATE, e.escalation_date) AS DaysPending,
+                        e.description AS Description
+                    FROM escalations e
+                    JOIN people p ON e.person_id = p.person_id
+                    JOIN volunteers v ON e.volunteer_id = v.volunteer_id
+                    WHERE e.status IN ('New', 'In Progress')
+                      AND e.escalation_tier = 'Emergency'
+                      AND (e.assigned_to IS NULL OR e.assigned_to != 'TeamLead')
+                    ORDER BY e.escalation_date DESC;
+                ";
+
+                var result = (await connection.QueryAsync<EscalationPendingDTO>(query)).ToList();
+
+                return new ApiResponse<List<EscalationPendingDTO>>(
+                    result.Any() ? ResponseType.Success : ResponseType.Warning,
+                    result.Any() ? "Crisis escalations retrieved successfully" : "No pending crisis escalations found",
+                    result
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<EscalationPendingDTO>>(
+                    ResponseType.Error,
+                    $"Error retrieving crisis escalations: {ex.Message}",
+                    new List<EscalationPendingDTO>()
+                );
+            }
+        }
+
+        // 11. RE-ESCALATE TO TEAM LEAD
+        public async Task<ApiResponse<bool>> ReEscalateToTeamLeadAsync(string escalationId, string notes)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+                const string query = @"
+                    UPDATE escalations
+                    SET assigned_to = 'TeamLead',
+                        resolution_notes = CONCAT(IFNULL(resolution_notes, ''), '\n[Pastor Note]: ', @Notes),
+                        status = 'In Progress',
+                        updated_at = NOW()
+                    WHERE escalation_id = @EscalationId;
+                ";
+
+                var rows = await connection.ExecuteAsync(query, new { EscalationId = escalationId, Notes = notes });
+
+                return new ApiResponse<bool>(
+                    rows > 0 ? ResponseType.Success : ResponseType.Warning,
+                    rows > 0 ? "Escalation successfully returned to Team Lead" : "Escalation not found or no changes made",
+                    rows > 0
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    $"Error re-escalating to Team Lead: {ex.Message}",
+                    false
+                );
+            }
+        }
+
+
+
+
 
 
     }

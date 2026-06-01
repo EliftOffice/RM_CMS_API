@@ -1,13 +1,19 @@
 ﻿using RM_CMS.DAL.Pastors;
 using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Pastors;
+using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
+using TeamLeadPerformanceDTO = RM_CMS.Data.DTO.Pastors.TeamLeadPerformanceDTO;
+using TrendDTO = RM_CMS.Data.DTO.Pastors.TrendDTO;
+using PipelineHealthDTO = RM_CMS.Data.DTO.Pastors.PipelineHealthDTO;
+using EscalationReasonDTO = RM_CMS.Data.DTO.Pastors.EscalationReasonDTO;
 
 namespace RM_CMS.BLL.Pastors
 {
     public interface IPastorDashboardBLL
     {
         Task<ApiResponse<PastorDTO>> GetPastorDashboardAsync();
+        Task<ApiResponse<bool>> ReEscalateToTeamLeadAsync(string escalationId, string notes);
     }
 
     public class PastorDashBoardBLL : IPastorDashboardBLL
@@ -30,6 +36,7 @@ namespace RM_CMS.BLL.Pastors
                 response.TeamLeadPerformance = await BuildTeamLeadPerformanceAsync();
                 response.PipelineHealth = await BuildPipelineHealthAsync();
                 response.Escalations = await BuildEscalationsAsync();
+                response.CrisisEscalationsPending = await BuildCrisisEscalationsPendingAsync();
                 response.Trends = await BuildTrendsAsync();
                 response.Impact = await BuildImpactAsync();
                 response.DevelopmentPipeline = await BuildDevelopmentPipelineAsync();
@@ -72,7 +79,7 @@ namespace RM_CMS.BLL.Pastors
         }
 
         // 2. KPIs
-        private async Task<KPIDashboardDTO> BuildKpisAsync(SystemHealthDTO systemHealth)
+        private async Task<KPIDashboardDTO> BuildKpisAsyncV1(SystemHealthDTO systemHealth)
         {
             var res = await _pastorDashboardDAL.GetKpisAsync();
             var kpi = res.Data;
@@ -127,6 +134,68 @@ namespace RM_CMS.BLL.Pastors
                 dto.VolunteerRetention,
                 dto.SystemVNPS
             };
+
+            dto.OnTargetCount = list.Count(x => x.Status == "🟢");
+            dto.TotalCount = list.Count;
+
+            return dto;
+        }
+
+        private async Task<KPIDashboardDTO> BuildKpisAsync(SystemHealthDTO systemHealth)
+        {
+            var res = await _pastorDashboardDAL.GetKpisAsync();
+            var kpi = res.Data;
+
+            var dto = new KPIDashboardDTO
+            {
+                CompletionRate = new KPIItemDTO
+                {
+                    Current = Convert.ToInt32(kpi.CompletionRateCurrent ?? 0),
+                    Target = 85,
+                    Trend = Convert.ToInt32((kpi.CompletionRateCurrent ?? 0) - (kpi.CompletionRateLast ?? 0)),
+                    Status = (kpi.CompletionRateCurrent ?? 0) >= 85 ? "🟢" : "🔴"
+                },
+                FirstContact48h = new KPIItemDTO
+                {
+                    Current = Convert.ToInt32(kpi.FirstContact48h ?? 0),
+                    Target = 90,
+                    Status = (kpi.FirstContact48h ?? 0) >= 90 ? "🟢" : "🔴"
+                },
+                EscalationRate = new KPIItemDTO
+                {
+                    Current = Convert.ToInt32(kpi.EscalationRate ?? 0),
+                    Target = 15,
+                    Status = (kpi.EscalationRate ?? 0) < 15 ? "🟢" : "🔴"
+                },
+                CrisisHandledSafely = new KPIItemDTO
+                {
+                    Current = Convert.ToInt32(kpi.CrisisHandledSafely ?? 100),
+                    Target = 100,
+                    Status = (kpi.CrisisHandledSafely ?? 0) == 100 ? "🟢" : "🔴"
+                },
+                VolunteerRetention = new KPIItemDTO
+                {
+                    Current = Convert.ToInt32(systemHealth.VolunteerRetention ?? 0),
+                    Target = 90,
+                    Status = (systemHealth.VolunteerRetention ?? 0) >= 90 ? "🟢" : "🔴"
+                },
+                SystemVNPS = new KPIItemDTO
+                {
+                    Current = Convert.ToInt32(systemHealth.SystemVNPS ?? 0),
+                    Target = 50,
+                    Status = (systemHealth.SystemVNPS ?? 0) >= 50 ? "🟢" : "🔴"
+                }
+            };
+
+            var list = new List<KPIItemDTO>
+    {
+        dto.CompletionRate,
+        dto.FirstContact48h,
+        dto.EscalationRate,
+        dto.CrisisHandledSafely,
+        dto.VolunteerRetention,
+        dto.SystemVNPS
+    };
 
             dto.OnTargetCount = list.Count(x => x.Status == "🟢");
             dto.TotalCount = list.Count;
@@ -295,6 +364,36 @@ namespace RM_CMS.BLL.Pastors
             }
 
             return alerts;
+        }
+
+        // 10. CRISIS ESCALATIONS PENDING
+        private async Task<List<EscalationPendingDTO>> BuildCrisisEscalationsPendingAsync()
+        {
+            var res = await _pastorDashboardDAL.GetPastorCrisisEscalationsPendingAsync();
+            return res.Data ?? new List<EscalationPendingDTO>();
+        }
+
+        public async Task<ApiResponse<bool>> ReEscalateToTeamLeadAsync(string escalationId, string notes)
+        {
+            try
+            {
+                // Validation
+                if (string.IsNullOrWhiteSpace(escalationId))
+                {
+                    return new ApiResponse<bool>(ResponseType.Error, "Escalation ID is required.", false);
+                }
+
+                if (string.IsNullOrWhiteSpace(notes))
+                {
+                    return new ApiResponse<bool>(ResponseType.Error, "Notes are required to return this back to the Team Lead.", false);
+                }
+
+                return await _pastorDashboardDAL.ReEscalateToTeamLeadAsync(escalationId, notes);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(ResponseType.Error, $"An error occurred while re-escalating: {ex.Message}", false);
+            }
         }
     }
 }

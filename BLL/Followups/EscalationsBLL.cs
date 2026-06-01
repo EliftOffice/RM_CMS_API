@@ -138,7 +138,7 @@ namespace RM_CMS.BLL.Followups
         }
 
         // ✅ STEP 6: RESOLVE / REFER / CLOSE
-        public async Task<ApiResponse<bool>> ResolveEscalationAsync(ResolveEscalationDTO dto)
+        public async Task<ApiResponse<bool>> ResolveEscalationAsyncV1(ResolveEscalationDTO dto)
         {
             try
             {
@@ -171,6 +171,62 @@ namespace RM_CMS.BLL.Followups
 
                 // 🔄 UPDATE PERSON STATUS (no need to block main result)
                 await _escalationsDAL.UpdatePersonStatusAsync(escalation.PersonId, "COMPLETE");
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    ex.Message,
+                    false
+                );
+            }
+        }
+
+        public async Task<ApiResponse<bool>> ResolveEscalationAsync(ResolveEscalationDTO dto)
+        {
+            try
+            {
+                if (dto == null || string.IsNullOrEmpty(dto.EscalationId))
+                    return new ApiResponse<bool>(ResponseType.Warning, "Invalid request", false);
+
+                // 🔍 Get escalation
+                var escalationResponse = await _escalationsDAL.GetEscalationByIdAsync(dto.EscalationId);
+
+                if (escalationResponse.ResponseType != ResponseType.Success || escalationResponse.Data == null)
+                    return new ApiResponse<bool>(ResponseType.Warning, "Escalation not found", false);
+
+                var escalation = escalationResponse.Data;
+
+                // 🔴 VALID STATUS
+                var allowedStatuses = new[] { "Resolved", "Referred Out", "Closed" };
+
+                if (!allowedStatuses.Contains(dto.Status))
+                    return new ApiResponse<bool>(ResponseType.Warning, "Invalid status", false);
+
+                if (escalation.Status == "Closed")
+                    return new ApiResponse<bool>(ResponseType.Warning, "Already closed", false);
+
+                // 🔴 OUTCOME REQUIRED ONLY FOR TEAM LEAD
+                if (dto.UpdatedByRole != "pastor" &&
+                    string.IsNullOrEmpty(dto.Outcome))
+                {
+                    return new ApiResponse<bool>(
+                        ResponseType.Warning,
+                        "Outcome is required",
+                        false
+                    );
+                }
+
+                // 💾 UPDATE ESCALATION
+                var result = await _escalationsDAL.ResolveEscalationFullAsync(dto);
+
+                // 🔄 UPDATE PERSON STATUS
+                await _escalationsDAL.UpdatePersonStatusAsync(
+                    escalation.PersonId,
+                    "COMPLETE"
+                );
 
                 return result;
             }

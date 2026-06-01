@@ -1,6 +1,24 @@
 ﻿
 $(document).ready(function () {
     loadDashboard();
+
+    loadPastorCrisisEscalations();
+
+    // 2. క్లిక్ చేసినప్పుడు Modal ఓపెన్ అవ్వడానికి ఈవెంట్ లిజినర్
+    $(document).on('click', '.escalation-item', function () {
+        const id = $(this).data('id');
+
+        // గమనిక: role=pastor పంపిస్తున్నాం, కాబట్టి ఆ పేజీలో రీ-ఎస్కిలేట్ బటన్ కనబడుతుంది
+        const url = `../TeamLeads/Escalations.html?id=${id}&role=pastor`;
+
+        $('#escIframe').attr('src', url);
+        $('#modalTitle').text('CRISIS ESCALATION DETAILS');
+
+        // Modal ఓపెన్ చేయడం
+        var modal = new bootstrap.Modal(document.getElementById('esclationModel'));
+        modal.show();
+    });
+
 });
 
 function loadDashboard() {
@@ -625,3 +643,46 @@ function buildAlertBlock(title, items) {
 
     return html;
 }
+
+// 3. API నుండి డేటా తెచ్చే ఫంక్షన్
+function loadPastorCrisisEscalations() {
+    $.ajax({
+        // మీ Pastors Controller లోని Dashboard ఏపీఐ ఎండ్ పాయింట్
+        url: API_BASE_URL + '/pastors/dashboard',
+        method: 'GET',
+        success: function (res) {
+            // రెస్పాన్స్ సక్సెస్ అయితే...
+            if (res && res.data) {
+                const data = res.data;
+                // బ్యాకెండ్ మోడల్ ప్రాపర్టీ పేరుని బట్టి క్యాపిటల్ లేదా స్మాల్ లెటర్
+                const escalationsData = (data.crisisEscalationsPending || data.CrisisEscalationsPending || []);
+
+                const escalations = escalationsData.map(e => {
+                    // API నుండి వచ్చే ప్రాపర్టీలు
+                    const escDate = new Date(e.escalationDate || e.EscalationDate).toDateString();
+                    const personName = e.personName || e.PersonName;
+                    const escId = e.escalationId || e.EscalationId;
+
+                    return `
+                    <div class="escalation-item" data-id="${escId}" style="cursor:pointer; padding:10px; margin-bottom:10px; border-radius:5px; border-left:4px solid red; background:#fff5f5;">
+                        <div class="blink-siren" style="display:inline-block;">🚨</div> 
+                        <strong>${personName}</strong> - Escalated on ${escDate}
+                    </div>`;
+                }).join('');
+
+                // డేటాను Div లోకి బైండ్ చేయడం
+                $('#crisisEscalationsDiv').html(escalations || '<p class="text-muted" style="text-align:center; padding: 20px;">✅ No pending crisis escalations.</p>');
+            } else {
+                $('#crisisEscalationsDiv').html('<p class="text-danger">Failed to load data.</p>');
+            }
+        },
+        error: function () {
+            $('#crisisEscalationsDiv').html('<p class="text-danger">Error connecting to server.</p>');
+        }
+    });
+}
+
+// 4. Modal క్లోజ్ చేసినప్పుడు లిస్ట్ ని రిఫ్రెష్ చేయడానికి (Optional)
+document.getElementById('esclationModel')?.addEventListener('hidden.bs.modal', function () {
+    loadPastorCrisisEscalations();
+});

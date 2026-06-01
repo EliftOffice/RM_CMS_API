@@ -377,7 +377,8 @@ namespace RM_CMS.DAL.Followups
                 resolution_notes = @Notes,
                 outcome = @Outcome,
                 resource_connected = @ResourceConnected,
-                follow_up_scheduled = @FollowUpScheduled
+                follow_up_scheduled = @FollowUpScheduled,
+assigned_to = @UpdatedByRole
             WHERE escalation_id = @EscalationId;";
 
                 using var connection = _dbConnectionFactory.GetConnection();
@@ -389,7 +390,8 @@ namespace RM_CMS.DAL.Followups
                     dto.Notes,
                     dto.Outcome,
                     dto.ResourceConnected,
-                    dto.FollowUpScheduled
+                    dto.FollowUpScheduled,
+                    dto.UpdatedByRole
                 });
 
                 return new ApiResponse<bool>(

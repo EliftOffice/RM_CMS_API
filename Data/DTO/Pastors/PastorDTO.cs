@@ -1,4 +1,6 @@
-﻿namespace RM_CMS.Data.DTO.Pastors
+﻿using RM_CMS.Data.DTO.TeamLeads;
+
+namespace RM_CMS.Data.DTO.Pastors
 {
     public class PastorDTO
     {
@@ -7,10 +9,13 @@
         public List<TeamLeadPerformanceDTO> TeamLeadPerformance { get; set; }
         public PipelineHealthSummaryDTO PipelineHealth { get; set; }
         public EscalationDashboardDTO Escalations { get; set; }
+        public int CrisisEscalationsCount { get; set; }
         public List<TrendDTO> Trends { get; set; }
         public ImpactDTO Impact { get; set; }
         public DevelopmentPipelineDTO DevelopmentPipeline { get; set; }
         public AlertsDTO Alerts { get; set; }
+        public List<EscalationPendingDTO> CrisisEscalationsPending { get; set; } = new List<EscalationPendingDTO>();
+
     }
 
     // SYSTEM HEALTH

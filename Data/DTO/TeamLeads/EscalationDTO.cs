@@ -53,12 +53,13 @@
     }
     public class ResolveEscalationDTO
     {
+        public string? UpdatedByRole { get; set; } = "Team Lead";  
         public string EscalationId { get; set; }
 
         public string Status { get; set; } // Resolved / Referred Out / Closed
 
         public string Notes { get; set; }
-        public string Outcome { get; set; }
+        public string? Outcome { get; set; }
 
         public string? ResourceConnected { get; set; }
         public bool FollowUpScheduled { get; set; }

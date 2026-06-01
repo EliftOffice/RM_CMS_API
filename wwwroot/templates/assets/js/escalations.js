@@ -7,12 +7,46 @@
         return;
     }
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const role = urlParams.get('role');
+
     loadEscalation(id);
 
-    // ✅ LOAD DETAILS
+    // =========================
+    // PASTOR UI CUSTOMIZATION
+    // =========================
+    if (role === 'pastor') {
+
+        // Hide TL-only fields
+        $('#outcomeSelect').closest('.form-group').hide();
+        $('#resource').closest('.form-group').hide();
+        $('#followUp').closest('.form-group').hide();
+
+        // Remove old options
+        $('#statusSelect').empty();
+        // <option value="ReEscalated">Re-Escalate to Team Lead</option>
+        // Pastor options
+        $('#statusSelect').append(`
+            <option value="">Select Status</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
+           
+        `);
+
+        // Hide re-escalate button completely
+        $('#reEscalateBtn').hide();
+
+        $('.form-card-title').text('Pastor Resolution');
+    }
+
+    // =========================
+    // LOAD DETAILS
+    // =========================
     function loadEscalation(id) {
+
         $.get(API_BASE_URL + "/escalations/" + id)
             .done(res => {
+
                 const e = res.data;
 
                 $("#escId").text(e.escalationId);
@@ -21,11 +55,15 @@
                 $("#tier").text(e.escalationTier);
                 $("#status").text(e.status);
                 $("#desc").text(e.description);
+
             })
             .fail(() => alert("Failed to load"));
+
     }
 
-    // ✅ ACKNOWLEDGE
+    // =========================
+    // ACKNOWLEDGE
+    // =========================
     $("#ackBtn").click(function () {
 
         $.post(API_BASE_URL + "/escalations/acknowledge/" + id)
@@ -34,19 +72,15 @@
 
                 showMessage(res.message, "success");
 
-                // ✅ hide details div
-             //   $("#detailsDiv").hide();
-
-                // ✅ show resolve div
-               // $("#resolveDiv").show();
-
             })
 
             .fail(xhr => showMessage(getError(xhr), "error"));
 
     });
 
-    // ✅ RESOLVE
+    // =========================
+    // SUBMIT / RESOLVE
+    // =========================
     $("#resolveBtn").click(function () {
 
         const payload = {
@@ -55,12 +89,34 @@
             outcome: $("#outcomeSelect").val(),
             notes: $("#notes").val(),
             resourceConnected: $("#resource").val(),
-            followUpScheduled: $("#followUp").is(":checked")
+            followUpScheduled: $("#followUp").is(":checked"),
+
+            // NEW
+            updatedByRole: role
         };
 
-        if (!payload.status || !payload.outcome) {
-            showMessage("Status & Outcome required", "error");
-            return;
+        // =========================
+        // PASTOR FLOW
+        // =========================
+        if (role === 'pastor') {
+
+            if (!payload.status) {
+                showMessage("Status required", "error");
+                return;
+            }
+
+            // Pastor ki outcome validation ledu
+            payload.outcome = null;
+            payload.resourceConnected = null;
+            payload.followUpScheduled = false;
+        }
+        else {
+
+            // TL Validation
+            if (!payload.status || !payload.outcome) {
+                showMessage("Status & Outcome required", "error");
+                return;
+            }
         }
 
         $.ajax({
@@ -71,14 +127,19 @@
             success: res => showMessage(res.message, "success"),
             error: xhr => showMessage(getError(xhr), "error")
         });
+
     });
 
-    // 🔧 HELPERS
+    // =========================
+    // HELPERS
+    // =========================
     function showMessage(msg, type) {
+
         $("#message")
             .removeClass()
             .addClass(type)
             .text(msg);
+
     }
 
     function getError(xhr) {
