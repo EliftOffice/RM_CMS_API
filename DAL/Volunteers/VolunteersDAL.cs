@@ -191,7 +191,7 @@ namespace RM_CMS.DAL.Volunteers
 
 📌 మీకు కొత్త Follow-Up కేటాయించబడింది.
 
-ఈ link openించి complete చేయండి:
+ఈ link open చేసి  complete చేయండి:
 👉 https://rmoffice.online
 
 🙏 ధన్యవాదాలు!
