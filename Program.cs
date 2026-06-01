@@ -74,6 +74,10 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.DAL.Attendance.IAttendanceDAL, RM_CMS.DAL.Attendance.AttendanceDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.Attendance.IAttendanceBLL, RM_CMS.BLL.Attendance.AttendanceBLL>();
 
+            // Register Nurture Module
+            builder.Services.AddScoped<RM_CMS.DAL.Nurture.INurtureDAL, RM_CMS.DAL.Nurture.NurtureDAL>();
+            builder.Services.AddScoped<RM_CMS.BLL.Nurture.INurtureBLL, RM_CMS.BLL.Nurture.NurtureBLL>();
+
             //Register CornJobs
             builder.Services.AddScoped<RM_CMS.BLL.Jobs.ICornJobsBLL,RM_CMS.BLL.Jobs.CornJobsBLL > ();
 

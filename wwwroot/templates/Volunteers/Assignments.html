@@ -10,7 +10,7 @@
     <script src="../assets/js/api-config.js"></script>
     <script src="../assets/js/utils.js"></script>
     <script src="/templates/assets/js/toast.js"></script>
-    <script src="../assets/js/auth.js"></script>  
+    <script src="../assets/js/auth.js"></script>
 
     <style>
         *, *::before, *::after {
@@ -181,6 +181,59 @@
         .status-contacted {
             background: #d1f2e0;
             color: #0f9d58;
+        }
+
+        /* ── Nurture step cards ── */
+        .nurture-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #7c3aed;
+            margin: 20px 0 10px;
+        }
+
+        .nurture-card {
+            background: #faf5ff;
+            border: 1px solid #ddd6fe;
+            border-radius: 14px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 4px rgba(124,58,237,0.06);
+        }
+
+        .nurture-badge {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: #ede9fe;
+            color: #7c3aed;
+            margin-left: 8px;
+        }
+
+        .nurture-method-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+            .nurture-method-badge.visit {
+                background: #dcfce7;
+                color: #15803d;
+            }
+
+        .overdue-tag {
+            font-size: 10px;
+            font-weight: 700;
+            color: #ef4444;
+            background: #fee2e2;
+            padding: 2px 8px;
+            border-radius: 10px;
         }
 
         .retry-text {
@@ -519,8 +572,14 @@
         <div class="page-body">
             <div class="assignments-panel">
                 <div id="responseContainer"></div>
+
+                <!-- Regular follow-up assignments -->
                 <h5 class="section-title" id="listLabel">My List</h5>
                 <div id="assignmentsGrid" class="grid-container"></div>
+
+                <!-- Nurture sequence steps due today -->
+                <h5 class="nurture-section-title" id="nurtureSectionTitle" style="display:none">🌱 Nurture Steps Due</h5>
+                <div id="nurtureGrid" class="grid-container"></div>
             </div>
         </div>
 
@@ -559,7 +618,7 @@
                         <label for="cs_no">Not Contacted</label>
                     </div>
                     <!--<div class="radio-row">
-                       
+
                     </div>-->
                 </div>
 
@@ -587,7 +646,7 @@
                 <!-- Call Duration -->
                 <div class="form-section">
                     <span class="form-section-label">Call Duration (Minutes) — Optional</span>
-                    <input type="number" id="call_duration_min"  placeholder="e.g. 5" min="0">
+                    <input type="number" id="call_duration_min" placeholder="e.g. 5" min="0">
                 </div>
 
                 <!-- Notes -->
@@ -609,12 +668,199 @@
         </div>
 
     </div><!-- /followupPage -->
+    <!-- ════════════════════════════════════════
+         PAGE 3 — NURTURE STEP FORM  (inline)
+    ════════════════════════════════════════ -->
+    <div id="nurtureFollowupPage" style="display:none">
+        <div class="followup-topbar">
+            <button class="followup-back" id="nurtureBackBtn">&#8249; Back</button>
+            <span class="followup-topbar-title">Nurture Step</span>
+        </div>
+        <div class="followup-body">
+            <div class="followup-panel">
+                <input type="hidden" id="nurture_step_id">
+                <input type="hidden" id="nurture_sequence_id">
+                <input type="hidden" id="nurture_person_id">
+                <input type="hidden" id="nurture_volunteer_id">
 
+                <!-- Person card with step badge -->
+                <div class="person-card">
+                    <div class="person-avatar" id="nurtureAvatarInitial">V</div>
+                    <div class="person-card-name" id="nurturePersonName"></div>
+                    <div class="person-card-phone" id="nurturePersonPhone"></div>
+                    <div style="margin-top:8px">
+                        <span id="nurtureStepBadge" class="nurture-badge"></span>
+                        <span id="nurtureMethodBadge" class="nurture-method-badge" style="margin-left:6px"></span>
+                    </div>
+                </div>
+
+                <!-- Contact status -->
+                <div class="form-section">
+                    <span class="form-section-label">Did you complete this step?</span>
+                    <div class="radio-row">
+                        <input type="radio" name="nurture_contact" id="nc_yes" value="Contacted" checked>
+                        <label for="nc_yes">Yes, Done</label>
+                        <input type="radio" name="nurture_contact" id="nc_no" value="Not Contacted" style="margin-left:16px">
+                        <label for="nc_no">Not Contacted</label>
+                    </div>
+                </div>
+
+                <!-- Response type -->
+                <div class="form-section" id="nurtureResponseSection">
+                    <span class="form-section-label">How did it go?</span>
+                    <div class="radio-row">
+                        <input type="radio" name="nurture_response" id="nr_normal" value="Normal" checked>
+                        <label for="nr_normal">Normal — All good</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="nurture_response" id="nr_no" value="No Response">
+                        <label for="nr_no">No Response</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="nurture_response" id="nr_followup" value="Needs Follow-Up">
+                        <label for="nr_followup">Needs Follow-Up — Escalate to lead</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="nurture_response" id="nr_crisis" value="Crisis">
+                        <label for="nr_crisis" class="crisis">Crisis — Immediate alert</label>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="form-section">
+                    <span class="form-section-label">Notes</span>
+                    <textarea id="nurture_notes" class="followup-input" placeholder="Any notes from this step..."></textarea>
+                </div>
+
+                <div id="nurtureModalResponse"></div>
+
+                <div class="submit-row">
+                    <button class="btn-back-bottom" id="nurtureBottomBackBtn">Back</button>
+                    <button class="btn-submit-followup" id="submitNurtureStepBtn">Submit Step</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/js/Assignments.js"></script>
 
-    
+    <script>
+        // ══════════════════════════════════════════
+        // NURTURE STEPS — load and render
+        // ══════════════════════════════════════════
+        async function loadNurtureSteps(volunteerId) {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/nurture/volunteer/${volunteerId}/due`);
+                const json = await res.json();
+                const steps = json.data || [];
+                const grid = document.getElementById('nurtureGrid');
+                const title = document.getElementById('nurtureSectionTitle');
+                grid.innerHTML = '';
+                if (!steps.length) { title.style.display = 'none'; return; }
+                title.style.display = 'block';
+                steps.forEach(step => {
+                    const isOverdue = new Date(step.scheduledDate) < new Date(new Date().toDateString());
+                    const methodClass = step.method === 'Visit' ? 'visit' : '';
+                    const methodEmoji = step.method === 'Call' ? '📞' : '🏠';
+                    grid.innerHTML += `
+                    <div class="nurture-card">
+                        <div class="card-header">
+                            <div>
+                                <div class="person-name">${step.personName}</div>
+                                <div class="phone">${step.personPhone}</div>
+                            </div>
+                            <span class="nurture-badge">Step ${step.stepNumber}/7</span>
+                        </div>
+                        <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                            <span class="nurture-method-badge ${methodClass}">${methodEmoji} ${step.method}</span>
+                            ${isOverdue ? '<span class="overdue-tag">Overdue</span>' : ''}
+                            <span style="font-size:11px;color:#9ca3af">Due: ${new Date(step.scheduledDate).toLocaleDateString()}</span>
+                        </div>
+                        <div class="card-footer">
+                            <span class="assign-date"></span>
+                            <button class="action-btn btn-start"
+                                onclick="openNurtureStep('${step.stepId}','${step.sequenceId}','${step.personId}','${step.personName}','${step.personPhone}',${step.stepNumber},'${step.method}')">
+                                Log Step
+                            </button>
+                        </div>
+                    </div>`;
+                });
+            } catch (e) { console.error('Nurture steps error', e); }
+        }
+
+        function openNurtureStep(stepId, sequenceId, personId, personName, personPhone, stepNum, method) {
+            document.getElementById('nurture_step_id').value = stepId;
+            document.getElementById('nurture_sequence_id').value = sequenceId;
+            document.getElementById('nurture_person_id').value = personId;
+            document.getElementById('nurture_volunteer_id').value = localStorage.getItem('volunteer_id') || '';
+            document.getElementById('nurturePersonName').textContent = personName;
+            document.getElementById('nurturePersonPhone').textContent = personPhone;
+            document.getElementById('nurtureAvatarInitial').textContent = personName.charAt(0).toUpperCase();
+            document.getElementById('nurtureStepBadge').textContent = `Step ${stepNum}/7`;
+            const mb = document.getElementById('nurtureMethodBadge');
+            mb.textContent = (method === 'Call' ? '📞 Call' : '🏠 Visit');
+            mb.className = 'nurture-method-badge' + (method === 'Visit' ? ' visit' : '');
+            document.getElementById('assignmentsPage').style.display = 'none';
+            document.getElementById('nurtureFollowupPage').style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        function closeNurturePage() {
+            document.getElementById('nurtureFollowupPage').style.display = 'none';
+            document.getElementById('assignmentsPage').style.display = 'block';
+        }
+
+        document.getElementById('nurtureBackBtn').addEventListener('click', closeNurturePage);
+        document.getElementById('nurtureBottomBackBtn').addEventListener('click', closeNurturePage);
+
+        document.getElementById('nc_no').addEventListener('change', function () {
+            document.getElementById('nurtureResponseSection').style.display = this.checked ? 'none' : 'block';
+        });
+        document.getElementById('nc_yes').addEventListener('change', function () {
+            document.getElementById('nurtureResponseSection').style.display = 'block';
+        });
+
+        document.getElementById('submitNurtureStepBtn').addEventListener('click', async function () {
+            const btn = this;
+            btn.disabled = true; btn.textContent = 'Submitting...';
+            const contactStatus = document.querySelector('input[name="nurture_contact"]:checked')?.value;
+            const responseType = document.querySelector('input[name="nurture_response"]:checked')?.value;
+            const payload = {
+                stepId: document.getElementById('nurture_step_id').value,
+                sequenceId: document.getElementById('nurture_sequence_id').value,
+                personId: document.getElementById('nurture_person_id').value,
+                volunteerId: document.getElementById('nurture_volunteer_id').value,
+                contactStatus,
+                responseType: contactStatus === 'Contacted' ? responseType : null,
+                notes: document.getElementById('nurture_notes').value
+            };
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/nurture/step/log`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                const msgDiv = document.getElementById('nurtureModalResponse');
+                if (json.responseType === 0) {
+                    msgDiv.innerHTML = '<div class="alert alert-success mt-2">Step logged successfully!</div>';
+                    setTimeout(() => { closeNurturePage(); const vId = localStorage.getItem('volunteer_id'); if (vId) loadNurtureSteps(vId); }, 1200);
+                } else {
+                    msgDiv.innerHTML = `<div class="alert alert-danger mt-2">${json.message}</div>`;
+                    btn.disabled = false; btn.textContent = 'Submit Step';
+                }
+            } catch (e) {
+                document.getElementById('nurtureModalResponse').innerHTML = '<div class="alert alert-danger mt-2">Network error</div>';
+                btn.disabled = false; btn.textContent = 'Submit Step';
+            }
+        });
+
+        // Hook into existing page load — call loadNurtureSteps after volunteer ID is set
+        document.addEventListener('volunteerLoaded', function (e) {
+            if (e.detail && e.detail.volunteerId) loadNurtureSteps(e.detail.volunteerId);
+        });
+    </script>
 
 </body>
 </html>

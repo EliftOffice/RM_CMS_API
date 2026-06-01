@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using RM_CMS.DAL.Nurture;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO.Followups;
 using RM_CMS.Data.DTO.TeamLeads;
@@ -25,10 +26,13 @@ namespace RM_CMS.DAL.Followups
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
         private readonly IEscalationsDAL _escalationsDAL;
-        public FollowupsDAL(IDbConnectionFactory dbConnectionFactory, IEscalationsDAL escalationsDAL)
+        private readonly INurtureDAL _nurtureDAL;
+
+        public FollowupsDAL(IDbConnectionFactory dbConnectionFactory, IEscalationsDAL escalationsDAL, INurtureDAL nurtureDAL)
         {
             _dbConnectionFactory = dbConnectionFactory;
             _escalationsDAL = escalationsDAL;
+            _nurtureDAL = nurtureDAL;
         }
 
         public async Task<ApiResponse<bool>> HandleNormalResponseAsync(FollowUpRequestDTO dto)
@@ -44,27 +48,28 @@ namespace RM_CMS.DAL.Followups
                     {
                         try
                         {
+                            // 1. Mark follow-up done
                             const string updateFollowUp = @"
                     UPDATE follow_ups SET
-                        next_action = 'Mark Complete',
-                        next_action_date = NULL
+                        next_action = 'Nurture Sequence Started',
+                        next_action_date = CURDATE()
                     WHERE follow_up_id = @FollowUpId;
                     ";
-
                             await connection.ExecuteAsync(updateFollowUp,
                                 new { FollowUpId = dto.follow_up_id }, transaction);
 
+                            // 2. Person status set to IN_NURTURE (StartSequenceAsync will finalize this)
                             const string updatePerson = @"
                     UPDATE people SET
-                        follow_up_status = 'COMPLETE',
-                        next_action_date = NULL
+                        follow_up_status = 'IN_NURTURE',
+                        next_action_date = CURDATE()
                     WHERE person_id = @PersonId;
                     ";
-
                             await connection.ExecuteAsync(updatePerson,
                                 new { PersonId = dto.person_id }, transaction);
 
-                            const string updateOnResolve = @"
+                            // 3. Decrement volunteer assignment count
+                            const string updateVolunteer = @"
                     UPDATE volunteers
                     SET
                         current_assignments = current_assignments - 1,
@@ -73,20 +78,17 @@ namespace RM_CMS.DAL.Followups
 
                     UPDATE volunteers
                     SET
-                        completion_rate = 
-                            CASE 
+                        completion_rate =
+                            CASE
                                 WHEN total_assigned = 0 THEN 0
                                 ELSE ROUND((total_completed * 100.0) / (total_assigned), 2)
                             END
                     WHERE volunteer_id = @VolunteerId;
                     ";
-
-                            await connection.ExecuteAsync(updateOnResolve,
+                            await connection.ExecuteAsync(updateVolunteer,
                                 new { VolunteerId = dto.volunteer_id }, transaction);
 
                             transaction.Commit();
-
-                            return new ApiResponse<bool>(ResponseType.Success, "Follow-up marked as complete", true);
                         }
                         catch (Exception ex)
                         {
@@ -94,6 +96,11 @@ namespace RM_CMS.DAL.Followups
                             return new ApiResponse<bool>(ResponseType.Error, $"Transaction failed: {ex.Message}", false);
                         }
                     }
+
+                    // 4. Start nurture sequence (outside transaction — has its own)
+                    await _nurtureDAL.StartSequenceAsync(dto.person_id, dto.volunteer_id, dto.team_lead_id);
+
+                    return new ApiResponse<bool>(ResponseType.Success, "Follow-up complete — nurture sequence started", true);
                 }
                 catch (Exception ex)
                 {
@@ -213,7 +220,7 @@ namespace RM_CMS.DAL.Followups
             try
             {
                 string followUpId = data.follow_up_id ?? "";
-                if(string.IsNullOrEmpty(followUpId))
+                if (string.IsNullOrEmpty(followUpId))
                     return new ApiResponse<bool>(ResponseType.Warning, "Invalid Follow-up ID", false);
 
                 using var connection = _dbConnectionFactory.GetConnection();
@@ -447,11 +454,11 @@ namespace RM_CMS.DAL.Followups
                     //TeamLead Details
                     const string teamLeadIdQuery = @"SELECT team_lead FROM volunteers WHERE volunteer_id = @VolunteerId;";
 
-                    var teamLeadId = await connection.ExecuteScalarAsync<string?>(teamLeadIdQuery,new { VolunteerId = data.volunteer_id });
+                    var teamLeadId = await connection.ExecuteScalarAsync<string?>(teamLeadIdQuery, new { VolunteerId = data.volunteer_id });
 
                     if (!string.IsNullOrEmpty(teamLeadId))
                     {
-                        data.team_lead_id= teamLeadId;
+                        data.team_lead_id = teamLeadId;
                     }
 
                     // Dynamic padding (optional)
@@ -488,7 +495,7 @@ namespace RM_CMS.DAL.Followups
                             FollowUpId = followUpId,
                             PersonId = data.person_id,
                             VolunteerId = data.volunteer_id,
-                            TeamLeadId = data.team_lead_id,                           
+                            TeamLeadId = data.team_lead_id,
                             AttemptNumber = attemptNumber,
                             ContactMethod = data.contact_method ?? "Phone Call",
                             ContactStatus = data.contact_status,

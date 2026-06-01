@@ -39,5 +39,14 @@ namespace RM_CMS.Controllers.Teamleads
                 ));
             }
         }
+
+        // Returns nurture sequence summary for the TL's team huddle screen
+        // GET /api/check-ins/nurture-review/{teamLeadId}
+        [HttpGet("/api/check-ins/nurture-review/{teamLeadId}")]
+        public async Task<IActionResult> GetHuddleNurtureReview(string teamLeadId)
+        {
+            var result = await _checkInsBLL.GetHuddleNurtureReviewAsync(teamLeadId);
+            return Ok(result);
+        }
     }
 }

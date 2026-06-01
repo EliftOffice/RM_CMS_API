@@ -14,14 +14,14 @@ namespace RM_CMS.Controllers.CornJobs
     [ApiController]
     public class CornJobs : ControllerBase
     {
-        private readonly ICornJobsBLL _ICornJobsBLL;        
+        private readonly ICornJobsBLL _ICornJobsBLL;
         private readonly ILogger<CornJobs> _logger;
-       
+
         public CornJobs(ICornJobsBLL cornJobsBLL, ILogger<CornJobs> logger)
         {
             _ICornJobsBLL = cornJobsBLL;
             _logger = logger;
-           
+
         }
 
         [HttpPost("send-reminders")]
@@ -37,7 +37,7 @@ namespace RM_CMS.Controllers.CornJobs
             });
         }
 
-       
+
 
         [HttpPost("assign-new-people")]
         public async Task<ActionResult<ApiResponse<string>>> AssignNewPeople()
@@ -51,7 +51,12 @@ namespace RM_CMS.Controllers.CornJobs
             });
         }
 
-       
+        [HttpPost("process-nurture-steps")]
+        public async Task<ActionResult<ApiResponse<string>>> ProcessNurtureSteps()
+        {
+            var result = await _ICornJobsBLL.ProcessNurtureSteps();
+            return Ok(result);
+        }
 
     }
 }

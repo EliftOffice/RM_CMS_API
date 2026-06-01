@@ -9,6 +9,7 @@ namespace RM_CMS.Data.Models
         public string VolunteerId { get; set; } = string.Empty;
 
         public string TeamLeadFullName { get; set; } // 🔥 ADD THIS ONLY
+        public string TelegramChatId { get; set; } // 🔥 ADD THIS ONLY
 
 
         // Personal Information

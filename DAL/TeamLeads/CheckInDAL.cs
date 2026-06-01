@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using RM_CMS.Data;
+using RM_CMS.Data.DTO.Nurture;
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
 using System.Data;
@@ -9,6 +10,7 @@ namespace RM_CMS.DAL.TeamLeads
     public interface ICheckInDAL
     {
         Task<ApiResponse<string>> CreateCheckInAsync(CreateCheckInDTO dto);
+        Task<ApiResponse<HuddleNurtureReviewDto>> GetHuddleNurtureReviewAsync(string teamLeadId);
     }
     public class CheckInDAL : ICheckInDAL
     {
@@ -74,7 +76,7 @@ namespace RM_CMS.DAL.TeamLeads
 
                 var nextCheckInDate = dto.NextCheckInDate
                     ?? checkInDate.AddDays(30);
-            
+
 
                 await connection.ExecuteAsync(insertQuery, new
                 {
@@ -102,9 +104,9 @@ namespace RM_CMS.DAL.TeamLeads
 
                 }, transaction);
 
-               // if (dto.CapacityAdjustment)
-               // {  // 🔹 3. Update volunteer
-                    const string updateVolunteerQuery = @"
+                // if (dto.CapacityAdjustment)
+                // {  // 🔹 3. Update volunteer
+                const string updateVolunteerQuery = @"
                                                             UPDATE volunteers SET
                                                                 last_check_in = @CheckInDate,
                                                                 next_check_in = @NextCheckInDate,
@@ -114,19 +116,19 @@ namespace RM_CMS.DAL.TeamLeads
                                                                 capacity_max=@capacityMax
                                                                 WHERE volunteer_id = @VolunteerId";
 
-                    await connection.ExecuteAsync(updateVolunteerQuery, new
-                    {
-                        CheckInDate = dto.CheckInDate ?? DateTime.UtcNow,
-                        nextCheckInDate,
-                        dto.NewCapacityBand,
-                        dto.CapacityMin,
-                        dto.CapacityMax,
-                        dto.EmotionalTone,
-                        dto.VolunteerId
-                    }, transaction);
+                await connection.ExecuteAsync(updateVolunteerQuery, new
+                {
+                    CheckInDate = dto.CheckInDate ?? DateTime.UtcNow,
+                    nextCheckInDate,
+                    dto.NewCapacityBand,
+                    dto.CapacityMin,
+                    dto.CapacityMax,
+                    dto.EmotionalTone,
+                    dto.VolunteerId
+                }, transaction);
 
-              //  }
-              
+                //  }
+
 
                 // 🔹 4. Commit
                 transaction.Commit();
@@ -150,6 +152,86 @@ namespace RM_CMS.DAL.TeamLeads
             }
         }
 
+        // ─────────────────────────────────────────────────────────────
+        // HUDDLE NURTURE REVIEW
+        // Called when TL opens the check-in / team huddle screen.
+        // Returns active sequences + sequences awaiting final decision.
+        // ─────────────────────────────────────────────────────────────
+        public async Task<ApiResponse<HuddleNurtureReviewDto>> GetHuddleNurtureReviewAsync(string teamLeadId)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                // Active sequences with next step info
+                var active = (await connection.QueryAsync<NurtureSequenceSummaryDto>(@"
+                    SELECT
+                        nseq.sequence_id,
+                        nseq.person_id,
+                        CONCAT(p.first_name, ' ', p.last_name) AS person_name,
+                        p.phone                                  AS person_phone,
+                        nseq.volunteer_id,
+                        CONCAT(v.first_name, ' ', v.last_name)  AS volunteer_name,
+                        nseq.current_step,
+                        nseq.status,
+                        nseq.started_at,
+                        ns.method                                AS next_method,
+                        ns.scheduled_date                        AS next_scheduled_date,
+                        CASE WHEN ns.scheduled_date < CURDATE() THEN 'Overdue' ELSE 'Pending' END AS next_step_status
+                    FROM nurture_sequences nseq
+                    JOIN people     p ON p.person_id    = nseq.person_id
+                    JOIN volunteers v ON v.volunteer_id = nseq.volunteer_id
+                    LEFT JOIN nurture_steps ns ON ns.sequence_id  = nseq.sequence_id
+                                              AND ns.step_number  = nseq.current_step
+                                              AND ns.status       = 'Pending'
+                    WHERE nseq.team_lead_id = @TeamLeadId
+                      AND nseq.status = 'Active'
+                    ORDER BY ns.scheduled_date ASC",
+                    new { TeamLeadId = teamLeadId })).ToList();
+
+                // Sequences awaiting TL final decision
+                var awaitingReview = (await connection.QueryAsync<NurtureSequenceSummaryDto>(@"
+                    SELECT
+                        nseq.sequence_id,
+                        nseq.person_id,
+                        CONCAT(p.first_name, ' ', p.last_name) AS person_name,
+                        p.phone                                  AS person_phone,
+                        nseq.volunteer_id,
+                        CONCAT(v.first_name, ' ', v.last_name)  AS volunteer_name,
+                        nseq.current_step,
+                        nseq.status,
+                        nseq.started_at,
+                        '' AS next_method,
+                        NULL AS next_scheduled_date,
+                        '' AS next_step_status
+                    FROM nurture_sequences nseq
+                    JOIN people     p ON p.person_id    = nseq.person_id
+                    JOIN volunteers v ON v.volunteer_id = nseq.volunteer_id
+                    WHERE nseq.team_lead_id = @TeamLeadId
+                      AND nseq.status = 'InReview'
+                    ORDER BY nseq.updated_at ASC",
+                    new { TeamLeadId = teamLeadId })).ToList();
+
+                var dto = new HuddleNurtureReviewDto
+                {
+                    TotalActive = active.Count,
+                    OverdueSteps = active.Count(s => s.NextStepStatus == "Overdue"),
+                    AwaitingFinalDecision = awaitingReview.Count,
+                    ActiveSequences = active,
+                    AwaitingReview = awaitingReview
+                };
+
+                return new ApiResponse<HuddleNurtureReviewDto>(ResponseType.Success, "OK", dto);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<HuddleNurtureReviewDto>(
+                    ResponseType.Error,
+                    $"Error fetching huddle nurture review: {ex.Message}",
+                    null
+                );
+            }
+        }
 
     }
 }
