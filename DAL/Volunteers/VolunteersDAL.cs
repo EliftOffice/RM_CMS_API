@@ -415,7 +415,6 @@ WHERE v.volunteer_id = @VolunteerId;
     p.last_contact_date    AS LastContactDate,
     p.next_action_date     AS NextActionDate,
 
-    -- From followups
     f.attempt_date         AS AttemptDate,
     f.response_type        AS ResponseType,
 
@@ -424,7 +423,16 @@ WHERE v.volunteer_id = @VolunteerId;
     p.specific_needs       AS SpecificNeeds,
     p.created_at           AS CreatedAt,
     p.updated_at           AS UpdatedAt,
-    p.created_by           AS CreatedBy
+    p.created_by           AS CreatedBy,
+
+    ns.current_step        AS CurrentStep,
+    nst.method             AS CurrentStepMethod,
+    nst.scheduled_date     AS CurrentStepDate,
+
+    CASE
+        WHEN ns.current_step = 8 THEN 1
+        ELSE 0
+    END AS IsFinalDecisionPending
 
 FROM people p
 
@@ -436,8 +444,20 @@ LEFT JOIN follow_ups f
         WHERE f2.person_id = p.person_id
     )
 
+LEFT JOIN nurture_sequences ns
+    ON ns.person_id = p.person_id
+    AND ns.status = 'Active'
+
+LEFT JOIN nurture_steps nst
+    ON nst.sequence_id = ns.sequence_id
+    AND nst.step_number = ns.current_step
+
 WHERE p.assigned_volunteer = @VolunteerId
-  AND p.follow_up_status IN ('ASSIGNED', 'RETRY PENDING')
+  AND p.follow_up_status IN (
+      'ASSIGNED',
+      'RETRY PENDING',
+      'IN_NURTURE'
+  )
 
 ORDER BY p.next_action_date;";
 

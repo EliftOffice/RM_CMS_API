@@ -77,5 +77,16 @@ namespace RM_CMS.Controllers.Nurture
             var result = await _nurtureBLL.GetStepsBySequenceAsync(sequenceId);
             return Ok(result);
         }
+
+
+        [HttpPost("final-decision")]
+        public async Task<IActionResult> FinalDecision(
+    [FromBody] FinalDecisionDTO dto)
+        {
+            var result =
+                await _nurtureBLL.FinalDecisionAsync(dto);
+
+            return Ok(result);
+        }
     }
 }

@@ -15,6 +15,8 @@ namespace RM_CMS.BLL.Nurture
         Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetActiveSequencesForTeamLeadAsync(string teamLeadId);
         Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetSequencesAwaitingReviewAsync(string teamLeadId);
         Task<ApiResponse<IEnumerable<NurtureStep>>> GetStepsBySequenceAsync(string sequenceId);
+        Task<ApiResponse<bool>> FinalDecisionAsync(
+    FinalDecisionDTO dto);
     }
 
     public class NurtureBLL : INurtureBLL
@@ -139,6 +141,38 @@ namespace RM_CMS.BLL.Nurture
                 // This is a hook point for future push notifications
             }
             catch { /* non-critical, swallow */ }
+        }
+
+
+        public async Task<ApiResponse<bool>> FinalDecisionAsync(
+    FinalDecisionDTO dto)
+        {
+            try
+            {
+                if (dto.decision == "PERMANENT")
+                {
+                    return await _nurtureDAL.MarkPermanentAsync(
+                        dto.person_id);
+                }
+
+                if (dto.decision == "FAILED")
+                {
+                    return await _nurtureDAL.MarkFailedAsync(
+                        dto.person_id);
+                }
+
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    "Invalid decision",
+                    false);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    ex.Message,
+                    false);
+            }
         }
     }
 }

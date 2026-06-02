@@ -27,4 +27,14 @@
 
         public int PendingAssignmentsCount { get; set; }
     }
+    public class PastorPendingAssignmentDto
+    {
+        public int PendingAssignmentsCount { get; set; }
+
+        public string Description { get; set; } = string.Empty;
+
+        public string PastorName { get; set; } = string.Empty;
+
+        public string? TelegramChatId { get; set; }
+    }
 }

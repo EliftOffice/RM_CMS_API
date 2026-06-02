@@ -2,13 +2,14 @@
 using Microsoft.AspNetCore.Connections;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO;
+using RM_CMS.Data.DTO.Jobs;
 using RM_CMS.Data.DTO.Pastors;
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
+using EscalationReasonDTO = RM_CMS.Data.DTO.Pastors.EscalationReasonDTO;
+using PipelineHealthDTO = RM_CMS.Data.DTO.Pastors.PipelineHealthDTO;
 using TeamLeadPerformanceDTO = RM_CMS.Data.DTO.Pastors.TeamLeadPerformanceDTO;
 using TrendDTO = RM_CMS.Data.DTO.Pastors.TrendDTO;
-using PipelineHealthDTO = RM_CMS.Data.DTO.Pastors.PipelineHealthDTO;
-using EscalationReasonDTO = RM_CMS.Data.DTO.Pastors.EscalationReasonDTO;
 
 namespace RM_CMS.DAL.Pastors
 {
@@ -25,6 +26,7 @@ namespace RM_CMS.DAL.Pastors
         Task<ApiResponse<DevelopmentPipelineDTO>> GetDevelopmentPipelineAsync();
         Task<ApiResponse<List<EscalationPendingDTO>>> GetPastorCrisisEscalationsPendingAsync();
         Task<ApiResponse<bool>> ReEscalateToTeamLeadAsync(string escalationId, string notes);
+        Task<ApiResponse<List<PastorPendingAssignmentDto>>> PastorPendingCrisisEscalations();
     }
 
     public class PastorDashboardDAL : IPastorDashboardDAL
@@ -759,7 +761,65 @@ WHERE tl.status = 'Active';
         }
 
 
+        public async Task<ApiResponse<List<PastorPendingAssignmentDto>>> PastorPendingCrisisEscalations()
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"SELECT
+    COUNT(*) AS PendingAssignmentsCount,
 
+    GROUP_CONCAT(
+        CONCAT(
+            '🚨 ',
+            p.last_name, ' ', p.first_name,
+            ' 📞 ', p.phone,
+            '\n   ➜ ', e.description
+        )
+        SEPARATOR '\n\n'
+    ) AS Description,
+
+    CONCAT(u.last_name, ' ', u.first_name) AS PastorName,
+    u.telegram_chat_id AS TelegramChatId
+
+FROM users u
+
+CROSS JOIN escalations e
+
+INNER JOIN people p
+    ON p.person_id = e.person_id
+
+WHERE u.role_type = 'Pastor'
+  AND u.status = 'Active'
+  AND e.status IN ('NEW', 'In Progress')
+  AND e.escalation_reason = 'Crisis'
+
+GROUP BY u.user_id;
+";
+
+                    var volunteers = await connection
+                        .QueryAsync<PastorPendingAssignmentDto>(query);
+
+                    var list = volunteers?.ToList()
+                               ?? new List<PastorPendingAssignmentDto>();
+
+                    return new ApiResponse<List<PastorPendingAssignmentDto>>(
+                        ResponseType.Success,
+                        "Pending assignment volunteers retrieved successfully",
+                        list
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<PastorPendingAssignmentDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteers: {ex.Message}",
+                    null
+                );
+            }
+        }
 
 
 

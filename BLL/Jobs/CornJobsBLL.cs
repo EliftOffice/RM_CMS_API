@@ -1,4 +1,5 @@
 ﻿using RM_CMS.BLL.Nurture;
+using RM_CMS.BLL.Pastors;
 using RM_CMS.BLL.Peoples;
 using RM_CMS.BLL.TeamLeads;
 using RM_CMS.BLL.Volunteers;
@@ -24,13 +25,15 @@ namespace RM_CMS.BLL.Jobs
         private readonly IVolunteersBLL _volunteersBLL;
         private readonly ITeamLeadDashBoardBLL _TeamLedDAshboardBLL;
         private readonly INurtureBLL _nurtureBLL;
+        private readonly IPastorDashboardBLL _pastorDashboardBLL;
 
-        public CornJobsBLL(IPeoplesBLL peoplesBLL, IVolunteersBLL volunteersBLL, ITeamLeadDashBoardBLL TeamLeadDashBoardBLL, INurtureBLL nurtureBLL)
+        public CornJobsBLL(IPeoplesBLL peoplesBLL, IVolunteersBLL volunteersBLL, ITeamLeadDashBoardBLL TeamLeadDashBoardBLL, INurtureBLL nurtureBLL, IPastorDashboardBLL pastorService)
         {
             _peoplesBLL = peoplesBLL;
             _volunteersBLL = volunteersBLL;
             _TeamLedDAshboardBLL = TeamLeadDashBoardBLL;
             _nurtureBLL = nurtureBLL;
+            _pastorDashboardBLL = pastorService;
         }
 
         public async Task<ApiResponse<string>> AssignNewPeople()
@@ -228,6 +231,80 @@ Praise the Lord {volunteer.FirstName},
 
 🙏 ధన్యవాదాలు"
                         );
+
+                    if (messageResult.Data)
+                    {
+                        sentCount++;
+                    }
+                }
+
+                return new ApiResponse<string>(
+                    ResponseType.Success,
+                    $"{sentCount} reminder messages sent successfully",
+                    ""
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<string>(
+                    ResponseType.Error,
+                    $"Error sending reminders: {ex.Message}",
+                    ""
+                );
+            }
+        }
+
+
+        public async Task<ApiResponse<string>> SendRemindersToPastors()
+        {
+            try
+            {
+                var result = await _pastorDashboardBLL.PastorPendingCrisisEscalations();
+
+                if (result.Data == null || !result.Data.Any())
+                {
+                    return new ApiResponse<string>(
+                        ResponseType.Warning,
+                        "No pending assignments found",
+                        ""
+                    );
+                }
+
+                int sentCount = 0;
+
+                foreach (PastorPendingAssignmentDto pastor in result.Data)
+                {
+                    if (pastor.TelegramChatId == null)
+                        continue;
+
+                    var messageResult = await _volunteersBLL.SendTelegramMessageAsync(
+                        pastor.TelegramChatId.ToString()!,
+                        $@"🔔 Reminder ➜ {pastor.PastorName}
+
+మీకు <b>{pastor.PendingAssignmentsCount}</b> pending follow-ups ఉన్నాయి.
+
+{pastor.Description}
+
+త్వరగా complete చేయండి
+👉 https://rmoffice.online
+
+🙏 ధన్యవాదాలు"
+                    );
+
+                    // For testing purpose, sending to my telegram
+                    await _volunteersBLL.SendTelegramMessageAsync(
+                        "1671347213",
+                        $@"🔔 Reminder ➜ {pastor.PastorName}
+
+మీకు <b>{pastor.PendingAssignmentsCount}</b> pending follow-ups ఉన్నాయి.
+
+{pastor.Description}
+
+త్వరగా complete చేయండి
+👉 https://rmoffice.online
+
+🙏 ధన్యవాదాలు"
+                    );
 
                     if (messageResult.Data)
                     {

@@ -15,6 +15,10 @@ namespace RM_CMS.DAL.Nurture
         Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetActiveSequencesForTeamLeadAsync(string teamLeadId);
         Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetSequencesAwaitingReviewAsync(string teamLeadId);
         Task<ApiResponse<IEnumerable<NurtureStep>>> GetStepsBySequenceAsync(string sequenceId);
+        Task<ApiResponse<bool>> MarkPermanentAsync(
+    string personId);
+        Task<ApiResponse<bool>> MarkFailedAsync(
+    string personId);
     }
 
     public class NurtureDAL : INurtureDAL
@@ -341,6 +345,94 @@ namespace RM_CMS.DAL.Nurture
             catch (Exception ex)
             {
                 return new ApiResponse<IEnumerable<NurtureStep>>(ResponseType.Error, ex.Message, null);
+            }
+        }
+
+        public async Task<ApiResponse<bool>> MarkPermanentAsync(
+    string personId)
+        {
+            try
+            {
+                using var connection =
+                    _dbConnectionFactory.GetConnection();
+
+                const string query = @"
+
+            UPDATE nurture_sequences
+            SET
+                status = 'Permanent',
+                completed_at = NOW(),
+                updated_at = NOW()
+            WHERE person_id = @PersonId
+              AND current_step = 8
+              AND status = 'Active';
+
+            UPDATE people
+            SET
+                follow_up_status = 'PERMANENT',
+                next_action_date = NULL
+            WHERE person_id = @PersonId;
+        ";
+
+                await connection.ExecuteAsync(
+                    query,
+                    new { PersonId = personId });
+
+                return new ApiResponse<bool>(
+                    ResponseType.Success,
+                    "Marked as Permanent",
+                    true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    ex.Message,
+                    false);
+            }
+        }
+
+        public async Task<ApiResponse<bool>> MarkFailedAsync(
+    string personId)
+        {
+            try
+            {
+                using var connection =
+                    _dbConnectionFactory.GetConnection();
+
+                const string query = @"
+
+            UPDATE nurture_sequences
+            SET
+                status = 'Failed',
+                completed_at = NOW(),
+                updated_at = NOW()
+            WHERE person_id = @PersonId
+              AND current_step = 8
+              AND status = 'Active';
+
+            UPDATE people
+            SET
+                follow_up_status = 'FAILED',
+                next_action_date = NULL
+            WHERE person_id = @PersonId;
+        ";
+
+                await connection.ExecuteAsync(
+                    query,
+                    new { PersonId = personId });
+
+                return new ApiResponse<bool>(
+                    ResponseType.Success,
+                    "Marked as Failed",
+                    true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    ex.Message,
+                    false);
             }
         }
     }

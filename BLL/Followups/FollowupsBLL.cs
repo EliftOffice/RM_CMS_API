@@ -177,6 +177,8 @@ namespace RM_CMS.BLL.Followups
                                 {
                                     alertTitle = "🚨 Crisis Alert";
                                     assignText = $"మీకు <b>{data.volunteer_name}</b> Crisis assign చేశారు.";
+
+
                                 }
                                 else
                                 {

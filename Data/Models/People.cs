@@ -79,5 +79,11 @@ namespace RM_CMS.Data.Models
         public DateTime UpdatedAt { get; set; }
         
         public string? CreatedBy { get; set; }
+
+        public int? CurrentStep { get; set; }
+
+        public string? CurrentStepMethod { get; set; }
+
+        public DateTime? CurrentStepDate { get; set; }
     }
 }

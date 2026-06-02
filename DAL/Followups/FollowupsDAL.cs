@@ -5,6 +5,7 @@ using RM_CMS.Data.DTO.Followups;
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
+using System.Data;
 using System.Text;
 
 namespace RM_CMS.DAL.Followups
@@ -88,6 +89,8 @@ namespace RM_CMS.DAL.Followups
                             await connection.ExecuteAsync(updateVolunteer,
                                 new { VolunteerId = dto.volunteer_id }, transaction);
 
+                            UpdateNurtureCurrentStepAsync(dto.person_id);
+
                             transaction.Commit();
                         }
                         catch (Exception ex)
@@ -108,7 +111,110 @@ namespace RM_CMS.DAL.Followups
                 }
             }
         }
+        public async Task<bool> UpdateNurtureCurrentStepAsyncV1(string personId)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
 
+                if (connection.State == ConnectionState.Closed)
+                    connection.Open();
+
+                const string query = @"UPDATE nurture_sequences
+SET
+    current_step = current_step + 1,
+    updated_at = NOW()
+WHERE person_id = @PersonId;
+        ";
+
+                int rowsAffected = await connection.ExecuteAsync(
+                    query,
+                    new { PersonId = personId });
+
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    $"Error updating nurture current step for Person {personId}: {ex.Message}");
+
+                return false;
+            }
+        }
+
+
+
+        public async Task<bool> UpdateNurtureCurrentStepAsync(string personId)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                if (connection.State == ConnectionState.Closed)
+                    connection.Open();
+
+                // Get current step first
+                const string getStepQuery = @"
+            SELECT current_step
+            FROM nurture_sequences
+            WHERE person_id = @PersonId
+              AND status = 'Active'
+            LIMIT 1;
+        ";
+
+                int currentStep = await connection.ExecuteScalarAsync<int>(
+                    getStepQuery,
+                    new { PersonId = personId });
+
+                // If current step is 7
+                if (currentStep >= 7)
+                {
+                    const string completeQuery = @"
+
+                UPDATE nurture_sequences
+                SET
+                    current_step = 8,
+                    updated_at = NOW()
+                WHERE person_id = @PersonId
+                  AND status = 'Active';
+
+                UPDATE people
+                SET
+                    follow_up_status = 'COMPLETED'
+                WHERE person_id = @PersonId;
+            ";
+
+                    await connection.ExecuteAsync(
+                        completeQuery,
+                        new { PersonId = personId });
+
+                    return true;
+                }
+
+                // Normal increment
+                const string updateQuery = @"
+            UPDATE nurture_sequences
+            SET
+                current_step = current_step + 1,
+                updated_at = NOW()
+            WHERE person_id = @PersonId
+              AND status = 'Active';
+        ";
+
+                int rowsAffected = await connection.ExecuteAsync(
+                    updateQuery,
+                    new { PersonId = personId });
+
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    $"Error updating nurture current step for Person {personId}: {ex.Message}");
+
+                return false;
+            }
+        }
         public async Task<ApiResponse<bool>> HandleNoResponseAsync(FollowUpRequestDTO dto)
         {
             using (var connection = _dbConnectionFactory.GetConnection())
@@ -193,7 +299,7 @@ namespace RM_CMS.DAL.Followups
                                 END
                         WHERE volunteer_id = @VolunteerId;",
                                 new { VolunteerId = dto.volunteer_id }, transaction);
-
+                                //UpdateNurtureCurrentStepAsync(dto.person_id);
                                 transaction.Commit();
 
                                 return new ApiResponse<bool>(ResponseType.Success,
@@ -291,6 +397,8 @@ namespace RM_CMS.DAL.Followups
 
                 await connection.ExecuteAsync(updateOnResolve, new { VolunteerId = data.volunteer_id });
 
+                //UpdateNurtureCurrentStepAsync(data.person_id);
+
                 return new ApiResponse<bool>(
                     ResponseType.Success,
                     $"Follow-up escalated successfully (ID: {escalationResponse.Data})",
@@ -375,6 +483,7 @@ namespace RM_CMS.DAL.Followups
 
                 await connection.ExecuteAsync(updateOnResolve, new { VolunteerId = data.volunteer_id });
 
+                //UpdateNurtureCurrentStepAsync(data.person_id);
                 if (escalationResponse.ResponseType != ResponseType.Success)
                     return new ApiResponse<bool>(ResponseType.Error, escalationResponse.Message, false);
 

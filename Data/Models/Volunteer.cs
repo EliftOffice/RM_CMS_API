@@ -93,7 +93,7 @@ namespace RM_CMS.Data.Models
         public DateTime UpdatedAt { get; set; }
 
        
-        public string TelegramChatID { get; set; }
+        
     }
 
     public class VolunteerLookupDto

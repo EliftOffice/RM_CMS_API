@@ -1,12 +1,13 @@
 ﻿using RM_CMS.DAL.Pastors;
 using RM_CMS.Data.DTO;
+using RM_CMS.Data.DTO.Jobs;
 using RM_CMS.Data.DTO.Pastors;
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
+using EscalationReasonDTO = RM_CMS.Data.DTO.Pastors.EscalationReasonDTO;
+using PipelineHealthDTO = RM_CMS.Data.DTO.Pastors.PipelineHealthDTO;
 using TeamLeadPerformanceDTO = RM_CMS.Data.DTO.Pastors.TeamLeadPerformanceDTO;
 using TrendDTO = RM_CMS.Data.DTO.Pastors.TrendDTO;
-using PipelineHealthDTO = RM_CMS.Data.DTO.Pastors.PipelineHealthDTO;
-using EscalationReasonDTO = RM_CMS.Data.DTO.Pastors.EscalationReasonDTO;
 
 namespace RM_CMS.BLL.Pastors
 {
@@ -14,6 +15,7 @@ namespace RM_CMS.BLL.Pastors
     {
         Task<ApiResponse<PastorDTO>> GetPastorDashboardAsync();
         Task<ApiResponse<bool>> ReEscalateToTeamLeadAsync(string escalationId, string notes);
+        Task<ApiResponse<List<PastorPendingAssignmentDto>>> PastorPendingCrisisEscalations();
     }
 
     public class PastorDashBoardBLL : IPastorDashboardBLL
@@ -393,6 +395,22 @@ namespace RM_CMS.BLL.Pastors
             catch (Exception ex)
             {
                 return new ApiResponse<bool>(ResponseType.Error, $"An error occurred while re-escalating: {ex.Message}", false);
+            }
+        }
+
+        public async Task<ApiResponse<List<PastorPendingAssignmentDto>>> PastorPendingCrisisEscalations()
+        {
+            try
+            {
+                return await _pastorDashboardDAL.PastorPendingCrisisEscalations();
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<PastorPendingAssignmentDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteers with pending assignments: {ex.Message}",
+                    new List<PastorPendingAssignmentDto>()
+                );
             }
         }
     }

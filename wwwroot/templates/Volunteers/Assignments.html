@@ -542,6 +542,38 @@
                 cursor: not-allowed;
                 transform: none;
             }
+
+        .nurture-progress {
+            display: flex;
+            gap: 6px;
+            margin: 12px 0;
+        }
+
+        .nurture-step {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .nurture-done {
+            background: #28a745;
+            color: #fff;
+        }
+
+        .nurture-current {
+            background: #007bff;
+            color: #fff;
+        }
+
+        .nurture-future {
+            background: #e9ecef;
+            color: #777;
+        }
     </style>
 </head>
 
@@ -764,27 +796,27 @@
                     const methodClass = step.method === 'Visit' ? 'visit' : '';
                     const methodEmoji = step.method === 'Call' ? '📞' : '🏠';
                     grid.innerHTML += `
-                    <div class="nurture-card">
-                        <div class="card-header">
-                            <div>
-                                <div class="person-name">${step.personName}</div>
-                                <div class="phone">${step.personPhone}</div>
+                        <div class="nurture-card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="person-name">${step.personName}</div>
+                                    <div class="phone">${step.personPhone}</div>
+                                </div>
+                                <span class="nurture-badge">Step ${step.stepNumber}/7</span>
                             </div>
-                            <span class="nurture-badge">Step ${step.stepNumber}/7</span>
-                        </div>
-                        <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-                            <span class="nurture-method-badge ${methodClass}">${methodEmoji} ${step.method}</span>
-                            ${isOverdue ? '<span class="overdue-tag">Overdue</span>' : ''}
-                            <span style="font-size:11px;color:#9ca3af">Due: ${new Date(step.scheduledDate).toLocaleDateString()}</span>
-                        </div>
-                        <div class="card-footer">
-                            <span class="assign-date"></span>
-                            <button class="action-btn btn-start"
-                                onclick="openNurtureStep('${step.stepId}','${step.sequenceId}','${step.personId}','${step.personName}','${step.personPhone}',${step.stepNumber},'${step.method}')">
-                                Log Step
-                            </button>
-                        </div>
-                    </div>`;
+                            <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                                <span class="nurture-method-badge ${methodClass}">${methodEmoji} ${step.method}</span>
+                                ${isOverdue ? '<span class="overdue-tag">Overdue</span>' : ''}
+                                <span style="font-size:11px;color:#9ca3af">Due: ${new Date(step.scheduledDate).toLocaleDateString()}</span>
+                            </div>
+                            <div class="card-footer">
+                                <span class="assign-date"></span>
+                                <button class="action-btn btn-start"
+                                    onclick="openNurtureStep('${step.stepId}','${step.sequenceId}','${step.personId}','${step.personName}','${step.personPhone}',${step.stepNumber},'${step.method}')">
+                                    Log Step
+                                </button>
+                            </div>
+                        </div>`;
                 });
             } catch (e) { console.error('Nurture steps error', e); }
         }

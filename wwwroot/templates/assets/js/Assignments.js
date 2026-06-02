@@ -70,11 +70,25 @@
                     );
                     return;
                 }
-
                 const filtered = res.data.filter(p => {
+
                     const status = p.followUpStatus?.toUpperCase();
+
                     if (status === 'ASSIGNED') return true;
+
                     if (status === 'RETRY PENDING') return true;
+
+                    if (status === 'IN_NURTURE') {
+
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        const stepDate = new Date(p.currentStepDate);
+                        stepDate.setHours(0, 0, 0, 0);
+
+                        return stepDate <= today;
+                    }
+
                     return false;
                 });
 
@@ -122,6 +136,93 @@
                         }
                     }
 
+
+                    else if (status === 'IN_NURTURE') {
+
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        const stepDate = new Date(p.currentStepDate);
+                        stepDate.setHours(0, 0, 0, 0);
+
+                        // Future date aithe card chupinchaku
+                        if (stepDate > today) {
+                            return '';
+                        }
+
+            //             // Final Decision Card
+            //             if (p.currentStep == 8) {
+
+            //                 statusClass = 'status-contacted';
+
+            //                 retryText = `
+            // <div style="margin-top:10px">
+            //     <strong>Final Decision Required</strong>
+
+            //     <div style="margin-top:10px">
+            //         7-Step nurture sequence completed.
+            //         Please select the final outcome.
+            //     </div>
+
+            //     <div style="margin-top:12px">
+            //         <label>
+            //             <input type="radio"
+            //                    name="finalDecision_${p.personId}"
+            //                    value="PERMANENT">
+            //             Permanent
+            //         </label>
+
+            //         <br>
+
+            //         <label>
+            //             <input type="radio"
+            //                    name="finalDecision_${p.personId}"
+            //                    value="FAILED">
+            //             Failed
+            //         </label>
+            //     </div>
+            // </div>`;
+
+            //                 actionButton = `
+            // <button class="action-btn btn-update save-final-decision"
+            //     data-personid="${p.personId}">
+            //     Save Decision
+            // </button>`;
+            //             }
+                        else {
+
+                            statusClass = 'status-contacted';
+
+                            const nurtureProgress =
+                                renderNurtureProgress(p.currentStep || 1);
+
+                            actionButton = `
+            <button class="action-btn btn-update update-status"
+                data-personid="${p.personId}">
+                Update Status
+            </button>`;
+
+                            retryText = `
+            <div style="margin-top:10px">
+                <strong>Nurture Progress</strong>
+
+                ${nurtureProgress}
+
+                <div style="font-size:13px;color:#666">
+                    Current Step:
+                    Week ${p.currentStep}
+                    - ${p.currentStepMethod}
+
+                    <br>
+
+                    Due:
+                    ${fmtDate(p.currentStepDate)}
+                </div>
+            </div>`;
+                        }
+                    }
+
+
                     return `
                     <div class="assignment-card">
                         <div class="card-header">
@@ -152,6 +253,30 @@
         });
     }
 
+    function renderNurtureProgress(currentStep) {
+
+        let html = '<div class="nurture-progress">';
+
+        for (let i = 1; i <= 7; i++) {
+
+            let cls = 'nurture-future';
+
+            if (i < currentStep)
+                cls = 'nurture-done';
+
+            else if (i === currentStep)
+                cls = 'nurture-current';
+
+            html += `
+            <div class="nurture-step ${cls}">
+                ${i}
+            </div>`;
+        }
+
+        html += '</div>';
+
+        return html;
+    }
     // ── Load volunteer header ─────────────────────────────────────────────────
     function loadVolunteerHeader() {
         $.ajax({
@@ -254,5 +379,46 @@
     // ── Logout ────────────────────────────────────────────────────────────────
     $(document).on('click', '.logout-btn, #logoutBtn', function () {
         setTimeout(() => { window.location.href = 'Login.html'; }, 400);
+    });
+
+    $(document).on('click', '.save-final-decision', function () {
+
+        const personId = $(this).data('personid');
+
+        const decision =
+            $(`input[name="finalDecision_${personId}"]:checked`).val();
+
+        if (!decision) {
+
+            alert('Please select Permanent or Failed');
+
+            return;
+        }
+
+        $.ajax({
+
+            url: API_BASE_URL + '/nurture/final-decision',
+
+            method: 'POST',
+
+            contentType: 'application/json',
+
+            data: JSON.stringify({
+                person_id: personId,
+                decision: decision
+            }),
+
+            success: function () {
+
+                alert('Decision saved successfully');
+
+                loadAssignments();
+            },
+
+            error: function (xhr) {
+
+                alert(xhr.responseText || 'Error');
+            }
+        });
     });
 });

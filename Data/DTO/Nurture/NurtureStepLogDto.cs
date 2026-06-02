@@ -21,7 +21,13 @@ namespace RM_CMS.Data.DTO.Nurture
         public string FinalStatus { get; set; } = string.Empty;     // Permanent | Failed
         public string? FinalNotes { get; set; }
     }
+    public class FinalDecisionDTO
+    {
+        public string person_id { get; set; }
 
+        // PERMANENT / FAILED
+        public string decision { get; set; }
+    }
     /// <summary>Summary card used in Team Lead dashboard and huddle view.</summary>
     public class NurtureSequenceSummaryDto
     {
