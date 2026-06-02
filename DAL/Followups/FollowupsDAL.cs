@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using RM_CMS.DAL.Nurture;
+using RM_CMS.DAL.Volunteers;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO.Followups;
 using RM_CMS.Data.DTO.TeamLeads;
@@ -28,12 +29,14 @@ namespace RM_CMS.DAL.Followups
         private readonly IDbConnectionFactory _dbConnectionFactory;
         private readonly IEscalationsDAL _escalationsDAL;
         private readonly INurtureDAL _nurtureDAL;
+        private readonly IVolunteersDAL _volunteersDAL;
 
-        public FollowupsDAL(IDbConnectionFactory dbConnectionFactory, IEscalationsDAL escalationsDAL, INurtureDAL nurtureDAL)
+        public FollowupsDAL(IDbConnectionFactory dbConnectionFactory, IEscalationsDAL escalationsDAL, INurtureDAL nurtureDAL, IVolunteersDAL volunteersDAL)
         {
             _dbConnectionFactory = dbConnectionFactory;
             _escalationsDAL = escalationsDAL;
             _nurtureDAL = nurtureDAL;
+            _volunteersDAL = volunteersDAL;
         }
 
         public async Task<ApiResponse<bool>> HandleNormalResponseAsync(FollowUpRequestDTO dto)
@@ -484,6 +487,8 @@ WHERE person_id = @PersonId;
                 await connection.ExecuteAsync(updateOnResolve, new { VolunteerId = data.volunteer_id });
 
                 //UpdateNurtureCurrentStepAsync(data.person_id);
+
+                SendMessageToAllUsersAsync();
                 if (escalationResponse.ResponseType != ResponseType.Success)
                     return new ApiResponse<bool>(ResponseType.Error, escalationResponse.Message, false);
 
@@ -504,6 +509,23 @@ WHERE person_id = @PersonId;
         }
         #endregion
 
+        public async Task SendMessageToAllUsersAsync()
+        {
+            using var connection = _dbConnectionFactory.GetConnection();
+
+            var chatIds = await connection.QueryAsync<string>(@"
+        SELECT telegram_chat_id
+        FROM users
+        WHERE status = 'Active'
+          AND telegram_chat_id IS NOT NULL
+          AND telegram_chat_id <> '';
+    ");
+            string message = "🚨 New volunteer assignments have been generated. Please log in and review your dashboard.";
+            foreach (var chatId in chatIds)
+            {
+                await _volunteersDAL.SendTelegramMessageAsync(chatId, message);
+            }
+        }
 
         public async Task<ApiResponse<string>> LogFollowUpAttemptAsync(FollowUpRequestDTO data)
         {
