@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using Microsoft.AspNetCore.Http.HttpResults;
+using MySqlConnector;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO.Peoples;
 using RM_CMS.Data.Models;
@@ -24,6 +25,10 @@ namespace RM_CMS.DAL.Peoples
         Task<ApiResponse<List<People>>> GetBasicPeopleAsync(string? status = null);
         Task<ApiResponse<People>> UpdatePersonAsync(People person);
         Task<ApiResponse<List<string>>> GetUnassignedPersonIdsAsync();
+        Task<ApiResponse<bool>> UpdateFinalStatusAsync(
+     string personId,
+     string finalStatus);
+        Task<ApiResponse<FinalDecisionListResponseDTO>> GetFinalDecisionListAsync();
     }
 
     public class PeoplesDAL : IPeoplesDAL
@@ -793,6 +798,164 @@ WHERE person_id = @PersonId;
                     $"Error retrieving person ids: {ex.Message}",
                     new List<string>()
                 );
+            }
+        }
+
+        public async Task<ApiResponse<bool>> UpdateFinalStatusAsync(
+     string personId,
+     string finalStatus)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+                UPDATE people
+                SET final_status = @FinalStatus
+                WHERE person_id = @PersonId;";
+
+                    var rowsAffected = await connection.ExecuteAsync(
+                        query,
+                        new
+                        {
+                            PersonId = personId,
+                            FinalStatus = finalStatus
+                        });
+
+                    if (rowsAffected > 0)
+                    {
+                        return new ApiResponse<bool>(
+                            ResponseType.Success,
+                            "Final status updated successfully",
+                            true
+                        );
+                    }
+
+                    return new ApiResponse<bool>(
+                        ResponseType.Warning,
+                        "Person not found or no changes made",
+                        false
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    $"Error updating final status: {ex.Message}",
+                    false
+                );
+            }
+        }
+
+        public async Task<ApiResponse<FinalDecisionListResponseDTO>> GetFinalDecisionListAsync()
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+                        SELECT 
+                            p.person_id AS PersonId,
+                            p.first_name AS FirstName,
+                            p.last_name AS LastName,
+                            COALESCE(p.final_status, '') AS FinalStatus,
+                            MAX(CASE WHEN ns.step_number = 1 THEN ns.response_type ELSE '' END) AS FollowUp1_ResponseType,
+                            MAX(CASE WHEN ns.step_number = 1 THEN COALESCE(ns.notes, '') ELSE '' END) AS FollowUp1_Notes,
+                            MAX(CASE WHEN ns.step_number = 2 THEN ns.response_type ELSE '' END) AS FollowUp2_ResponseType,
+                            MAX(CASE WHEN ns.step_number = 2 THEN COALESCE(ns.notes, '') ELSE '' END) AS FollowUp2_Notes,
+                            MAX(CASE WHEN ns.step_number = 3 THEN ns.response_type ELSE '' END) AS FollowUp3_ResponseType,
+                            MAX(CASE WHEN ns.step_number = 3 THEN COALESCE(ns.notes, '') ELSE '' END) AS FollowUp3_Notes,
+                            MAX(CASE WHEN ns.step_number = 4 THEN ns.response_type ELSE '' END) AS FollowUp4_ResponseType,
+                            MAX(CASE WHEN ns.step_number = 4 THEN COALESCE(ns.notes, '') ELSE '' END) AS FollowUp4_Notes,
+                            MAX(CASE WHEN ns.step_number = 5 THEN ns.response_type ELSE '' END) AS FollowUp5_ResponseType,
+                            MAX(CASE WHEN ns.step_number = 5 THEN COALESCE(ns.notes, '') ELSE '' END) AS FollowUp5_Notes,
+                            MAX(CASE WHEN ns.step_number = 6 THEN ns.response_type ELSE '' END) AS FollowUp6_ResponseType,
+                            MAX(CASE WHEN ns.step_number = 6 THEN COALESCE(ns.notes, '') ELSE '' END) AS FollowUp6_Notes,
+                            MAX(CASE WHEN ns.step_number = 7 THEN ns.response_type ELSE '' END) AS FollowUp7_ResponseType,
+                            MAX(CASE WHEN ns.step_number = 7 THEN COALESCE(ns.notes, '') ELSE '' END) AS FollowUp7_Notes,
+                            MAX(CASE WHEN ns.step_number = 1 THEN ns.scheduled_date ELSE NULL END) AS FollowUp1_ScheduledDate,
+                            MAX(CASE WHEN ns.step_number = 2 THEN ns.scheduled_date ELSE NULL END) AS FollowUp2_ScheduledDate,
+                            MAX(CASE WHEN ns.step_number = 3 THEN ns.scheduled_date ELSE NULL END) AS FollowUp3_ScheduledDate,
+                            MAX(CASE WHEN ns.step_number = 4 THEN ns.scheduled_date ELSE NULL END) AS FollowUp4_ScheduledDate,
+                            MAX(CASE WHEN ns.step_number = 5 THEN ns.scheduled_date ELSE NULL END) AS FollowUp5_ScheduledDate,
+                            MAX(CASE WHEN ns.step_number = 6 THEN ns.scheduled_date ELSE NULL END) AS FollowUp6_ScheduledDate,
+                            MAX(CASE WHEN ns.step_number = 7 THEN ns.scheduled_date ELSE NULL END) AS FollowUp7_ScheduledDate
+                        FROM people p
+                        LEFT JOIN nurture_steps ns ON p.person_id = ns.person_id
+    WHERE p.final_status = 'PENDING'
+                        GROUP BY p.person_id, p.first_name, p.last_name, p.final_status
+                        ORDER BY p.first_name, p.last_name;";
+
+                    var result = await connection.QueryAsync<dynamic>(query);
+                    var items = new List<FinalDecisionItemDTO>();
+
+                    foreach (var row in result)
+                    {
+                        var item = new FinalDecisionItemDTO
+                        {
+                            PersonId = row.PersonId,
+                            FirstName = row.FirstName,
+                            LastName = row.LastName,
+                            FinalStatus = row.FinalStatus,
+                            FollowUp1 = new NurtureStepDTO
+                            {
+                                ResponseType = row.FollowUp1_ResponseType ?? "",
+                                Notes = row.FollowUp1_Notes ?? "",
+                                ScheduledDate = row.FollowUp1_ScheduledDate
+                            },
+                            FollowUp2 = new NurtureStepDTO
+                            {
+                                ResponseType = row.FollowUp2_ResponseType ?? "",
+                                Notes = row.FollowUp2_Notes ?? "",
+                                ScheduledDate = row.FollowUp2_ScheduledDate
+                            },
+                            FollowUp3 = new NurtureStepDTO
+                            {
+                                ResponseType = row.FollowUp3_ResponseType ?? "",
+                                Notes = row.FollowUp3_Notes ?? "",
+                                ScheduledDate = row.FollowUp3_ScheduledDate
+                            },
+                            FollowUp4 = new NurtureStepDTO
+                            {
+                                ResponseType = row.FollowUp4_ResponseType ?? "",
+                                Notes = row.FollowUp4_Notes ?? "",
+                                ScheduledDate = row.FollowUp4_ScheduledDate
+                            },
+                            FollowUp5 = new NurtureStepDTO
+                            {
+                                ResponseType = row.FollowUp5_ResponseType ?? "",
+                                Notes = row.FollowUp5_Notes ?? "",
+                                ScheduledDate = row.FollowUp5_ScheduledDate
+                            },
+                            FollowUp6 = new NurtureStepDTO
+                            {
+                                ResponseType = row.FollowUp6_ResponseType ?? "",
+                                Notes = row.FollowUp6_Notes ?? "",
+                                ScheduledDate = row.FollowUp6_ScheduledDate
+                            },
+                            FollowUp7 = new NurtureStepDTO
+                            {
+                                ResponseType = row.FollowUp7_ResponseType ?? "",
+                                Notes = row.FollowUp7_Notes ?? "",
+                                ScheduledDate = row.FollowUp7_ScheduledDate
+                            }
+                        };
+                        items.Add(item);
+                    }
+
+                    var response = new FinalDecisionListResponseDTO
+                    {
+                        Items = items,
+                        TotalCount = items.Count
+                    };
+
+                    return new ApiResponse<FinalDecisionListResponseDTO>(ResponseType.Success, "Final decision list retrieved", response);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<FinalDecisionListResponseDTO>(ResponseType.Error, $"Error retrieving final decision list: {ex.Message}", null);
             }
         }
 

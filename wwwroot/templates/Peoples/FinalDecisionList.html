@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Decision List - RM CMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #085c40;
+            --primary-hover: #064d35;
+            --primary-light: #e6f4ef;
+            --primary-dark: #053d2b;
+            --white: #ffffff;
+            --bg: #ffffff;
+            --surface: #f9fafb;
+            --border: #e5e7eb;
+            --text: #111827;
+            --muted: #6b7280;
+            --danger: #ef4444;
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --t: 0.18s ease;
+            --radius: 12px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+            body::before {
+                content: '';
+                display: block;
+                height: 3px;
+                background: var(--primary);
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 999;
+            }
+
+        /* ── Navbar ── */
+        .site-navbar {
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            position: sticky;
+            top: 3px;
+            z-index: 100;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .navbar-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 2px solid var(--primary-light);
+        }
+
+            .navbar-logo img {
+                width: 30px;
+                height: 30px;
+                object-fit: contain;
+            }
+
+        .navbar-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+
+            .navbar-name span {
+                color: var(--primary);
+            }
+
+        .navbar-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border-radius: 999px;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Page Body ── */
+        .page-body {
+            padding: 28px 20px 60px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-eyebrow {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .page-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.03em;
+            margin-bottom: 4px;
+        }
+
+        .page-sub {
+            font-size: 0.875rem;
+            color: var(--muted);
+            margin-bottom: 22px;
+        }
+
+        /* ── Search Card ── */
+        .search-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            margin-bottom: 16px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+            .search-card input {
+                flex: 1;
+                padding: 10px 14px;
+                border: 1.5px solid var(--border);
+                border-radius: 8px;
+                font-size: 0.9rem;
+                font-family: var(--font);
+                color: var(--text);
+                background: var(--surface);
+                outline: none;
+                transition: border-color var(--t), box-shadow var(--t);
+            }
+
+                .search-card input:focus {
+                    border-color: var(--primary);
+                    background: var(--white);
+                    box-shadow: 0 0 0 3px rgba(8,92,64,0.12);
+                }
+
+                .search-card input::placeholder {
+                    color: #9ca3af;
+                }
+
+        .btn-refresh {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: var(--font);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background var(--t), box-shadow var(--t);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+            .btn-refresh:hover {
+                background: var(--primary-hover);
+                box-shadow: 0 4px 12px rgba(8,92,64,0.22);
+            }
+
+            .btn-refresh:active {
+                transform: scale(0.98);
+            }
+
+        /* ── Loading / Empty ── */
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 48px;
+            color: var(--muted);
+        }
+
+        .spinner-border {
+            color: var(--primary);
+        }
+
+        .empty-state {
+            display: none;
+            text-align: center;
+            padding: 48px;
+            color: var(--muted);
+        }
+
+            .empty-state i {
+                font-size: 2.5rem;
+                margin-bottom: 12px;
+                opacity: 0.4;
+                display: block;
+            }
+
+        /* ── Grid Card ── */
+        .grid-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .grid-card-header {
+            padding: 13px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--white);
+        }
+
+        .grid-card-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .grid-card-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0;
+        }
+
+        /* ── Table ── */
+        .table {
+            margin-bottom: 0;
+        }
+
+            .table thead th {
+                font-size: 0.72rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                color: var(--muted);
+                background: var(--surface);
+                border-bottom: 1px solid var(--border);
+                padding: 11px 14px;
+                white-space: nowrap;
+            }
+
+            .table tbody td {
+                font-size: 0.875rem;
+                color: var(--text);
+                border-bottom: 1px solid var(--border);
+                padding: 12px 14px;
+                vertical-align: top;
+            }
+
+            .table tbody tr:last-child td {
+                border-bottom: none;
+            }
+
+            .table tbody tr:hover td {
+                background: var(--surface);
+            }
+
+        /* ── Follow-up cell — no badges, clean text ── */
+        .fu-cell {
+            min-width: 130px;
+        }
+
+        .fu-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            margin-bottom: 3px;
+        }
+
+        .fu-type {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .fu-notes {
+            font-size: 0.78rem;
+            color: var(--muted);
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .fu-empty {
+            font-size: 0.82rem;
+            color: #d1d5db;
+        }
+
+        /* ── Final Status — simple pill, no colors ── */
+        .status-pill {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: var(--surface);
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+            .status-pill.permanent {
+                background: var(--primary-light);
+                color: var(--primary-dark);
+                border-color: #b3dcc9;
+            }
+
+            .status-pill.failed {
+                background: #fef2f2;
+                color: #991b1b;
+                border-color: #fca5a5;
+            }
+
+        /* ── Edit Button ── */
+        .btn-edit {
+            padding: 5px 14px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border: 1px solid #b3dcc9;
+            border-radius: 7px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            font-family: var(--font);
+            cursor: pointer;
+            transition: background var(--t);
+        }
+
+            .btn-edit:hover {
+                background: #c6e8d8;
+            }
+
+        /* ── Modal ── */
+        .modal-content {
+            border: 1px solid var(--border) !important;
+            border-radius: 16px !important;
+            font-family: var(--font) !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1) !important;
+        }
+
+        .modal-header {
+            background: var(--primary) !important;
+            color: #fff !important;
+            border-radius: 16px 16px 0 0 !important;
+            border: none !important;
+            padding: 15px 22px !important;
+        }
+
+        .modal-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #fff !important;
+        }
+
+        .modal-header .btn-close {
+            filter: brightness(0) invert(1);
+        }
+
+        .modal-body {
+            padding: 20px 22px !important;
+        }
+
+        .modal-footer {
+            border-top: 1px solid var(--border) !important;
+            padding: 13px 22px !important;
+        }
+
+        .form-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .form-control, .form-select {
+            padding: 10px 13px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-family: var(--font);
+            color: var(--text);
+            background: var(--surface);
+            outline: none;
+            transition: border-color var(--t), box-shadow var(--t);
+            appearance: none;
+        }
+
+            .form-control:focus, .form-select:focus {
+                border-color: var(--primary);
+                background: var(--white);
+                box-shadow: 0 0 0 3px rgba(8,92,64,0.12);
+            }
+
+            .form-control[readonly] {
+                background: #f3f4f6;
+                color: var(--muted);
+                cursor: not-allowed;
+            }
+
+        .form-select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        .modal-footer .btn-secondary {
+            background: var(--surface);
+            color: var(--muted);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: var(--font);
+            padding: 8px 18px;
+        }
+
+            .modal-footer .btn-secondary:hover {
+                background: #e5e7eb;
+                color: var(--text);
+            }
+
+        .modal-footer .btn-primary {
+            background: var(--primary) !important;
+            border-color: var(--primary) !important;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 700;
+            font-family: var(--font);
+            padding: 8px 22px;
+            color: #fff;
+        }
+
+            .modal-footer .btn-primary:hover {
+                background: var(--primary-hover) !important;
+            }
+
+        /* ── Toasts ── */
+        .toast-header.bg-success {
+            background: var(--primary) !important;
+        }
+
+        .toast {
+            font-family: var(--font);
+            border-radius: 10px !important;
+        }
+
+        /* Bootstrap overrides */
+        .btn-primary {
+            background: var(--primary) !important;
+            border-color: var(--primary) !important;
+        }
+
+            .btn-primary:hover {
+                background: var(--primary-hover) !important;
+            }
+
+        @media (max-width: 768px) {
+            .page-body {
+                padding: 18px 12px 48px;
+            }
+
+            .site-navbar {
+                padding: 0 16px;
+            }
+
+            .search-card {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="site-navbar">
+        <a class="navbar-brand" href="#">
+            <div class="navbar-logo">
+                <img src="../assets/Images/logo.jpeg" alt="RM"
+                     onerror="this.style.display='none';this.parentElement.textContent='R'">
+            </div>
+            <span class="navbar-name">RM <span>CMS</span></span>
+        </a>
+        <div>
+            <span class="navbar-badge">Final Decision</span>
+        </div>
+    </nav>
+
+    <!-- Page Body -->
+    <div class="page-body">
+
+        <p class="page-eyebrow">Management</p>
+        <h1 class="page-title">Final Decision List</h1>
+        <p class="page-sub">Review and manage final decisions for people who have completed the nurture process.</p>
+
+        <!-- Search -->
+        <div class="search-card">
+            <input type="text" id="searchInput" placeholder="Search by name...">
+            <button class="btn-refresh" onclick="loadFinalDecisionList()">↻ Refresh</button>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p style="margin-top:10px;font-size:0.875rem;">Loading final decision list...</p>
+        </div>
+
+        <!-- Empty -->
+        <div class="empty-state" id="emptyState">
+            <i>📭</i>
+            <p>No people found for final decision review</p>
+        </div>
+
+        <!-- Grid -->
+        <div class="grid-card" id="gridContainer" style="display:none;">
+            <div class="grid-card-header">
+                <div class="grid-card-icon">📋</div>
+                <h3 class="grid-card-title">Final Decision List</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover" id="finalDecisionTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Follow-up 1</th>
+                            <th>Follow-up 2</th>
+                            <th>Follow-up 3</th>
+                            <th>Follow-up 4</th>
+                            <th>Follow-up 5</th>
+                            <th>Follow-up 6</th>
+                            <th>Follow-up 7</th>
+                            <th>Final Decision</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination REMOVED as requested -->
+        <!-- Pagination -->
+        <div class="pagination-container" id="paginationContainer" style="display: none;">
+            <nav>
+                <ul class="pagination justify-content-center mb-0" id="paginationList">
+                </ul>
+            </nav>
+        </div>
+
+    </div>
+
+    <!-- Edit Modal — IDs UNTOUCHED -->
+    <div class="modal fade" id="editFinalDecisionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Final Decision</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editFinalDecisionForm">
+                        <div class="mb-3">
+                            <label for="personNameDisplay" class="form-label">Person Name</label>
+                            <input type="text" class="form-control" id="personNameDisplay" readonly>
+                            <input type="hidden" id="personIdInput">
+                        </div>
+                        <div class="mb-3">
+                            <label for="finalDecisionSelect" class="form-label">Final Decision</label>
+                            <select class="form-select" id="finalDecisionSelect" required>
+                                <option value="">-- Select Final Decision --</option>
+                                <option value="PENDING">PENDING</option>
+                                <option value="PERMANENT">PERMANENT</option>
+                                <option value="FAILED">FAILED</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveFinalDecision()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toasts — IDs UNTOUCHED -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index:11">
+        <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-success text-white">
+                <strong class="me-auto">Success</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="successToastBody"></div>
+        </div>
+        <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-danger text-white">
+                <strong class="me-auto">Error</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="errorToastBody"></div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/final-decision-list.js"></script>
+</body>
+</html>

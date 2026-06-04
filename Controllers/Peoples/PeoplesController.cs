@@ -126,5 +126,50 @@ namespace RM_CMS.Controllers.Peoples
 
 
         }
+
+
+        [HttpPost("/api/UpdateFinalStatus")]
+        public async Task<ActionResult<ApiResponse<bool>>> UpdateFinalStatus(
+    [FromBody] FinalStatusRequest request)
+        {
+            try
+            {
+                var result = await _peoplesBLL.UpdateFinalStatusAsync(
+                    request.PersonId,
+                    request.FinalStatus);
+
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating final status");
+
+                return StatusCode(500, new ApiResponse<bool>(
+                    ResponseType.Error,
+                    "An error occurred while updating final status",
+                    false
+                ));
+            }
+        }
+
+        [HttpGet("/api/people/final-decision-list")]
+        public async Task<ActionResult<ApiResponse<FinalDecisionListResponseDTO>>> GetFinalDecisionList()
+        {
+            try
+            {
+                var result = await _peoplesBLL.GetFinalDecisionListAsync();
+                return HttpResponseHelper.CreateHttpResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving final decision list");
+
+                return StatusCode(500, new ApiResponse<FinalDecisionListResponseDTO>(
+                    ResponseType.Error,
+                    "An error occurred while retrieving final decision list",
+                    null
+                ));
+            }
+        }
     }
 }

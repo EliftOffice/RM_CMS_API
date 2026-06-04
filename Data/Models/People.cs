@@ -85,5 +85,12 @@ namespace RM_CMS.Data.Models
         public string? CurrentStepMethod { get; set; }
 
         public DateTime? CurrentStepDate { get; set; }
+        public string? IsFinalDecisionPending { get; set; }
+    }
+
+    public class FinalStatusRequest()
+    {
+        public string PersonId { get; set; }
+        public string FinalStatus { get; set; }
     }
 }

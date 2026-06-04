@@ -70,16 +70,41 @@
                     );
                     return;
                 }
+                // const filtered = res.data.filter(p => {
+
+                //     const status = p.followUpStatus?.toUpperCase();
+
+                //     if (status === 'ASSIGNED') return true;
+
+                //     if (status === 'RETRY PENDING') return true;
+
+                //     if (status === 'IN_NURTURE') {
+
+                //         const today = new Date();
+                //         today.setHours(0, 0, 0, 0);
+
+                //         const stepDate = new Date(p.currentStepDate);
+                //         stepDate.setHours(0, 0, 0, 0);
+
+                //         return stepDate <= today;
+                //     }
+
+                //     return false;
+                // });
+
+
                 const filtered = res.data.filter(p => {
+
+                    if (p.isFinalDecisionPending == "1") {
+                        return false;
+                    }
 
                     const status = p.followUpStatus?.toUpperCase();
 
                     if (status === 'ASSIGNED') return true;
-
                     if (status === 'RETRY PENDING') return true;
 
                     if (status === 'IN_NURTURE') {
-
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
 

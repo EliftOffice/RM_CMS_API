@@ -18,6 +18,10 @@ namespace RM_CMS.BLL.Peoples
         Task<ApiResponse<List<People>>> GetBasicPeopleAsync(string? status = null);
         Task<ApiResponse<People>> UpdateVisitorAsync(CreatePeopleDto updateDto);
         Task<ApiResponse<List<string>>> GetUnassignedPersonIdsAsync();
+        Task<ApiResponse<bool>> UpdateFinalStatusAsync(
+     string personId,
+     string finalStatus);
+        Task<ApiResponse<FinalDecisionListResponseDTO>> GetFinalDecisionListAsync();
     }
     public class PeoplesBLL : IPeoplesBLL
     {
@@ -360,6 +364,42 @@ namespace RM_CMS.BLL.Peoples
                     ResponseType.Error,
                     $"Error retrieving person ids: {ex.Message}",
                     new List<string>()
+                );
+            }
+        }
+
+        public async Task<ApiResponse<bool>> UpdateFinalStatusAsync(
+     string personId,
+     string finalStatus)
+        {
+            try
+            {
+                return await _peoplesDAL.UpdateFinalStatusAsync(
+                    personId,
+                    finalStatus);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    $"Error updating final status: {ex.Message}",
+                    false
+                );
+            }
+        }
+
+        public async Task<ApiResponse<FinalDecisionListResponseDTO>> GetFinalDecisionListAsync()
+        {
+            try
+            {
+                return await _peoplesDAL.GetFinalDecisionListAsync();
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<FinalDecisionListResponseDTO>(
+                    ResponseType.Error,
+                    $"Error retrieving final decision list: {ex.Message}",
+                    null
                 );
             }
         }

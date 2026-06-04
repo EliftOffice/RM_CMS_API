@@ -92,7 +92,7 @@ namespace RM_CMS.DAL.Followups
                             await connection.ExecuteAsync(updateVolunteer,
                                 new { VolunteerId = dto.volunteer_id }, transaction);
 
-                            UpdateNurtureCurrentStepAsync(dto.person_id);
+                            UpdateNurtureCurrentStepAsync(dto.person_id,dto.response_type,dto.notes);
 
                             transaction.Commit();
                         }
@@ -145,9 +145,99 @@ WHERE person_id = @PersonId;
             }
         }
 
+        public async Task<bool> UpdateNurtureCurrentStepAsync(
+    string personId,
+    string responseType,
+    string notes)
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
 
+                if (connection.State == ConnectionState.Closed)
+                    connection.Open();
 
-        public async Task<bool> UpdateNurtureCurrentStepAsync(string personId)
+                // Current step fetch
+                const string getStepQuery = @"
+            SELECT current_step
+            FROM nurture_sequences
+            WHERE person_id = @PersonId
+              AND status = 'Active'
+            LIMIT 1;";
+
+                int currentStep = await connection.ExecuteScalarAsync<int>(
+                    getStepQuery,
+                    new { PersonId = personId });
+
+                // Save response type and notes for current step
+                const string updateStepQuery = @"
+            UPDATE nurture_steps
+            SET
+                response_type = @ResponseType,
+                notes = @Notes,
+                updated_at = NOW()
+            WHERE person_id = @PersonId
+              AND step_number = @CurrentStep;";
+
+                await connection.ExecuteAsync(
+                    updateStepQuery,
+                    new
+                    {
+                        PersonId = personId,
+                        CurrentStep = currentStep,
+                        ResponseType = responseType,
+                        Notes = notes
+                    });
+
+                // Final Step
+                if (currentStep >= 7)
+                {
+                    const string completeQuery = @"
+                UPDATE nurture_sequences
+                SET
+                    current_step = 8,
+                    updated_at = NOW()
+                WHERE person_id = @PersonId
+                  AND status = 'Active';
+
+                UPDATE people
+                SET
+                    follow_up_status = 'COMPLETED',
+                    final_status = 'PENDING'
+                WHERE person_id = @PersonId;";
+
+                    await connection.ExecuteAsync(
+                        completeQuery,
+                        new { PersonId = personId });
+
+                    return true;
+                }
+
+                // Move to next step
+                const string incrementQuery = @"
+            UPDATE nurture_sequences
+            SET
+                current_step = current_step + 1,
+                updated_at = NOW()
+            WHERE person_id = @PersonId
+              AND status = 'Active';";
+
+                int rowsAffected = await connection.ExecuteAsync(
+                    incrementQuery,
+                    new { PersonId = personId });
+
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    $"Error updating nurture step for Person {personId}: {ex.Message}");
+
+                return false;
+            }
+        }
+
+        public async Task<bool> UpdateNurtureCurrentStepAsyncV2(string personId)
         {
             try
             {
@@ -258,13 +348,16 @@ WHERE person_id = @PersonId;
                                                                      },
                                                                      transaction);
 
+                                //RETRY PENDING
+
                                 await connection.ExecuteAsync(@"
                         UPDATE people SET
-                            follow_up_status = 'RETRY PENDING',
+                            follow_up_status = 'IN_NURTURE',  
                             next_action_date = @RetryDate
                         WHERE person_id = @PersonId;",
                                 new { PersonId = dto.person_id, RetryDate = retryDate }, transaction);
 
+                                UpdateNurtureCurrentStepAsync(dto.person_id, dto.response_type, dto.notes);
                                 transaction.Commit();
 
                                 return new ApiResponse<bool>(ResponseType.Success,
@@ -281,7 +374,7 @@ WHERE person_id = @PersonId;
 
                                 await connection.ExecuteAsync(@"
                         UPDATE people SET
-                            follow_up_status = 'UNRESPONSIVE',
+                            follow_up_status = 'IN_NURTURE',
                             next_action_date = NULL
                         WHERE person_id = @PersonId;",
                                 new { PersonId = dto.person_id }, transaction);
@@ -303,11 +396,15 @@ WHERE person_id = @PersonId;
                         WHERE volunteer_id = @VolunteerId;",
                                 new { VolunteerId = dto.volunteer_id }, transaction);
                                 //UpdateNurtureCurrentStepAsync(dto.person_id);
+
+                                UpdateNurtureCurrentStepAsync(dto.person_id, dto.response_type, dto.notes);
                                 transaction.Commit();
 
                                 return new ApiResponse<bool>(ResponseType.Success,
                                     "Marked as unresponsive after 3 attempts", true);
                             }
+
+                           
                         }
                         catch (Exception ex)
                         {
@@ -348,9 +445,10 @@ WHERE person_id = @PersonId;
                 await connection.ExecuteAsync(updateFollowUp, new { FollowUpId = data.follow_up_id });
 
                 // 2. Update person
+                //ESCALATED
                 const string updatePerson = @"
             UPDATE people SET
-                follow_up_status = 'ESCALATED',
+                follow_up_status = 'IN_NURTURE',
                 follow_up_priority = 'High'
             WHERE person_id = @PersonId;
         ";
@@ -402,6 +500,8 @@ WHERE person_id = @PersonId;
 
                 //UpdateNurtureCurrentStepAsync(data.person_id);
 
+                UpdateNurtureCurrentStepAsync(data.person_id,data.response_type,data.notes);
+
                 return new ApiResponse<bool>(
                     ResponseType.Success,
                     $"Follow-up escalated successfully (ID: {escalationResponse.Data})",
@@ -442,9 +542,10 @@ WHERE person_id = @PersonId;
                 await connection.ExecuteAsync(updateFollowUp, new { FollowUpId = data.follow_up_id });
 
                 // 2. Update person
+                //ESCALATED
                 const string updatePerson = @"
             UPDATE people SET
-                follow_up_status = 'ESCALATED',
+                follow_up_status = 'IN_NURTURE',
                 follow_up_priority = 'Urgent'
             WHERE person_id = @PersonId;
         ";
@@ -486,7 +587,7 @@ WHERE person_id = @PersonId;
 
                 await connection.ExecuteAsync(updateOnResolve, new { VolunteerId = data.volunteer_id });
 
-                //UpdateNurtureCurrentStepAsync(data.person_id);
+                UpdateNurtureCurrentStepAsync(data.person_id,data.response_type,data.notes);
 
                 SendMessageToAllUsersAsync();
                 if (escalationResponse.ResponseType != ResponseType.Success)
