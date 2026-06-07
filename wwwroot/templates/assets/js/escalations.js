@@ -12,6 +12,15 @@
 
     loadEscalation(id);
 
+
+
+    $('#chkcrisifollwed').on('change', function () {
+        if ($(this).is(':checked')) {
+            $('#crisisFields').hide();
+        } else {
+            $('#crisisFields').show();
+        }
+    });
     // =========================
     // PASTOR UI CUSTOMIZATION
     // =========================
@@ -21,6 +30,7 @@
         $('#outcomeSelect').closest('.form-group').hide();
         $('#resource').closest('.form-group').hide();
         $('#followUp').closest('.form-group').hide();
+        $('#crisifollwed').closest('.form-group').hide();
 
         // Remove old options
         $('#statusSelect').empty();
@@ -37,6 +47,8 @@
         $('#reEscalateBtn').hide();
 
         $('.form-card-title').text('Pastor Resolution');
+
+       
     }
 
     // =========================
@@ -83,6 +95,8 @@
     // =========================
     $("#resolveBtn").click(function () {
 
+        const isEscalateToPastor = $("#chkcrisifollwed").is(":checked");
+
         const payload = {
             escalationId: id,
             status: $("#statusSelect").val(),
@@ -90,32 +104,30 @@
             notes: $("#notes").val(),
             resourceConnected: $("#resource").val(),
             followUpScheduled: $("#followUp").is(":checked"),
-
-            // NEW
+            crisisProtocolFollowed: isEscalateToPastor,
             updatedByRole: role
         };
 
-        // =========================
-        // PASTOR FLOW
-        // =========================
-        if (role === 'pastor') {
+        // Checkbox checked => validations skip
+        if (!isEscalateToPastor) {
 
-            if (!payload.status) {
-                showMessage("Status required", "error");
-                return;
+            if (role === 'pastor') {
+
+                if (!payload.status) {
+                    showMessage("Status required", "error");
+                    return;
+                }
+
+                payload.outcome = null;
+                payload.resourceConnected = null;
+                payload.followUpScheduled = false;
             }
+            else {
 
-            // Pastor ki outcome validation ledu
-            payload.outcome = null;
-            payload.resourceConnected = null;
-            payload.followUpScheduled = false;
-        }
-        else {
-
-            // TL Validation
-            if (!payload.status || !payload.outcome) {
-                showMessage("Status & Outcome required", "error");
-                return;
+                if (!payload.status || !payload.outcome) {
+                    showMessage("Status & Outcome required", "error");
+                    return;
+                }
             }
         }
 

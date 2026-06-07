@@ -705,7 +705,7 @@ WHERE tl.status = 'Active';
                     JOIN volunteers v ON e.volunteer_id = v.volunteer_id
                     WHERE e.status IN ('New', 'In Progress')
                       AND e.escalation_tier = 'Emergency'
-                      AND (e.assigned_to IS NULL OR e.assigned_to != 'TeamLead')
+                      AND (e.assigned_to IS NULL OR e.assigned_to != 'TeamLead') AND  e.crisis_protocol_followed=1
                     ORDER BY e.escalation_date DESC;
                 ";
 
@@ -793,7 +793,7 @@ INNER JOIN people p
 WHERE u.role_type = 'Pastor'
   AND u.status = 'Active'
   AND e.status IN ('NEW', 'In Progress')
-  AND e.escalation_reason = 'Crisis'
+  AND e.escalation_reason = 'Crisis' 
 
 GROUP BY u.user_id;
 ";

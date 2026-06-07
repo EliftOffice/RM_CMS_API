@@ -312,7 +312,7 @@ FROM escalations e
 JOIN people p ON e.person_id = p.person_id
 JOIN volunteers v ON e.volunteer_id = v.volunteer_id
 WHERE e.status IN ('New', 'In Progress')
-  AND e.team_lead_id = @TeamLeadId
+  AND e.team_lead_id = @TeamLeadId  AND IFNULL(crisis_protocol_followed, 0) = 0
 ORDER BY e.escalation_tier DESC, e.escalation_date;
 ";
 

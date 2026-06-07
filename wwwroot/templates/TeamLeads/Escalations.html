@@ -534,6 +534,15 @@
 
             <div class="form-card-body">
 
+                <!-- TL ONLY -->
+                <div class="form-group" id="crisifollwed">
+                    <label class="check-item">
+                        <input type="checkbox" id="chkcrisifollwed" />
+                        Escalate to Pastor
+                    </label>
+                </div>
+
+                <div id="crisisFields">
                 <!-- STATUS -->
                 <div class="form-group">
                     <label class="form-label">Status</label>
@@ -573,14 +582,17 @@
                               placeholder="Resolution Notes"></textarea>
                 </div>
 
+
+
+
                 <!-- TL ONLY -->
-                <div class="form-group" id="followupGroup">
+                <div class="form-group" id="followupGroup" style="display:none">
                     <label class="check-item">
                         <input type="checkbox" id="followUp" />
                         Follow-up Scheduled
                     </label>
                 </div>
-
+                    </div>
                 <!-- SINGLE BUTTON FOR ALL -->
                 <button id="resolveBtn">Submit</button>
 

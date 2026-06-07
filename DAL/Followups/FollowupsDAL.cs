@@ -92,7 +92,7 @@ namespace RM_CMS.DAL.Followups
                             await connection.ExecuteAsync(updateVolunteer,
                                 new { VolunteerId = dto.volunteer_id }, transaction);
 
-                            UpdateNurtureCurrentStepAsync(dto.person_id,dto.response_type,dto.notes);
+                          
 
                             transaction.Commit();
                         }
@@ -105,6 +105,7 @@ namespace RM_CMS.DAL.Followups
 
                     // 4. Start nurture sequence (outside transaction — has its own)
                     await _nurtureDAL.StartSequenceAsync(dto.person_id, dto.volunteer_id, dto.team_lead_id);
+                    UpdateNurtureCurrentStepAsync(dto.person_id, dto.response_type, dto.notes);
 
                     return new ApiResponse<bool>(ResponseType.Success, "Follow-up complete — nurture sequence started", true);
                 }
@@ -170,12 +171,14 @@ WHERE person_id = @PersonId;
                     new { PersonId = personId });
 
                 // Save response type and notes for current step
+                if (currentStep == 0) currentStep = 1;
                 const string updateStepQuery = @"
             UPDATE nurture_steps
             SET
                 response_type = @ResponseType,
                 notes = @Notes,
-                updated_at = NOW()
+                updated_at = NOW(),
+status='Completed'
             WHERE person_id = @PersonId
               AND step_number = @CurrentStep;";
 
@@ -404,7 +407,7 @@ WHERE person_id = @PersonId;
                                     "Marked as unresponsive after 3 attempts", true);
                             }
 
-                           
+
                         }
                         catch (Exception ex)
                         {
@@ -500,7 +503,7 @@ WHERE person_id = @PersonId;
 
                 //UpdateNurtureCurrentStepAsync(data.person_id);
 
-                UpdateNurtureCurrentStepAsync(data.person_id,data.response_type,data.notes);
+                UpdateNurtureCurrentStepAsync(data.person_id, data.response_type, data.notes);
 
                 return new ApiResponse<bool>(
                     ResponseType.Success,
@@ -587,7 +590,7 @@ WHERE person_id = @PersonId;
 
                 await connection.ExecuteAsync(updateOnResolve, new { VolunteerId = data.volunteer_id });
 
-                UpdateNurtureCurrentStepAsync(data.person_id,data.response_type,data.notes);
+                UpdateNurtureCurrentStepAsync(data.person_id, data.response_type, data.notes);
 
                 SendMessageToAllUsersAsync();
                 if (escalationResponse.ResponseType != ResponseType.Success)

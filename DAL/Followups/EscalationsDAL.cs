@@ -28,6 +28,7 @@ namespace RM_CMS.DAL.Followups
         // ✅ CREATE ESCALATION (AUTO ROUTING)
         Task<ApiResponse<string>> CreateEscalationAsync(EscalationDTO escalation);
         Task<ApiResponse<bool>> UpdateEscalationAsync(UpdateEscalationDTO dto);
+        Task<ApiResponse<bool>> EscalateToPastorAsync(string escalationId);
     }
     public class EscalationsDAL : IEscalationsDAL
     {
@@ -525,6 +526,42 @@ assigned_to = @UpdatedByRole
                 return new ApiResponse<bool>(
                     ResponseType.Error,
                     $"Error updating escalation: {ex.Message}",
+                    false
+                );
+            }
+        }
+
+
+        public async Task<ApiResponse<bool>> EscalateToPastorAsync(string escalationId)
+        {
+            try
+            {
+                const string query = @"
+            UPDATE escalations
+            SET
+                assigned_to = 'pastor',
+crisis_protocol_followed = 1,
+                updated_at = NOW()
+            WHERE escalation_id = @EscalationId";
+
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                var rows = await connection.ExecuteAsync(query, new
+                {
+                    EscalationId = escalationId
+                });
+
+                return new ApiResponse<bool>(
+                    ResponseType.Success,
+                    "Escalated to Pastor successfully",
+                    rows > 0
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(
+                    ResponseType.Error,
+                    ex.Message,
                     false
                 );
             }
