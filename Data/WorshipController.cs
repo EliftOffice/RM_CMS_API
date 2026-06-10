@@ -41,8 +41,15 @@ namespace RM_CMS.Controllers.Worship
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while generating worship songs.");
-                return StatusCode(500, new { message = "An error occurred while generating the worship songs. Please try again later." });
+                _logger.LogError(ex,
+                    "An error occurred while generating worship songs.");
+
+                return StatusCode(500,
+                    new
+                    {
+                        error = ex.Message,
+                        stackTrace = ex.StackTrace
+                    });
             }
         }
     }
