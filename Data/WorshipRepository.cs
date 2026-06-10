@@ -144,8 +144,18 @@ namespace RM_CMS.DAL.Worship
                     sb.AppendLine($"{index++}. {song.Title}");
                 }
 
-                string botToken = "8758775670:AAGkQIB3oMWam8jjTiasW95S7zTK9TBA65Q";
-                string chatId = "-1003701592291";
+                string botToken;
+                string chatId;
+
+                using (var connection = new MySqlConnection(_connectionString))
+                {
+                    await connection.OpenAsync();
+                    botToken = await connection.ExecuteScalarAsync<string>("SELECT value FROM system_config WHERE `key` = 'telegram_bot_token'");
+                    chatId = await connection.ExecuteScalarAsync<string>("SELECT value FROM system_config WHERE `key` = 'telegram_group_chat_id'");
+                }
+
+                if (string.IsNullOrEmpty(botToken) || string.IsNullOrEmpty(chatId)) return;
+
                 string url = $"https://api.telegram.org/bot{botToken}/sendMessage";
 
                 var payload = new
