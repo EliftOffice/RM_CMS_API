@@ -19,4 +19,13 @@ namespace RM_CMS.Data.DTO.Events
         public bool AutoActivateRecurring { get; set; }
         public bool IsAttended { get; set; }
     }
+
+    public class GenerateSongsRequestDto
+    {
+        public DateTime ServiceDate { get; set; }
+
+        public int ServiceType { get; set; }
+
+        public string ServiceCategory { get; set; }
+    }
 }

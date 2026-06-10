@@ -4,6 +4,7 @@ using RM_CMS.BLL.Peoples;
 using RM_CMS.BLL.TeamLeads;
 using RM_CMS.BLL.Volunteers;
 using RM_CMS.DAL.TeamLeads;
+using RM_CMS.Data.DTO.Events;
 using RM_CMS.Data.DTO.Jobs;
 using RM_CMS.Data.DTO.Peoples;
 using RM_CMS.Data.Models;
@@ -327,6 +328,9 @@ Praise the Lord {volunteer.FirstName},
                 );
             }
         }
+
+
+        
 
     }
 }
