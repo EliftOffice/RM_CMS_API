@@ -16,9 +16,17 @@ namespace RM_CMS.Controllers.Worship
         public WorshipController(ILogger<WorshipController> logger)
         {
             _logger = logger;
-            
+
             // Hardcoded local connection string as requested
-            string localConnectionString = "server=localhost;port=3307;database=worship;user=root;password=Password@123;";
+            // string localConnectionString = "server=localhost;port=3307;database=worship;user=root;password=Password@123;";
+            string localConnectionString =
+      "Server=srv1995.hstgr.io;" +
+      "Port=3306;" +
+      "Database=u764462444_worship_db;" +
+      "Uid=u764462444_worship_user;" +
+      "Pwd=Elift@123;" +
+      "SslMode=None;" +
+      "AllowUserVariables=True;";
             var repository = new WorshipRepository(localConnectionString);
             _worshipService = new WorshipService(repository);
         }
