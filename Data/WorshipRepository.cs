@@ -109,10 +109,11 @@ namespace RM_CMS.DAL.Worship
             try
             {
                 var sb = new StringBuilder();
-                sb.AppendLine($"🎵 Service {serviceType} Songs List");
+
+                sb.AppendLine($"<b>🎵 Service {serviceType} Songs List</b>");
                 sb.AppendLine();
 
-                sb.AppendLine("🎤 Praise Songs");
+                sb.AppendLine("<b>🎤 Praise Songs</b>");
                 int index = 1;
                 foreach (var song in songs.PraiseSongs)
                 {
@@ -120,38 +121,42 @@ namespace RM_CMS.DAL.Worship
                 }
 
                 sb.AppendLine();
-                sb.AppendLine("🙏 Mid Songs");
-                index = 1;
+                sb.AppendLine("<b>🙏 Mid Songs</b>");
+              //  index = 1;
                 foreach (var song in songs.MidSongs)
                 {
                     sb.AppendLine($"{index++}. {song.Title}");
                 }
 
                 sb.AppendLine();
-                sb.AppendLine("🕊 Worship Songs");
-                index = 1;
+                sb.AppendLine("<b>🕊 Worship Songs</b>");
+               // index = 1;
                 foreach (var song in songs.WorshipSongs)
                 {
                     sb.AppendLine($"{index++}. {song.Title}");
                 }
 
-                string botToken = "8758775670:AAGkQIB3oMWam8jjTiasW95S7zTK9TBA65Q";
+                string botToken = "YOUR_BOT_TOKEN";
                 string chatId = "-1003701592291";
                 string url = $"https://api.telegram.org/bot{botToken}/sendMessage";
 
                 var payload = new
                 {
                     chat_id = chatId,
-                    text = sb.ToString()
+                    text = sb.ToString(),
+                    parse_mode = "HTML"
                 };
 
                 using var httpClient = new HttpClient();
-                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                var content = new StringContent(
+                    JsonSerializer.Serialize(payload),
+                    Encoding.UTF8,
+                    "application/json");
+
                 await httpClient.PostAsync(url, content);
             }
             catch (Exception)
             {
-                // టెలిగ్రామ్ డౌన్ అయినా లేదా ఫెయిల్ అయినా API జనరేషన్ బ్రేక్ అవ్వకుండా దీన్ని క్యాచ్ చేస్తున్నాం
             }
         }
     }
