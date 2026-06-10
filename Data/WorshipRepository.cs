@@ -2,6 +2,9 @@ using Dapper;
 using MySqlConnector;
 using RM_CMS.DTOs.Worship;
 using System.Data;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 
 namespace RM_CMS.DAL.Worship
 {
@@ -65,12 +68,17 @@ namespace RM_CMS.DAL.Worship
                     song.ServiceType = request.ServiceType;
                 }
 
-                return new RecommendedSongsDto
+                var recommendedSongs = new RecommendedSongsDto
                 {
                     PraiseSongs = praiseSongs,
                     MidSongs = midSongs,
                     WorshipSongs = worshipSongs
                 };
+
+                // టెలిగ్రామ్ కి మెసేజ్ పంపే ఫంక్షన్ ని ఇక్కడ కాల్ చేస్తున్నాం (Fire and forget లాగా వదిలేస్తున్నాం)
+                _ = SendTelegramMessageAsync(recommendedSongs, request.ServiceType);
+
+                return recommendedSongs;
             }
             catch
             {
@@ -94,6 +102,57 @@ namespace RM_CMS.DAL.Worship
                 LIMIT @Limit";
 
             return await connection.QueryAsync<SongDto>(query, new { Category = category, ServiceCategory = request.ServiceCategory, ServiceDate = formattedDate, Limit = limit }, transaction);
+        }
+
+        private async Task SendTelegramMessageAsync(RecommendedSongsDto songs, int serviceType)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine($"🎵 Service {serviceType} Songs List");
+                sb.AppendLine();
+
+                sb.AppendLine("🎤 Praise Songs");
+                int index = 1;
+                foreach (var song in songs.PraiseSongs)
+                {
+                    sb.AppendLine($"{index++}. {song.Title}");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("🙏 Mid Songs");
+                index = 1;
+                foreach (var song in songs.MidSongs)
+                {
+                    sb.AppendLine($"{index++}. {song.Title}");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("🕊 Worship Songs");
+                index = 1;
+                foreach (var song in songs.WorshipSongs)
+                {
+                    sb.AppendLine($"{index++}. {song.Title}");
+                }
+
+                string botToken = "8758775670:AAGkQIB3oMWam8jjTiasW95S7zTK9TBA65Q";
+                string chatId = "-1003701592291";
+                string url = $"https://api.telegram.org/bot{botToken}/sendMessage";
+
+                var payload = new
+                {
+                    chat_id = chatId,
+                    text = sb.ToString()
+                };
+
+                using var httpClient = new HttpClient();
+                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                await httpClient.PostAsync(url, content);
+            }
+            catch (Exception)
+            {
+                // టెలిగ్రామ్ డౌన్ అయినా లేదా ఫెయిల్ అయినా API జనరేషన్ బ్రేక్ అవ్వకుండా దీన్ని క్యాచ్ చేస్తున్నాం
+            }
         }
     }
 }
