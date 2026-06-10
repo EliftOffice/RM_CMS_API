@@ -136,7 +136,7 @@ namespace RM_CMS.DAL.Worship
                     sb.AppendLine($"{index++}. {song.Title}");
                 }
 
-                string botToken = "YOUR_BOT_TOKEN";
+                string botToken = "8758775670:AAGkQIB3oMWam8jjTiasW95S7zTK9TBA65Q";
                 string chatId = "-1003701592291";
                 string url = $"https://api.telegram.org/bot{botToken}/sendMessage";
 
