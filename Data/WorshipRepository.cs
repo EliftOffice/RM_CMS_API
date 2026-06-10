@@ -110,6 +110,14 @@ namespace RM_CMS.DAL.Worship
             {
                 var sb = new StringBuilder();
 
+            // Calculate next Sunday's date
+            DateTime today = DateTime.Today;
+            int daysUntilSunday = ((int)DayOfWeek.Sunday - (int)today.DayOfWeek + 7) % 7;
+            if (daysUntilSunday == 0) daysUntilSunday = 7;
+            DateTime nextSunday = today.AddDays(daysUntilSunday);
+
+            sb.AppendLine($"<b>📅 {nextSunday.ToString("dd MMMM yyyy").ToUpper()}</b>");
+            sb.AppendLine();
                 sb.AppendLine($"<b>🎵 Service {serviceType} Songs List</b>");
                 sb.AppendLine();
 
