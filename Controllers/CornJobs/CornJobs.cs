@@ -29,6 +29,7 @@ namespace RM_CMS.Controllers.CornJobs
         {
             _ICornJobsBLL.SendRemindersToVolunteers();
             _ICornJobsBLL.SendRemindersToTeamLeads();
+            _ICornJobsBLL.SendOverdueAssignmentsRemindersToTeamLeads(48);
 
             return Ok(new
             {

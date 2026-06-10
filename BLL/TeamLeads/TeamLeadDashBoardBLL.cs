@@ -18,6 +18,7 @@ namespace RM_CMS.BLL.TeamLeads
         Task<ApiResponse<IEnumerable<FollowUp>>> GetTeamHuddleFollowUpsAsync(string teamLeadId, int? week = null);
         Task<ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>> GetTeamHuddleFollowUpsDtoAsync(string teamLeadId, int? week = null);
         Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithPendingAssignmentsAsync();
+        Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithOverdueAssignmentsAsync(int hours);
     }
 
     public class TeamLeadDashBoardBLL : ITeamLeadDashBoardBLL
@@ -408,6 +409,22 @@ namespace RM_CMS.BLL.TeamLeads
             try
             {
                 return await _dal.GetTeamLeadsWithPendingAssignmentsAsync();
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<TeamLeadPendingAssignmentDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving volunteers with pending assignments: {ex.Message}",
+                    new List<TeamLeadPendingAssignmentDto>()
+                );
+            }
+        }
+        public async Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithOverdueAssignmentsAsync(int hours)
+        {
+            try
+            {
+                
+                return await _dal.GetTeamLeadsWithOverdueAssignmentsAsync(hours);
             }
             catch (Exception ex)
             {
