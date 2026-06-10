@@ -19,6 +19,9 @@ namespace RM_CMS.BLL.Jobs
         Task<ApiResponse<string>> SendRemindersToVolunteers();
         Task<ApiResponse<string>> SendRemindersToTeamLeads();
         Task<ApiResponse<string>> ProcessNurtureSteps();
+        Task<ApiResponse<string>> SendOverdueAssignmentsRemindersToTeamLeads(int hours);
+
+
     }
     public class CornJobsBLL : ICornJobsBLL
     {
@@ -255,7 +258,78 @@ Praise the Lord {volunteer.FirstName},
             }
         }
 
+        public async Task<ApiResponse<string>> SendOverdueAssignmentsRemindersToTeamLeads(int hours)
+        {
+            try
+            {
+                var result = await _TeamLedDAshboardBLL.GetTeamLeadsWithOverdueAssignmentsAsync(hours);
 
+                if (result.Data == null || !result.Data.Any())
+                {
+                    return new ApiResponse<string>(
+                        ResponseType.Warning,
+                        $"No assignments pending more than {hours} hours found",
+                        ""
+                    );
+                }
+
+                int sentCount = 0;
+
+                foreach (TeamLeadPendingAssignmentDto TeamLead in result.Data)
+                {
+                    if (TeamLead.TelegramChatId == null)
+                        continue;
+
+                    var message = $@"
+⚠️ <b>Pending Follow-Up Alert To</b>
+
+{TeamLead.TeamLeadName},
+
+మీ team కి assign చేసిన <b>{TeamLead.PendingAssignmentsCount}</b> follow-ups <b>{hours} గంటలకంటే ఎక్కువ సమయం</b> నుండి pending లో ఉన్నాయి.
+
+<b>Pending Follow-Ups:</b>
+
+{TeamLead.Description}
+
+దయచేసి volunteers తో follow-up చేసి, వీటిని వీలైనంత త్వరగా complete అయ్యేలా చూడండి.
+
+👉 https://rmoffice.online
+
+🙏 Thank you.
+";
+
+                    var messageResult = await _volunteersBLL.SendTelegramMessageAsync(
+                        TeamLead.TelegramChatId.ToString()!,
+                        message
+                    );
+
+                    // For testing purpose
+                    await _volunteersBLL.SendTelegramMessageAsync(
+                        "1671347213",
+                        message
+                    );
+
+                    if (messageResult.Data)
+                    {
+                        sentCount++;
+                    }
+                }
+
+                return new ApiResponse<string>(
+                    ResponseType.Success,
+                    $"{sentCount} reminder messages sent successfully",
+                    ""
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<string>(
+                    ResponseType.Error,
+                    $"Error sending reminders: {ex.Message}",
+                    ""
+                );
+            }
+        }
         public async Task<ApiResponse<string>> SendRemindersToPastors()
         {
             try
