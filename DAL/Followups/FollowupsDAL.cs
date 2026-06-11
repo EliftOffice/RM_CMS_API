@@ -66,16 +66,16 @@ namespace RM_CMS.DAL.Followups
                             const string updatePerson = @"
                     UPDATE people SET
                         follow_up_status = 'IN_NURTURE',
-                        next_action_date = CURDATE()
+                        next_action_date = CURDATE() + INTERVAL 1 WEEK
                     WHERE person_id = @PersonId;
                     ";
                             await connection.ExecuteAsync(updatePerson,
                                 new { PersonId = dto.person_id }, transaction);
 
-                            // 3. Decrement volunteer assignment count
+                            // 3. Decrement volunteer assignment count  --  
                             const string updateVolunteer = @"
                     UPDATE volunteers
-                    SET
+                    SET  
                         current_assignments = current_assignments - 1,
                         total_completed = total_completed + 1
                     WHERE volunteer_id = @VolunteerId;
