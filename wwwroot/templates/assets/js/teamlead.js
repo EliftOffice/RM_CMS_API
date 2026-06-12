@@ -7,6 +7,7 @@ $(function () {
     if (tlFromUrl) {
        // $('#teamLeadId').val(tlFromUrl);
         loadMetrics(tlFromUrl);
+        loadNurtureData(tlFromUrl);
     }
     $("#lnk_manual").attr('href', "../Peoples/ManualAssignments.html?teamleadid=" + tlFromUrl)
     //$('#loadMetrics').on('click', function () {
@@ -430,5 +431,132 @@ $(function () {
         const year = d.getFullYear();
         return `${day}-${month}-${year}`;
     }
+
+
+    // ══════════════════════════════════════════════════
+    // NURTURE SEQUENCE — Team Lead Dashboard JS
+    // ══════════════════════════════════════════════════
+
+    async function loadNurtureData(teamLeadId) {
+        if (!teamLeadId) return;
+        try {
+            const [activeRes, reviewRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/nurture/teamlead/${teamLeadId}/active`).then(r => r.json()),
+                fetch(`${API_BASE_URL}/nurture/teamlead/${teamLeadId}/review`).then(r => r.json())
+            ]);
+
+            const active = activeRes.data || [];
+            const review = reviewRes.data || [];
+
+            const overdue = active.filter(s => s.nextStepStatus === 'Overdue').length;
+
+            // Show nurture card on dashboard
+            const card = document.getElementById('nurtureCard');
+            if (active.length > 0 || review.length > 0) {
+                card.style.display = '';
+                document.getElementById('nurtureActiveCount').textContent = `Active: ${active.length}`;
+                document.getElementById('nurtureOverdueCount').textContent = `Overdue Steps: ${overdue}`;
+                document.getElementById('nurtureReviewCount').textContent = `Awaiting Decision: ${review.length}`;
+            }
+
+            // Wire up "View Details" button
+            document.getElementById('viewNurtureBtn').onclick = () => {
+                populateNurtureModal(active, review);
+                new bootstrap.Modal(document.getElementById('nurtureModal')).show();
+            };
+
+        } catch (e) { console.error('Nurture data error', e); }
+    }
+
+    function populateNurtureModal(active, review) {
+        // Review table
+        const reviewSection = document.getElementById('nurtureReviewSection');
+        const reviewTbody = document.querySelector('#nurtureReviewTable tbody');
+        reviewTbody.innerHTML = '';
+        if (review.length > 0) {
+            reviewSection.style.display = '';
+            review.forEach(seq => {
+                reviewTbody.innerHTML += `
+                <tr>
+                    <td><strong>${seq.personName}</strong><br><small class="text-muted">${seq.personPhone}</small></td>
+                    <td>${seq.volunteerName}</td>
+                    <td>${new Date(seq.startedAt).toLocaleDateString()}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-success"
+                            onclick="openCloseSeq('${seq.sequenceId}','${seq.personName}')">
+                            Decide
+                        </button>
+                    </td>
+                </tr>`;
+            });
+        } else {
+            reviewSection.style.display = 'none';
+        }
+
+        // Active table
+        const activeTbody = document.querySelector('#nurtureActiveTable tbody');
+        activeTbody.innerHTML = '';
+        if (active.length === 0) {
+            activeTbody.innerHTML = '<tr><td colspan="6" class="text-muted text-center">No active sequences</td></tr>';
+            return;
+        }
+        active.forEach(seq => {
+            const methodEmoji = seq.nextMethod === 'Call' ? '📞' : '🏠';
+            const overdueHtml = seq.nextStepStatus === 'Overdue'
+                ? '<span class="badge bg-danger ms-1">Overdue</span>' : '';
+            activeTbody.innerHTML += `
+            <tr>
+                <td><strong>${seq.personName}</strong><br><small class="text-muted">${seq.personPhone}</small></td>
+                <td>${seq.volunteerName}</td>
+                <td><span class="badge bg-secondary">Step ${seq.currentStep}/7</span></td>
+                <td>${methodEmoji} ${seq.nextMethod}${overdueHtml}</td>
+                <td>${seq.nextScheduledDate ? new Date(seq.nextScheduledDate).toLocaleDateString() : '—'}</td>
+                <td>${seq.nextStepStatus === 'Overdue'
+                    ? '<span class="text-danger fw-bold">Overdue</span>'
+                    : '<span class="text-success">On track</span>'}</td>
+            </tr>`;
+        });
+    }
+
+    function openCloseSeq(sequenceId, personName) {
+        document.getElementById('closeSeqId').value = sequenceId;
+        document.getElementById('closeSeqPersonName').textContent = personName;
+        document.getElementById('closeSeqNotes').value = '';
+        bootstrap.Modal.getInstance(document.getElementById('nurtureModal'))?.hide();
+        new bootstrap.Modal(document.getElementById('closeSequenceModal')).show();
+    }
+
+    document.getElementById('confirmCloseSeqBtn').addEventListener('click', async function () {
+        const btn = this;
+        btn.disabled = true;
+        const payload = {
+            sequenceId: document.getElementById('closeSeqId').value,
+            teamLeadId: localStorage.getItem('team_lead_id') || '',
+            finalStatus: document.getElementById('closeSeqStatus').value,
+            finalNotes: document.getElementById('closeSeqNotes').value
+        };
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/nurture/sequence/close`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const json = await res.json();
+            bootstrap.Modal.getInstance(document.getElementById('closeSequenceModal'))?.hide();
+            const tlId = localStorage.getItem('team_lead_id');
+            if (tlId) loadNurtureData(tlId);
+        } catch (e) {
+            alert('Error closing sequence');
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // Hook into existing TL dashboard load event
+    document.addEventListener('teamLeadLoaded', function (e) {
+        if (e.detail && e.detail.teamLeadId) {
+            loadNurtureData(e.detail.teamLeadId);
+        }
+    });
    
 });

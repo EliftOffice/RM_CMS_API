@@ -147,7 +147,7 @@ namespace RM_CMS.BLL.Jobs
                     var dueSteps = await _nurtureBLL.GetDueStepsForVolunteerAsync(volunteer.VolunteerId);
                     if (dueSteps.Data == null || !dueSteps.Data.Any()) continue;
 
-                    if (string.IsNullOrEmpty(volunteer.TelegramChatId)) continue;
+                    if (string.IsNullOrEmpty(volunteer.TelegramChatID)) continue;
 
                     foreach (var step in dueSteps.Data)
                     {
@@ -166,7 +166,7 @@ Praise the Lord {volunteer.FirstName},
 
 🙏 ధన్యవాదాలు";
 
-                        await _volunteersBLL.SendTelegramMessageAsync(volunteer.TelegramChatId, message);
+                        await _volunteersBLL.SendTelegramMessageAsync(volunteer.TelegramChatID, message);
                         notified++;
                     }
                 }

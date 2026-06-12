@@ -174,6 +174,7 @@
 
     loadVolunteerHeader();
     loadAssignments();
+    loadNurtureSteps(volunteerId);
 
     // ── ACTION BUTTON CLICK → Show Follow-up Page ─────────────────────────────
     // FIX: Instead of Bootstrap modal, switch to followupPage div
@@ -254,5 +255,122 @@
     // ── Logout ────────────────────────────────────────────────────────────────
     $(document).on('click', '.logout-btn, #logoutBtn', function () {
         setTimeout(() => { window.location.href = 'Login.html'; }, 400);
+    });
+
+
+
+    // ══════════════════════════════════════════
+    // NURTURE STEPS — load and render
+    // ══════════════════════════════════════════
+    async function loadNurtureSteps(volunteerId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/nurture/volunteer/${volunteerId}/due`);
+            const json = await res.json();
+            const steps = json.data || [];
+            const grid = document.getElementById('nurtureGrid');
+            const title = document.getElementById('nurtureSectionTitle');
+            grid.innerHTML = '';
+            if (!steps.length) { title.style.display = 'none'; return; }
+            title.style.display = 'block';
+            steps.forEach(step => {
+                const isOverdue = new Date(step.scheduledDate) < new Date(new Date().toDateString());
+                const methodClass = step.method === 'Visit' ? 'visit' : '';
+                const methodEmoji = step.method === 'Call' ? '📞' : '🏠';
+                grid.innerHTML += `
+                <div class="nurture-card">
+                    <div class="card-header">
+                        <div>
+                            <div class="person-name">${step.personName}</div>
+                            <div class="phone">${step.personPhone}</div>
+                        </div>
+                        <span class="nurture-badge">Step ${step.stepNumber}/7</span>
+                    </div>
+                    <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                        <span class="nurture-method-badge ${methodClass}">${methodEmoji} ${step.method}</span>
+                        ${isOverdue ? '<span class="overdue-tag">Overdue</span>' : ''}
+                        <span style="font-size:11px;color:#9ca3af">Due: ${new Date(step.scheduledDate).toLocaleDateString()}</span>
+                    </div>
+                    <div class="card-footer">
+                        <span class="assign-date"></span>
+                        <button class="action-btn btn-start"
+                            onclick="openNurtureStep('${step.stepId}','${step.sequenceId}','${step.personId}','${step.personName}','${step.personPhone}',${step.stepNumber},'${step.method}')">
+                            Log Step
+                        </button>
+                    </div>
+                </div>`;
+            });
+        } catch (e) { console.error('Nurture steps error', e); }
+    }
+
+    function openNurtureStep(stepId, sequenceId, personId, personName, personPhone, stepNum, method) {
+        document.getElementById('nurture_step_id').value = stepId;
+        document.getElementById('nurture_sequence_id').value = sequenceId;
+        document.getElementById('nurture_person_id').value = personId;
+        document.getElementById('nurture_volunteer_id').value = localStorage.getItem('volunteer_id') || '';
+        document.getElementById('nurturePersonName').textContent = personName;
+        document.getElementById('nurturePersonPhone').textContent = personPhone;
+        document.getElementById('nurtureAvatarInitial').textContent = personName.charAt(0).toUpperCase();
+        document.getElementById('nurtureStepBadge').textContent = `Step ${stepNum}/7`;
+        const mb = document.getElementById('nurtureMethodBadge');
+        mb.textContent = (method === 'Call' ? '📞 Call' : '🏠 Visit');
+        mb.className = 'nurture-method-badge' + (method === 'Visit' ? ' visit' : '');
+        document.getElementById('assignmentsPage').style.display = 'none';
+        document.getElementById('nurtureFollowupPage').style.display = 'block';
+        window.scrollTo(0, 0);
+    }
+
+    function closeNurturePage() {
+        document.getElementById('nurtureFollowupPage').style.display = 'none';
+        document.getElementById('assignmentsPage').style.display = 'block';
+    }
+
+    document.getElementById('nurtureBackBtn').addEventListener('click', closeNurturePage);
+    document.getElementById('nurtureBottomBackBtn').addEventListener('click', closeNurturePage);
+
+    document.getElementById('nc_no').addEventListener('change', function () {
+        document.getElementById('nurtureResponseSection').style.display = this.checked ? 'none' : 'block';
+    });
+    document.getElementById('nc_yes').addEventListener('change', function () {
+        document.getElementById('nurtureResponseSection').style.display = 'block';
+    });
+
+    document.getElementById('submitNurtureStepBtn').addEventListener('click', async function () {
+        const btn = this;
+        btn.disabled = true; btn.textContent = 'Submitting...';
+        const contactStatus = document.querySelector('input[name="nurture_contact"]:checked')?.value;
+        const responseType = document.querySelector('input[name="nurture_response"]:checked')?.value;
+        const payload = {
+            stepId: document.getElementById('nurture_step_id').value,
+            sequenceId: document.getElementById('nurture_sequence_id').value,
+            personId: document.getElementById('nurture_person_id').value,
+            volunteerId: document.getElementById('nurture_volunteer_id').value,
+            contactStatus,
+            responseType: contactStatus === 'Contacted' ? responseType : null,
+            notes: document.getElementById('nurture_notes').value
+        };
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/nurture/step/log`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const json = await res.json();
+            const msgDiv = document.getElementById('nurtureModalResponse');
+            if (json.responseType === 0) {
+                msgDiv.innerHTML = '<div class="alert alert-success mt-2">Step logged successfully!</div>';
+                setTimeout(() => { closeNurturePage(); const vId = localStorage.getItem('volunteer_id'); if (vId) loadNurtureSteps(vId); }, 1200);
+            } else {
+                msgDiv.innerHTML = `<div class="alert alert-danger mt-2">${json.message}</div>`;
+                btn.disabled = false; btn.textContent = 'Submit Step';
+            }
+        } catch (e) {
+            document.getElementById('nurtureModalResponse').innerHTML = '<div class="alert alert-danger mt-2">Network error</div>';
+            btn.disabled = false; btn.textContent = 'Submit Step';
+        }
+    });
+
+    // Hook into existing page load — call loadNurtureSteps after volunteer ID is set
+    document.addEventListener('volunteerLoaded', function (e) {
+        if (e.detail && e.detail.volunteerId) loadNurtureSteps(e.detail.volunteerId);
     });
 });
