@@ -51,7 +51,12 @@ namespace RM_CMS.Controllers.CornJobs
             });
         }
 
-       
+        [HttpPost("process-nurture-steps")]
+        public async Task<ActionResult<ApiResponse<string>>> ProcessNurtureSteps()
+        {
+            var result = await _ICornJobsBLL.ProcessNurtureSteps();
+            return Ok(result);
+        }
 
     }
 }

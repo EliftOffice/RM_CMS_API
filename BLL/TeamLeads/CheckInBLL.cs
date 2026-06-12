@@ -1,4 +1,5 @@
 ﻿using RM_CMS.DAL.TeamLeads;
+using RM_CMS.Data.DTO.Nurture;
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
 
@@ -7,14 +8,18 @@ namespace RM_CMS.BLL.TeamLeads
     public interface ICheckInBLL
     {
         Task<ApiResponse<string>> CreateCheckInAsync(CreateCheckInDTO dto);
+        Task<ApiResponse<HuddleNurtureReviewDto>> GetHuddleNurtureReviewAsync(string teamLeadId);
     }
-    public class CheckInBLL: ICheckInBLL
+
+    public class CheckInBLL : ICheckInBLL
     {
         private readonly ICheckInDAL _checkInsDAL;
+
         public CheckInBLL(ICheckInDAL checkInsDAL)
         {
             _checkInsDAL = checkInsDAL;
         }
+
         public async Task<ApiResponse<string>> CreateCheckInAsync(CreateCheckInDTO dto)
         {
             try
@@ -26,6 +31,23 @@ namespace RM_CMS.BLL.TeamLeads
                 return new ApiResponse<string>(
                     ResponseType.Error,
                     $"Error creating check-in: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+        // Returns nurture sequence summary for team huddle view
+        public async Task<ApiResponse<HuddleNurtureReviewDto>> GetHuddleNurtureReviewAsync(string teamLeadId)
+        {
+            try
+            {
+                return await _checkInsDAL.GetHuddleNurtureReviewAsync(teamLeadId);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<HuddleNurtureReviewDto>(
+                    ResponseType.Error,
+                    $"Error fetching nurture review: {ex.Message}",
                     null
                 );
             }

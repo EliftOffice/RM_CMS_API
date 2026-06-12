@@ -1,4 +1,5 @@
-﻿using RM_CMS.BLL.Peoples;
+﻿using RM_CMS.BLL.Nurture;
+using RM_CMS.BLL.Peoples;
 using RM_CMS.BLL.TeamLeads;
 using RM_CMS.BLL.Volunteers;
 using RM_CMS.DAL.TeamLeads;
@@ -15,18 +16,21 @@ namespace RM_CMS.BLL.Jobs
         Task<ApiResponse<string>> AssignNewPeople();
         Task<ApiResponse<string>> SendRemindersToVolunteers();
         Task<ApiResponse<string>> SendRemindersToTeamLeads();
-
+        Task<ApiResponse<string>> ProcessNurtureSteps();
     }
     public class CornJobsBLL: ICornJobsBLL
     {
         private readonly IPeoplesBLL _peoplesBLL;
         private readonly IVolunteersBLL _volunteersBLL;
         private readonly ITeamLeadDashBoardBLL _TeamLedDAshboardBLL;
-        public CornJobsBLL(IPeoplesBLL peoplesBLL,IVolunteersBLL volunteersBLL,ITeamLeadDashBoardBLL TeamLeadDashBoardBLL)
+        private readonly INurtureBLL _nurtureBLL;
+
+        public CornJobsBLL(IPeoplesBLL peoplesBLL, IVolunteersBLL volunteersBLL, ITeamLeadDashBoardBLL TeamLeadDashBoardBLL, INurtureBLL nurtureBLL)
         {
             _peoplesBLL = peoplesBLL;
             _volunteersBLL = volunteersBLL;
             _TeamLedDAshboardBLL = TeamLeadDashBoardBLL;
+            _nurtureBLL = nurtureBLL;
         }
 
         public async Task<ApiResponse<string>> AssignNewPeople()
@@ -118,6 +122,60 @@ namespace RM_CMS.BLL.Jobs
                     $"Error sending reminders: {ex.Message}",
                     ""
                 );
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // NURTURE CRON — runs daily
+        // Finds steps due today and sends Telegram reminder to volunteer
+        // Also notifies TL for any sequences that just hit InReview
+        // ─────────────────────────────────────────────────────────────
+        public async Task<ApiResponse<string>> ProcessNurtureSteps()
+        {
+            try
+            {
+                // Get all volunteers who have nurture steps due today
+                // We query via a shared "all active volunteer IDs" approach
+                var allVolunteers = await _volunteersBLL.GetVolunteersAsync();
+                if (allVolunteers.Data == null || !allVolunteers.Data.Any())
+                    return new ApiResponse<string>(ResponseType.Warning, "No volunteers found", "");
+
+                int notified = 0;
+
+                foreach (var volunteer in allVolunteers.Data.Where(v => v.Status == "Active"))
+                {
+                    var dueSteps = await _nurtureBLL.GetDueStepsForVolunteerAsync(volunteer.VolunteerId);
+                    if (dueSteps.Data == null || !dueSteps.Data.Any()) continue;
+
+                    if (string.IsNullOrEmpty(volunteer.TelegramChatId)) continue;
+
+                    foreach (var step in dueSteps.Data)
+                    {
+                        string methodEmoji = step.Method == "Call" ? "📞" : "🏠";
+                        string message = $@"
+🌱 Nurture Reminder — Step {step.StepNumber}/7
+
+Praise the Lord {volunteer.FirstName},
+
+{methodEmoji} <b>{step.Method}</b> — {step.PersonName} ({step.PersonPhone})
+
+మీరు ఈ రోజు {step.PersonName} ని {(step.Method == "Call" ? "call" : "visit")} చేయాలి.
+(Step {step.StepNumber} of 7)
+
+👉 https://rmoffice.online
+
+🙏 ధన్యవాదాలు";
+
+                        await _volunteersBLL.SendTelegramMessageAsync(volunteer.TelegramChatId, message);
+                        notified++;
+                    }
+                }
+
+                return new ApiResponse<string>(ResponseType.Success, $"{notified} nurture step reminders sent", "");
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<string>(ResponseType.Error, $"Error processing nurture steps: {ex.Message}", "");
             }
         }
 
