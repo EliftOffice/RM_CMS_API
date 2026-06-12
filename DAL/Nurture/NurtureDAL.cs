@@ -15,10 +15,8 @@ namespace RM_CMS.DAL.Nurture
         Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetActiveSequencesForTeamLeadAsync(string teamLeadId);
         Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetSequencesAwaitingReviewAsync(string teamLeadId);
         Task<ApiResponse<IEnumerable<NurtureStep>>> GetStepsBySequenceAsync(string sequenceId);
-        Task<ApiResponse<bool>> MarkPermanentAsync(
-    string personId);
-        Task<ApiResponse<bool>> MarkFailedAsync(
-    string personId);
+        Task<ApiResponse<bool>> MarkPermanentAsync(string personId);
+        Task<ApiResponse<bool>> MarkFailedAsync(string personId);
     }
 
     public class NurtureDAL : INurtureDAL
@@ -95,11 +93,6 @@ namespace RM_CMS.DAL.Nurture
                         }, transaction);
                     stepCounter++;
                 }
-
-                // Update person status
-                await connection.ExecuteAsync(
-                    "UPDATE people SET follow_up_status = 'IN_NURTURE', next_action_date = @NextDate WHERE person_id = @PersonId",
-                    new { PersonId = personId, NextDate = startDate }, transaction);
 
                 transaction.Commit();
                 return new ApiResponse<string>(ResponseType.Success, "Nurture sequence started", sequenceId);
@@ -348,8 +341,7 @@ namespace RM_CMS.DAL.Nurture
             }
         }
 
-        public async Task<ApiResponse<bool>> MarkPermanentAsync(
-    string personId)
+        public async Task<ApiResponse<bool>> MarkPermanentAsync(string personId)
         {
             try
             {
@@ -391,9 +383,7 @@ namespace RM_CMS.DAL.Nurture
                     false);
             }
         }
-
-        public async Task<ApiResponse<bool>> MarkFailedAsync(
-    string personId)
+        public async Task<ApiResponse<bool>> MarkFailedAsync(string personId)
         {
             try
             {

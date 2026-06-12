@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using RM_CMS.DAL.CommonDAL;
+using RM_CMS.DAL.Nurture;
 using RM_CMS.DAL.Peoples;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO;
@@ -43,12 +44,14 @@ namespace RM_CMS.DAL.Volunteers
         private readonly IDbConnectionFactory _dbConnectionFactory;
         private readonly IConfiguration _configuration;
         private readonly ITelegram _telegram;
+        private readonly INurtureDAL _nurtureDAL;
 
-        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory,IConfiguration config,ITelegram tel)
+        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory,IConfiguration config,ITelegram tel, INurtureDAL nurtureDAL)
         {
             _dbConnectionFactory = dbConnectionFactory;
             _configuration = config;
             _telegram = tel;
+            _nurtureDAL= nurtureDAL;
         }
         public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
         {
@@ -57,67 +60,31 @@ namespace RM_CMS.DAL.Volunteers
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
                     // ✅ Open connection: try async if concrete type supports it
-                    if (connection is System.Data.Common.DbConnection dbConn)
-                    {
-                        await dbConn.OpenAsync();
-                    }
-                    else
-                    {
-                        connection.Open(); // fallback for plain IDbConnection
-                    }
-
-                    // 1. Get person
-                    //        const string personQuery = @"
-                    //    SELECT person_id, campus 
-                    //    FROM people 
-                    //    WHERE person_id = @PersonId;
-                    //";
-
-                    //        var person = await connection.QueryFirstOrDefaultAsync<dynamic>(
-                    //            personQuery,
-                    //            new { PersonId = personId }
-                    //        );
+                    if (connection is System.Data.Common.DbConnection dbConn) await dbConn.OpenAsync();                    
+                    else connection.Open(); // fallback for plain IDbConnection
 
                     var response = await new PeoplesDAL(_dbConnectionFactory)
                         .GetPersonByIdAsync(personId);
 
                     if (response.Data == null)
-                    {
-                        return new ApiResponse<AssignedVolunteerDTO>(
-                            ResponseType.Error,
-                            "Person not found",
-                            null
-                        );
-                    }
-
-                    // 🔴 Check assignment
-                    //if (response.Data.FollowUpStatus.ToLower() == "assigned")
-                    //{
-                    //    return new ApiResponse<AssignedVolunteerDTO>(
-                    //        ResponseType.Error,
-                    //        "Person already assigned",
-                    //        null
-                    //    );
-                    //}
+                        return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Error,"Person not found",new AssignedVolunteerDTO());                  
 
                     // ✅ Now you also have campus
                     var campus = response.Data.Campus;
-
-
 
                     using (var transaction = connection.BeginTransaction())
                     {
                         // 2. Find & lock volunteer (prevents race condition)
                         const string volunteerQuery = @"
-                    SELECT volunteer_id, first_name, last_name, capacity_max, current_assignments, telegram_chat_id
-                    FROM volunteers
-                    WHERE status = 'Active'
-                      AND current_assignments < capacity_max
-                      AND campus = @Campus
-                    ORDER BY current_assignments ASC, RAND()
-                    LIMIT 1
-                    FOR UPDATE;
-                ";
+                                                        SELECT volunteer_id, first_name, last_name, capacity_max, current_assignments, telegram_chat_id,team_lead
+                                                        FROM volunteers
+                                                        WHERE status = 'Active'
+                                                          AND current_assignments < capacity_max
+                                                          AND campus = @Campus
+                                                        ORDER BY current_assignments ASC, RAND()
+                                                        LIMIT 1
+                                                        FOR UPDATE;
+                                                    ";
 
                         var volunteer = await connection.QueryFirstOrDefaultAsync<AssignedVolunteerDTO>(
                             volunteerQuery,
@@ -128,23 +95,18 @@ namespace RM_CMS.DAL.Volunteers
                         if (volunteer == null)
                         {
                             transaction.Rollback();
-
-                            return new ApiResponse<AssignedVolunteerDTO>(
-                                ResponseType.Warning,
-                                "No available volunteers",
-                                null
-                            );
+                            return new ApiResponse<AssignedVolunteerDTO>(ResponseType.Warning,"No available volunteers",new AssignedVolunteerDTO());
                         }
 
                         // 3. Update person (use DB time)
                         const string updatePerson = @"
-                    UPDATE people SET
-                        assigned_volunteer = @VolunteerId,
-                        assigned_date = NOW(),
-                        follow_up_status = 'ASSIGNED',
-                        next_action_date = NOW() + INTERVAL 48 HOUR
-                    WHERE person_id = @PersonId;
-                ";
+                                                        UPDATE people SET
+                                                            assigned_volunteer = @VolunteerId,
+                                                            assigned_date = NOW(),
+                                                            follow_up_status = 'ASSIGNED',
+                                                            next_action_date = NOW() + INTERVAL 48 HOUR
+                                                        WHERE person_id = @PersonId;
+                                                    ";
 
                         await connection.ExecuteAsync(updatePerson, new
                         {
@@ -152,14 +114,6 @@ namespace RM_CMS.DAL.Volunteers
                             PersonId = personId
                         }, transaction);
 
-                        // 4. Update volunteer
-                        //        const string updateOnAssign = @"
-                        //    UPDATE volunteers SET
-                        //        current_assignments = current_assignments + 1,
-                        //        total_assigned=total_assigned+1,                        
-                        //        updated_at = NOW()
-                        //    WHERE volunteer_id = @VolunteerId;
-                        //";
                         const string updateOnAssign = @"
                                                     UPDATE volunteers
                                                     SET
@@ -184,6 +138,8 @@ namespace RM_CMS.DAL.Volunteers
 
                         transaction.Commit();
 
+                        await _nurtureDAL.StartSequenceAsync(personId, volunteer.volunteer_id, volunteer.team_lead);
+
                         if (!string.IsNullOrEmpty(volunteer.telegram_chat_id))
                         {
                             string message = $@"
@@ -196,7 +152,6 @@ namespace RM_CMS.DAL.Volunteers
 
 🙏 ధన్యవాదాలు!
 ";
-
                             await SendTelegramMessageAsync(volunteer.telegram_chat_id, message);
                         }
 
@@ -394,72 +349,71 @@ WHERE v.volunteer_id = @VolunteerId;
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
                     const string query = @"SELECT 
-    p.person_id            AS PersonId,
-    p.first_name           AS FirstName,
-    p.last_name            AS LastName,
-    p.email                AS Email,
-    p.phone                AS Phone,
-    p.age_range            AS AgeRange,
-    p.household_type       AS HouseholdType,
-    p.zip_code             AS ZipCode,
-    p.visit_type           AS VisitType,
-    p.first_visit_date     AS FirstVisitDate,
-    p.last_visit_date      AS LastVisitDate,
-    p.visit_count          AS VisitCount,
-    p.connection_source    AS ConnectionSource,
-    p.campus               AS Campus,
-    p.follow_up_status     AS FollowUpStatus,
-    p.follow_up_priority   AS FollowUpPriority,
-    p.assigned_volunteer   AS AssignedVolunteer,
-    p.assigned_date        AS AssignedDate,
-    p.last_contact_date    AS LastContactDate,
-    p.next_action_date     AS NextActionDate,
+                                            p.person_id            AS PersonId,
+                                            p.first_name           AS FirstName,
+                                            p.last_name            AS LastName,
+                                            p.email                AS Email,
+                                            p.phone                AS Phone,
+                                            p.age_range            AS AgeRange,
+                                            p.household_type       AS HouseholdType,
+                                            p.zip_code             AS ZipCode,
+                                            p.visit_type           AS VisitType,
+                                            p.first_visit_date     AS FirstVisitDate,
+                                            p.last_visit_date      AS LastVisitDate,
+                                            p.visit_count          AS VisitCount,
+                                            p.connection_source    AS ConnectionSource,
+                                            p.campus               AS Campus,
+                                            p.follow_up_status     AS FollowUpStatus,
+                                            p.follow_up_priority   AS FollowUpPriority,
+                                            p.assigned_volunteer   AS AssignedVolunteer,
+                                            p.assigned_date        AS AssignedDate,
+                                            p.last_contact_date    AS LastContactDate,
+                                            p.next_action_date     AS NextActionDate,
 
-    f.attempt_date         AS AttemptDate,
-    f.response_type        AS ResponseType,
+                                            f.attempt_date         AS AttemptDate,
+                                            f.response_type        AS ResponseType,
 
-    p.interested_in        AS InterestedIn,
-    p.prayer_requests      AS PrayerRequests,
-    p.specific_needs       AS SpecificNeeds,
-    p.created_at           AS CreatedAt,
-    p.updated_at           AS UpdatedAt,
-    p.created_by           AS CreatedBy,
+                                            p.interested_in        AS InterestedIn,
+                                            p.prayer_requests      AS PrayerRequests,
+                                            p.specific_needs       AS SpecificNeeds,
+                                            p.created_at           AS CreatedAt,
+                                            p.updated_at           AS UpdatedAt,
+                                            p.created_by           AS CreatedBy,
 
-    ns.current_step        AS CurrentStep,
-    nst.method             AS CurrentStepMethod,
-    nst.scheduled_date     AS CurrentStepDate,
+                                            ns.current_step        AS CurrentStep,
+                                            nst.method             AS CurrentStepMethod,
+                                            nst.scheduled_date     AS CurrentStepDate,
 
-    CASE
-        WHEN ns.current_step = 8 THEN 1
-        ELSE 0
-    END AS IsFinalDecisionPending
+                                            CASE
+                                                WHEN ns.current_step = 8 THEN 1
+                                                ELSE 0
+                                            END AS IsFinalDecisionPending
 
-FROM people p
+                                        FROM people p
 
-LEFT JOIN follow_ups f 
-    ON f.person_id = p.person_id
-    AND f.attempt_number = (
-        SELECT MAX(f2.attempt_number)
-        FROM follow_ups f2
-        WHERE f2.person_id = p.person_id
-    )
+                                        LEFT JOIN follow_ups f 
+                                            ON f.person_id = p.person_id
+                                            AND f.attempt_number = (
+                                                SELECT MAX(f2.attempt_number)
+                                                FROM follow_ups f2
+                                                WHERE f2.person_id = p.person_id
+                                            )
 
-LEFT JOIN nurture_sequences ns
-    ON ns.person_id = p.person_id
-    AND ns.status = 'Active'
+                                        LEFT JOIN nurture_sequences ns
+                                            ON ns.person_id = p.person_id
+                                            AND ns.status = 'Active'
 
-LEFT JOIN nurture_steps nst
-    ON nst.sequence_id = ns.sequence_id
-    AND nst.step_number = ns.current_step
+                                        LEFT JOIN nurture_steps nst
+                                            ON nst.sequence_id = ns.sequence_id
+                                            AND nst.step_number = ns.current_step
 
-WHERE p.assigned_volunteer = @VolunteerId
-  AND p.follow_up_status IN (
-      'ASSIGNED',
-      'RETRY PENDING',
-      'IN_NURTURE'
-  )
+                                        WHERE p.assigned_volunteer = @VolunteerId
+                                          AND p.follow_up_status IN (
+                                              'ASSIGNED',
+                                              'RETRY PENDING'
+                                          )
 
-ORDER BY p.next_action_date;";
+                                        ORDER BY p.next_action_date;";
 
                     var assignments = await connection.QueryAsync<People>(
                         query,
@@ -484,7 +438,6 @@ ORDER BY p.next_action_date;";
                 );
             }
         }
-
 
         public async Task<ApiResponse<VolunteerResponseDto>> CreateVolunteerAsync(CreateVolunteerDto volunteer)
         {
@@ -794,28 +747,6 @@ WHERE LOWER(email) = @Email;";
                     $"DAL Error updating mobile: {ex.Message}",
                     null
                 );
-            }
-        }      
-        
-        private async Task SendTelegramMessageAsyncv1(string chatId, string message)
-        {
-            try
-            {
-                using var client = new HttpClient();
-
-                //var token = _configuration["Telegram:BotToken"];
-                var token = _telegram.GetTelegramBotToken().Result.Data;
-
-                if (string.IsNullOrEmpty(token)) return;
-
-                var url = $"https://api.telegram.org/bot{token}/sendMessage" +
-                          $"?chat_id={chatId}&text={Uri.EscapeDataString(message)}";
-
-                await client.GetAsync(url);
-            }
-            catch
-            {
-                // Optional: log error (don't break main flow)
             }
         }
 
@@ -1194,33 +1125,36 @@ WHERE LOWER(email) = @Email;";
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
                     const string query = @"
-SELECT 
-    v.volunteer_id           AS VolunteerId,
-    v.first_name             AS FirstName,
-    v.last_name              AS LastName,
-    v.phone                  AS Phone,
-    v.email                  AS Email,
-    v.telegram_chat_id       AS TelegramChatId,
+                                            SELECT 
+                                                v.volunteer_id           AS VolunteerId,
+                                                v.first_name             AS FirstName,
+                                                v.last_name              AS LastName,
+                                                v.phone                  AS Phone,
+                                                v.email                  AS Email,
+                                                v.telegram_chat_id       AS TelegramChatId,
 
-    COUNT(p.person_id)       AS PendingAssignmentsCount
+                                                COUNT(p.person_id)       AS PendingAssignmentsCount
 
-FROM volunteers v
+                                            FROM volunteers v
 
-INNER JOIN people p
-    ON p.assigned_volunteer = v.volunteer_id
+                                            INNER JOIN people p
+                                                ON p.assigned_volunteer = v.volunteer_id
 
-WHERE p.follow_up_status IN ('ASSIGNED', 'RETRY PENDING')
+                                            WHERE p.follow_up_status = 'ASSIGNED'
+                                               OR (
+                                                    p.follow_up_status IN ('RETRY PENDING')
+                                                    AND p.next_action_date <= CURDATE()
+                                                  )
+                                            GROUP BY
+                                                v.volunteer_id,
+                                                v.first_name,
+                                                v.last_name,
+                                                v.phone,
+                                                v.email,
+                                                v.telegram_chat_id
 
-GROUP BY
-    v.volunteer_id,
-    v.first_name,
-    v.last_name,
-    v.phone,
-    v.email,
-    v.telegram_chat_id
-
-ORDER BY PendingAssignmentsCount DESC;
-";
+                                            ORDER BY PendingAssignmentsCount DESC;
+                                            ";
 
                     var volunteers = await connection
                         .QueryAsync<VolunteerPendingAssignmentDto>(query);

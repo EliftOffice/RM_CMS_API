@@ -783,7 +783,8 @@
         // ══════════════════════════════════════════
         async function loadNurtureSteps(volunteerId) {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/nurture/volunteer/${volunteerId}/due`);
+                debugger;
+                const res = await fetch(`${API_BASE_URL}/nurture/volunteer/${volunteerId}/due`);
                 const json = await res.json();
                 const steps = json.data || [];
                 const grid = document.getElementById('nurtureGrid');

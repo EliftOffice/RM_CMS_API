@@ -64,41 +64,13 @@
 
             success: function (res) {
                 if (!res || !res.data || res.data.length === 0) {
-                    $('#responseContainer').html(
-                        '<div class="alert alert-warning">No assignments found.</div>'
-
-                    );
+                    $('#responseContainer').html('<div class="alert alert-warning">No assignments found.</div>');
                     return;
                 }
-                // const filtered = res.data.filter(p => {
-
-                //     const status = p.followUpStatus?.toUpperCase();
-
-                //     if (status === 'ASSIGNED') return true;
-
-                //     if (status === 'RETRY PENDING') return true;
-
-                //     if (status === 'IN_NURTURE') {
-
-                //         const today = new Date();
-                //         today.setHours(0, 0, 0, 0);
-
-                //         const stepDate = new Date(p.currentStepDate);
-                //         stepDate.setHours(0, 0, 0, 0);
-
-                //         return stepDate <= today;
-                //     }
-
-                //     return false;
-                // });
-
-
                 const filtered = res.data.filter(p => {
-
                     if (p.isFinalDecisionPending == "1") {
                         return false;
                     }
-
                     const status = p.followUpStatus?.toUpperCase();
 
                     if (status === 'ASSIGNED') return true;
@@ -174,46 +146,6 @@
                         if (stepDate > today) {
                             return '';
                         }
-
-            //             // Final Decision Card
-            //             if (p.currentStep == 8) {
-
-            //                 statusClass = 'status-contacted';
-
-            //                 retryText = `
-            // <div style="margin-top:10px">
-            //     <strong>Final Decision Required</strong>
-
-            //     <div style="margin-top:10px">
-            //         7-Step nurture sequence completed.
-            //         Please select the final outcome.
-            //     </div>
-
-            //     <div style="margin-top:12px">
-            //         <label>
-            //             <input type="radio"
-            //                    name="finalDecision_${p.personId}"
-            //                    value="PERMANENT">
-            //             Permanent
-            //         </label>
-
-            //         <br>
-
-            //         <label>
-            //             <input type="radio"
-            //                    name="finalDecision_${p.personId}"
-            //                    value="FAILED">
-            //             Failed
-            //         </label>
-            //     </div>
-            // </div>`;
-
-            //                 actionButton = `
-            // <button class="action-btn btn-update save-final-decision"
-            //     data-personid="${p.personId}">
-            //     Save Decision
-            // </button>`;
-            //             }
                         else {
 
                             statusClass = 'status-contacted';
@@ -222,49 +154,47 @@
                                 renderNurtureProgress(p.currentStep || 1);
 
                             actionButton = `
-            <button class="action-btn btn-update update-status"
-                data-personid="${p.personId}">
-                Update Status
-            </button>`;
+                                <button class="action-btn btn-update update-status"
+                                    data-personid="${p.personId}">
+                                    Update Status
+                                </button>`;
 
-                            retryText = `
-            <div style="margin-top:10px">
-                <strong>Nurture Progress</strong>
+                                                retryText = `
+                                <div style="margin-top:10px">
+                                    <strong>Nurture Progress</strong>
 
-                ${nurtureProgress}
+                                    ${nurtureProgress}
 
-                <div style="font-size:13px;color:#666">
-                    Current Step:
-                    Week ${p.currentStep}
-                    - ${p.currentStepMethod}
+                                    <div style="font-size:13px;color:#666">
+                                        Current Step:
+                                        Week ${p.currentStep}
+                                        - ${p.currentStepMethod}
 
-                    <br>
+                                        <br>
 
-                    Due:
-                    ${fmtDate(p.currentStepDate)}
-                </div>
-            </div>`;
-                        }
-                    }
-
-
-                    return `
-                    <div class="assignment-card">
-                        <div class="card-header">
-                            <div>
-                                <div class="person-name">${name}</div>
-                                <div class="phone">${phone}</div>
-                            </div>
-                            <span class="status-badge ${statusClass}">
-                                ${status === 'ASSIGNED' ? 'PENDING' : status}
-                            </span>
-                        </div>
-                        ${retryText}
-                        <div class="card-footer">
-                            <span class="assign-date">Due date: ${nextActionDate}</span>
-                            ${actionButton}
-                        </div>
-                    </div>`;
+                                        Due:
+                                        ${fmtDate(p.currentStepDate)}
+                                    </div>
+                                </div>`;
+                                            }
+                         }
+                                        return `
+                                        <div class="assignment-card">
+                                            <div class="card-header">
+                                                <div>
+                                                    <div class="person-name">${name}</div>
+                                                    <div class="phone">${phone}</div>
+                                                </div>
+                                                <span class="status-badge ${statusClass}">
+                                                    ${status === 'ASSIGNED' ? 'PENDING' : status}
+                                                </span>
+                                            </div>
+                                            ${retryText}
+                                            <div class="card-footer">
+                                                <span class="assign-date">Due date: ${nextActionDate}</span>
+                                                ${actionButton}
+                                            </div>
+                                        </div>`;
                 }).join('');
 
                 $('#assignmentsGrid').html(cards);
