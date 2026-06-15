@@ -17,8 +17,11 @@
     }
 
     // ── PAGE SWITCHING ────────────────────────────────────────────────────────
+    
+
     function showAssignmentsPage() {
         $('#followupPage').hide();
+        $('#nurtureFollowupPage').hide();
         $('#assignmentsPage').show();
         window.scrollTo(0, 0);
     }
@@ -179,11 +182,14 @@
     // ── ACTION BUTTON CLICK → Show Follow-up Page ─────────────────────────────
     // FIX: Instead of Bootstrap modal, switch to followupPage div
     $(document).on('click', '.action-btn', function () {
-        showFollowupPage({
-            personId: $(this).data('personid'),
-            name: $(this).data('name'),
-            phone: $(this).data('phone')
-        });
+        if ($(this).data('personid') != null) {
+            showFollowupPage({
+                personId: $(this).data('personid'),
+                name: $(this).data('name'),
+                phone: $(this).data('phone')
+            });
+        }
+        
     });
 
     // ── Show/Hide response type based on contact status ───────────────────────
@@ -302,25 +308,9 @@
         } catch (e) { console.error('Nurture steps error', e); }
     }
 
-    function openNurtureStep(stepId, sequenceId, personId, personName, personPhone, stepNum, method) {
-        document.getElementById('nurture_step_id').value = stepId;
-        document.getElementById('nurture_sequence_id').value = sequenceId;
-        document.getElementById('nurture_person_id').value = personId;
-        document.getElementById('nurture_volunteer_id').value = localStorage.getItem('volunteer_id') || '';
-        document.getElementById('nurturePersonName').textContent = personName;
-        document.getElementById('nurturePersonPhone').textContent = personPhone;
-        document.getElementById('nurtureAvatarInitial').textContent = personName.charAt(0).toUpperCase();
-        document.getElementById('nurtureStepBadge').textContent = `Step ${stepNum}/7`;
-        const mb = document.getElementById('nurtureMethodBadge');
-        mb.textContent = (method === 'Call' ? '📞 Call' : '🏠 Visit');
-        mb.className = 'nurture-method-badge' + (method === 'Visit' ? ' visit' : '');
-        document.getElementById('assignmentsPage').style.display = 'none';
-        document.getElementById('nurtureFollowupPage').style.display = 'block';
-        window.scrollTo(0, 0);
-    }
-
     function closeNurturePage() {
         document.getElementById('nurtureFollowupPage').style.display = 'none';
+        document.getElementById('followupPage').style.display = 'none';
         document.getElementById('assignmentsPage').style.display = 'block';
     }
 
@@ -369,8 +359,22 @@
         }
     });
 
-    // Hook into existing page load — call loadNurtureSteps after volunteer ID is set
-    document.addEventListener('volunteerLoaded', function (e) {
-        if (e.detail && e.detail.volunteerId) loadNurtureSteps(e.detail.volunteerId);
-    });
+  
 });
+function openNurtureStep(stepId, sequenceId, personId, personName, personPhone, stepNum, method) {   
+    document.getElementById('nurture_step_id').value = stepId;
+    document.getElementById('nurture_sequence_id').value = sequenceId;
+    document.getElementById('nurture_person_id').value = personId;
+    document.getElementById('nurture_volunteer_id').value = localStorage.getItem('volunteer_id') || '';
+    document.getElementById('nurturePersonName').textContent = personName;
+    document.getElementById('nurturePersonPhone').textContent = personPhone;
+    document.getElementById('nurtureAvatarInitial').textContent = personName.charAt(0).toUpperCase();
+    document.getElementById('nurtureStepBadge').textContent = `Step ${stepNum}/7`;
+    const mb = document.getElementById('nurtureMethodBadge');
+    mb.textContent = (method === 'Call' ? '📞 Call' : '🏠 Visit');
+    mb.className = 'nurture-method-badge' + (method === 'Visit' ? ' visit' : '');
+    document.getElementById('assignmentsPage').style.display = 'none';
+    document.getElementById('followupPage').style.display = 'none';
+    document.getElementById('nurtureFollowupPage').style.display = 'block';
+    window.scrollTo(0, 0);
+}

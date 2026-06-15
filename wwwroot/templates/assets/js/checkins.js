@@ -108,6 +108,67 @@ function loadVolunteerDetails(volunteerId) {
     });
 }
 
+// Load nurture huddle data once TL ID is available
+function loadHuddleNurture(teamLeadId) {
+    fetch(`${API_BASE_URL}/api/check-ins/nurture-review/${teamLeadId}`)
+        .then(r => r.json())
+        .then(json => {
+            const data = json.data;
+            if (!data) return;
+            const panel = document.getElementById('nurtureHuddlePanel');
+            panel.style.display = '';
+
+            document.getElementById('huddleActiveCount').textContent = `Active: ${data.totalActive}`;
+            document.getElementById('huddleOverdueCount').textContent = `Overdue: ${data.overdueSteps}`;
+            document.getElementById('huddleReviewCount').textContent = `Awaiting Decision: ${data.awaitingFinalDecision}`;
+
+            // Awaiting review cards
+            const reviewCards = document.getElementById('huddleReviewCards');
+            const reviewList = document.getElementById('huddleReviewList');
+            reviewCards.innerHTML = '';
+            if (data.awaitingReview && data.awaitingReview.length > 0) {
+                reviewList.style.display = '';
+                data.awaitingReview.forEach(seq => {
+                    reviewCards.innerHTML += `
+                            <div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+                                <div style="font-weight:600;font-size:13px;">${seq.personName}</div>
+                                <div style="font-size:11px;color:#6b7280;">Volunteer: ${seq.volunteerName} &bull; Started: ${new Date(seq.startedAt).toLocaleDateString()}</div>
+                                <div style="font-size:11px;color:#dc2626;margin-top:4px;font-weight:600;">All 7 steps done — mark Permanent or Failed</div>
+                            </div>`;
+                });
+            }
+
+            // Active sequence cards
+            const activeCards = document.getElementById('huddleActiveCards');
+            activeCards.innerHTML = '';
+            if (!data.activeSequences || data.activeSequences.length === 0) {
+                activeCards.innerHTML = '<p style="font-size:12px;color:#9ca3af;">No active sequences.</p>';
+                return;
+            }
+            data.activeSequences.forEach(seq => {
+                const methodEmoji = seq.nextMethod === 'Call' ? '📞' : '🏠';
+                const isOverdue = seq.nextStepStatus === 'Overdue';
+                activeCards.innerHTML += `
+                        <div style="background:#fff;border:1px solid ${isOverdue ? '#fecaca' : '#e5e7eb'};border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                                <div>
+                                    <span style="font-weight:600;font-size:13px;">${seq.personName}</span>
+                                    <span style="font-size:11px;color:#6b7280;margin-left:6px;">${seq.personPhone}</span>
+                                </div>
+                                <span style="font-size:10px;font-weight:700;background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:12px;">Step ${seq.currentStep}/7</span>
+                            </div>
+                            <div style="font-size:11px;color:#374151;margin-top:4px;">
+                                Volunteer: <b>${seq.volunteerName}</b> &bull;
+                                Next: ${methodEmoji} ${seq.nextMethod}
+                                ${seq.nextScheduledDate ? '(' + new Date(seq.nextScheduledDate).toLocaleDateString() + ')' : ''}
+                                ${isOverdue ? '<span style="color:#dc2626;font-weight:700;"> ⚠️ Overdue</span>' : ''}
+                            </div>
+                        </div>`;
+            });
+        })
+        .catch(e => console.error('Nurture huddle error', e));
+}
+
 // ── INIT ──────────────────────────────────────────────────
 $(document).ready(function () {
 
@@ -125,7 +186,11 @@ $(document).ready(function () {
 
     // also set teamLead and volunteer id if present in query
     const teamLeadId = params.get("teamLeadId");
-    if (teamLeadId) $("#team_lead_id").val(teamLeadId);
+    if (teamLeadId) {
+        $("#team_lead_id").val(teamLeadId);
+        loadHuddleNurture(teamLeadId);
+    }
+       
 
     const volunteerName = params.get("vName");
     if (volunteerName) $("#volunteer_name").text(decodeURIComponent(volunteerName));
