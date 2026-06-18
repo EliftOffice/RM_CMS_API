@@ -159,7 +159,7 @@ Praise the Lord {volunteer.FirstName},
 
 {methodEmoji} <b>{step.Method}</b> — {step.PersonName} ({step.PersonPhone})
 
-మీరు ఈ రోజు {step.PersonName} ని {(step.Method == "Call" ? "call" : "visit")} చేయాలి.
+మీరు ఈ రోజు {step.PersonName}  {(step.Method == "Call" ? "కి call" : "ని visit")} చేయాలి.
 (Step {step.StepNumber} of 7)
 
 👉 https://rmoffice.online

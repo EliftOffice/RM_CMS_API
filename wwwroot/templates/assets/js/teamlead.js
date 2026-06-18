@@ -518,13 +518,7 @@ $(function () {
         });
     }
 
-    function openCloseSeq(sequenceId, personName) {
-        document.getElementById('closeSeqId').value = sequenceId;
-        document.getElementById('closeSeqPersonName').textContent = personName;
-        document.getElementById('closeSeqNotes').value = '';
-        bootstrap.Modal.getInstance(document.getElementById('nurtureModal'))?.hide();
-        new bootstrap.Modal(document.getElementById('closeSequenceModal')).show();
-    }
+   
 
     document.getElementById('confirmCloseSeqBtn').addEventListener('click', async function () {
         const btn = this;
@@ -536,7 +530,7 @@ $(function () {
             finalNotes: document.getElementById('closeSeqNotes').value
         };
         try {
-            const res = await fetch(`${API_BASE_URL}/api/nurture/sequence/close`, {
+            const res = await fetch(`${API_BASE_URL}/nurture/sequence/close`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -560,3 +554,11 @@ $(function () {
     });
    
 });
+
+function openCloseSeq(sequenceId, personName) {
+    document.getElementById('closeSeqId').value = sequenceId;
+    document.getElementById('closeSeqPersonName').textContent = personName;
+    document.getElementById('closeSeqNotes').value = '';
+    bootstrap.Modal.getInstance(document.getElementById('nurtureModal'))?.hide();
+    new bootstrap.Modal(document.getElementById('closeSequenceModal')).show();
+}

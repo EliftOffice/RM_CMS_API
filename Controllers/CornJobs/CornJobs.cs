@@ -27,8 +27,9 @@ namespace RM_CMS.Controllers.CornJobs
         [HttpPost("send-reminders")]
         public async Task<ActionResult<ApiResponse<string>>> SendReminders()
         {
-            _ICornJobsBLL.SendRemindersToVolunteers();
-            _ICornJobsBLL.SendRemindersToTeamLeads();
+           await _ICornJobsBLL.SendRemindersToVolunteers();
+           await _ICornJobsBLL.SendRemindersToTeamLeads();
+           await _ICornJobsBLL.ProcessNurtureSteps();
 
             return Ok(new
             {
@@ -42,7 +43,7 @@ namespace RM_CMS.Controllers.CornJobs
         [HttpPost("assign-new-people")]
         public async Task<ActionResult<ApiResponse<string>>> AssignNewPeople()
         {
-            _ICornJobsBLL.AssignNewPeople();
+           await _ICornJobsBLL.AssignNewPeople();
 
             return Ok(new
             {

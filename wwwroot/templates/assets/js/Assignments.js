@@ -1,7 +1,9 @@
-﻿$(document).ready(function () {
+﻿var VId = "";
+$(document).ready(function () {
     const urlParams = new URLSearchParams(window.location.search);
     const volunteerId = urlParams.get('volunteerid');
     $('#volunteerIdDisplay').text(volunteerId || '-');
+    VId = volunteerId;
     if (!volunteerId) return;
 
     // ── helper: "10 Apr 2026" format ──────────────────────────────────────────
@@ -339,7 +341,7 @@
             notes: document.getElementById('nurture_notes').value
         };
         try {
-            const res = await fetch(`${API_BASE_URL}/api/nurture/step/log`, {
+            const res = await fetch(`${API_BASE_URL}/nurture/step/log`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -348,7 +350,10 @@
             const msgDiv = document.getElementById('nurtureModalResponse');
             if (json.responseType === 0) {
                 msgDiv.innerHTML = '<div class="alert alert-success mt-2">Step logged successfully!</div>';
-                setTimeout(() => { closeNurturePage(); const vId = localStorage.getItem('volunteer_id'); if (vId) loadNurtureSteps(vId); }, 1200);
+                setTimeout(() => {
+                    closeNurturePage();
+                    if (VId) loadNurtureSteps(VId);
+                }, 1200);
             } else {
                 msgDiv.innerHTML = `<div class="alert alert-danger mt-2">${json.message}</div>`;
                 btn.disabled = false; btn.textContent = 'Submit Step';

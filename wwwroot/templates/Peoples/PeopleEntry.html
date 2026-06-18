@@ -550,7 +550,10 @@
                     success: function () {
                         showSuccess('✓ Success! Welcome to our community.');
                         $('#visitorForm')[0].reset();
-                        $('.ref_div').hide();
+
+                        const isRef = $('#connection_source').val() === 'Friend_Family_Invite';
+                        $('.ref_div').toggle(isRef);
+                        $('#ref_name, #ref_phone').val('');
                     },
 
                     error: function (xhr) {

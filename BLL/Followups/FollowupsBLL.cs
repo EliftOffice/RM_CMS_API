@@ -1,4 +1,5 @@
 ﻿using RM_CMS.DAL.Followups;
+using RM_CMS.DAL.Nurture;
 using RM_CMS.DAL.Volunteers;
 using RM_CMS.Data.DTO.Followups;
 using RM_CMS.Data.Models;
@@ -16,11 +17,13 @@ namespace RM_CMS.BLL.Followups
     {
         private readonly IFollowupsDAL _followupsDAL;
         private readonly IVolunteersDAL _volunteersDAL;
+       
 
-        public FollowupsBLL(IFollowupsDAL followupsDAL, IVolunteersDAL volunteersDAL)
+        public FollowupsBLL(IFollowupsDAL followupsDAL, IVolunteersDAL volunteersDAL,INurtureDAL nurtureDAL)
         {
             _followupsDAL = followupsDAL;
             _volunteersDAL = volunteersDAL;
+           
         }
 
         // ✅ NORMAL
@@ -128,6 +131,8 @@ namespace RM_CMS.BLL.Followups
                 // 2. Attach generated followUpId back to DTO
                 data.follow_up_id = result.Data;
 
+                
+
                 // 3. Route based on response type
                 ApiResponse<bool> routeResult = data.response_type?.Trim().ToLower() switch
                 {
@@ -207,7 +212,7 @@ namespace RM_CMS.BLL.Followups
 
                     throw;
                 }
-
+                
 
                 // 4. Success
                 return new ApiResponse<object>(

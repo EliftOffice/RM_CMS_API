@@ -110,7 +110,7 @@ function loadVolunteerDetails(volunteerId) {
 
 // Load nurture huddle data once TL ID is available
 function loadHuddleNurture(teamLeadId) {
-    fetch(`${API_BASE_URL}/api/check-ins/nurture-review/${teamLeadId}`)
+    fetch(`${API_BASE_URL}/check-ins/nurture-review/${teamLeadId}`)
         .then(r => r.json())
         .then(json => {
             const data = json.data;
@@ -166,7 +166,7 @@ function loadHuddleNurture(teamLeadId) {
                         </div>`;
             });
         })
-        .catch(e => console.error('Nurture huddle error', e));
+        .catch(e => console.error('Nurture huddle error', e))
 }
 
 // ── INIT ──────────────────────────────────────────────────

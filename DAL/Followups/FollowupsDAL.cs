@@ -52,7 +52,7 @@ namespace RM_CMS.DAL.Followups
                             const string updateFollowUp = @"
                     UPDATE follow_ups SET
                         next_action = 'Nurture Sequence Started',
-                        next_action_date = CURDATE()
+                        next_action_date = CURDATE()+INTERVAL 7 DAY
                     WHERE follow_up_id = @FollowUpId;
                     ";
                             await connection.ExecuteAsync(updateFollowUp,
@@ -62,7 +62,7 @@ namespace RM_CMS.DAL.Followups
                             const string updatePerson = @"
                     UPDATE people SET
                         follow_up_status = 'IN_NURTURE',
-                        next_action_date = CURDATE()
+                        next_action_date = CURDATE()+INTERVAL 7 DAY
                     WHERE person_id = @PersonId;
                     ";
                             await connection.ExecuteAsync(updatePerson,
@@ -195,6 +195,9 @@ namespace RM_CMS.DAL.Followups
                                 new { VolunteerId = dto.volunteer_id }, transaction);
 
                                 transaction.Commit();
+
+                                // 4. Start nurture sequence (outside transaction — has its own)
+                                await _nurtureDAL.StartSequenceAsync(dto.person_id, dto.volunteer_id, dto.team_lead_id);
 
                                 return new ApiResponse<bool>(ResponseType.Success,
                                     "Marked as unresponsive after 3 attempts", true);

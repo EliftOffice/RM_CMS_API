@@ -1,4 +1,5 @@
 ﻿using RM_CMS.DAL.Followups;
+using RM_CMS.DAL.Nurture;
 using RM_CMS.Data.DTO.Followups;
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
@@ -22,9 +23,11 @@ namespace RM_CMS.BLL.Followups
     public class EscalationsBLL : IEscalationsBLL
     {
         private readonly IEscalationsDAL _escalationsDAL;
-        public EscalationsBLL(IEscalationsDAL escalationsDAL)
+        private readonly INurtureDAL _nurtureDAL;
+        public EscalationsBLL(IEscalationsDAL escalationsDAL,INurtureDAL nurtureDAL)
         {
             _escalationsDAL = escalationsDAL;
+            _nurtureDAL = nurtureDAL;
         }
 
         public async Task<ApiResponse<IEnumerable<EscalationResponseDTO>>> GetEscalationsAsync(EscalationsFilterDTO filter)
@@ -171,6 +174,9 @@ namespace RM_CMS.BLL.Followups
 
                 // 🔄 UPDATE PERSON STATUS (no need to block main result)
                 await _escalationsDAL.UpdatePersonStatusAsync(escalation.PersonId, "COMPLETE");
+
+                // 4. Start nurture sequence (outside transaction — has its own)
+                await _nurtureDAL.StartSequenceAsync(escalation.PersonId, escalation.VolunteerId, escalation.TeamLeadId);
 
                 return result;
             }
