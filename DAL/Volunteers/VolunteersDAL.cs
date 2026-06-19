@@ -312,7 +312,8 @@ namespace RM_CMS.DAL.Volunteers
     v.created_at AS CreatedAt,
     v.updated_at AS UpdatedAt,
 
-    CONCAT(tl.first_name, ' ', tl.last_name) AS TeamLeadFullName,tl.telegram_chat_id as TelegramChatID
+    CONCAT(tl.first_name, ' ', tl.last_name) AS TeamLeadFullName,
+        tl.telegram_chat_id as TelegramChatID
 
 FROM volunteers v
 LEFT JOIN team_leads tl 
@@ -1164,7 +1165,7 @@ WHERE LOWER(email) = @Email;";
             }
         }
 
-
+        
 
         //Jobs
         public async Task<ApiResponse<List<VolunteerPendingAssignmentDto>>> GetVolunteersWithPendingAssignmentsAsync()

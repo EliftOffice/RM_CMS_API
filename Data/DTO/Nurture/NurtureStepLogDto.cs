@@ -10,7 +10,8 @@ namespace RM_CMS.Data.DTO.Nurture
         public string ContactStatus { get; set; } = string.Empty;  // Contacted | Not Contacted
         public string? ResponseType { get; set; }                   // Normal | No Response | Needs Follow-Up | Crisis
         public string? Notes { get; set; }
-        public int? CallDurationMin { get; set; }
+        public string? Method { get; set; } 
+        public int? CallDurationMin { get; set; } = 0;
     }
 
     /// <summary>Team Lead closes the sequence after Step 7.</summary>

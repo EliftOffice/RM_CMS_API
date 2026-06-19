@@ -26,14 +26,16 @@ namespace RM_CMS.BLL.Nurture
     {
         private readonly INurtureDAL _nurtureDAL;
         private readonly IVolunteersDAL _volunteersDAL;
+        private readonly IEscalationsDAL _escalationsDAL;
         
-        private readonly IFollowupsBLL _followupsBLL;
+        private readonly IFollowupsDAL _followupsDAL;
 
-        public NurtureBLL(INurtureDAL nurtureDAL, IVolunteersDAL volunteersDAL, IFollowupsBLL followupsBLL)
+        public NurtureBLL(INurtureDAL nurtureDAL, IVolunteersDAL volunteersDAL, IFollowupsDAL followupsBDAL, IEscalationsDAL escalationsDAL)
         {
             _nurtureDAL = nurtureDAL;
             _volunteersDAL = volunteersDAL;
-            _followupsBLL= followupsBLL;
+            _followupsDAL = followupsBDAL;
+            _escalationsDAL = escalationsDAL;
         }
 
         public async Task<ApiResponse<string>> StartSequenceAsync(string personId, string volunteerId, string? teamLeadId)
@@ -53,18 +55,18 @@ namespace RM_CMS.BLL.Nurture
             try
             {
                 var result = await _nurtureDAL.LogStepAsync(dto);
+                FollowUpRequestDTO objFollowUpRequestDTO = new FollowUpRequestDTO();
+                objFollowUpRequestDTO.person_id = dto.PersonId;
+                objFollowUpRequestDTO.volunteer_id = dto.VolunteerId;
+                objFollowUpRequestDTO.response_type = dto.ResponseType;
+                objFollowUpRequestDTO.call_duration_min = dto.CallDurationMin;
+                objFollowUpRequestDTO.notes = dto.Notes;
+                objFollowUpRequestDTO.contact_status = dto.ContactStatus;
+                objFollowUpRequestDTO.contact_method = dto.Method;
 
-                //var objVolunteer = await _volunteersDAL.GetVolunteerByIdAsync(dto.VolunteerId);
 
-                //var res = await _followupsBLL.LogFollowUpAttemptAsync(new FollowUpRequestDTO
-                //{
-                //    person_id = dto.PersonId,
-                //    volunteer_id = dto.VolunteerId,
-                //    response_type = dto.ResponseType,
-                //    call_duration_min = dto.CallDurationMin,
-                //    notes = dto.Notes,
-                //    volunteer_name= objVolunteer.Data.LastName+objVolunteer.Data.FirstName
-                //});
+
+                var res = await _followupsDAL.LogFollowUpAttemptAsync(objFollowUpRequestDTO);
 
                 // If step 7 done → notify team lead to make final call
                 if (result.ResponseType == ResponseType.Success && result.Message.Contains("review"))
@@ -77,6 +79,57 @@ namespace RM_CMS.BLL.Nurture
                           string.Equals(dto.ResponseType, "needs follow-up", StringComparison.OrdinalIgnoreCase)))
                 {
                    
+                    // 3. Create escalation via DAL
+                    var escalation = new EscalationDTO
+                    {
+                        FollowUpId = res.Data,
+                        PersonId = dto.PersonId,
+                        VolunteerId = dto.VolunteerId,                     
+                        EscalationTier = string.Equals(dto.ResponseType, "crisis", StringComparison.OrdinalIgnoreCase)? "Emergency": "Standard",
+                        EscalationReason = dto.ResponseType
+                    };
+                    if(string.Equals(dto.ResponseType, "crisis", StringComparison.OrdinalIgnoreCase))
+                    {
+                        escalation.Description = "🚨 CRISIS: " + (
+                            string.IsNullOrEmpty(dto.Notes)
+                                ? "Immediate attention required"
+                                : dto.Notes.Trim());
+                    }
+                    else
+                    {
+                        escalation.Description = string.IsNullOrEmpty(dto.Notes)
+                                                   ? "Volunteer indicated person needs additional follow-up"
+                                                   : dto.Notes;
+                    }
+
+                    var escalationResponse = await _escalationsDAL.CreateEscalationAsync(escalation);
+                    ApiResponse<Volunteer> volunteer =await _volunteersDAL.GetVolunteerByIdAsync(dto.VolunteerId);
+                    string alertTitle;
+                    string assignText;
+                    if (string.Equals(dto.ResponseType, "crisis", StringComparison.OrdinalIgnoreCase))
+                    {
+                        alertTitle = "🚨 Crisis Alert";
+                        assignText = $"మీకు <b>{volunteer.Data.LastName + " " + volunteer.Data.FirstName}</b> Crisis assign చేశారు.";
+                    }
+                    else
+                    {
+                        alertTitle = "🤝 Needs Follow-Up";
+                        assignText = $"మీకు <b>{volunteer.Data.LastName+" "+volunteer.Data.FirstName}</b>  Follow-Up assign చేశారు.";
+                    }
+                    string message = $@"
+{alertTitle}
+
+🙏 Praise the Lord {volunteer.Data.TeamLeadFullName},
+
+{assignText}
+
+👉 https://rmoffice.online
+";
+
+                    await _volunteersDAL.SendTelegramMessageAsync(
+                        volunteer.Data.TelegramChatID,
+                        message
+                    );
                 }
 
                 return result;

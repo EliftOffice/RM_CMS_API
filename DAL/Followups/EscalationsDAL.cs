@@ -4,6 +4,7 @@ using RM_CMS.Data.DTO.Followups;
 using RM_CMS.Data.DTO.TeamLeads;
 using RM_CMS.Utilities;
 using System.Text;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace RM_CMS.DAL.Followups
 {
@@ -157,6 +158,23 @@ namespace RM_CMS.DAL.Followups
         {
             try
             {
+                using var connection = _dbConnectionFactory.GetConnection();
+
+                if (string.IsNullOrEmpty(escalation.TeamLeadId))
+                {
+                    //TeamLead Details
+                    const string teamLeadIdQuery = @"SELECT team_lead FROM volunteers WHERE volunteer_id = @VolunteerId;";
+
+                    var teamLeadId = await connection.ExecuteScalarAsync<string?>(teamLeadIdQuery, new { VolunteerId = escalation.VolunteerId });
+
+                    if (!string.IsNullOrEmpty(teamLeadId))
+                    {
+                        escalation.TeamLeadId = teamLeadId;
+                    }
+                    else
+                        return new ApiResponse<string>(ResponseType.Error,$"Teamlead Id is Not Found",null);
+                }               
+
                 const string query = @"
             INSERT INTO escalations (
                 escalation_id, follow_up_id, person_id, volunteer_id, team_lead_id,
@@ -169,11 +187,11 @@ namespace RM_CMS.DAL.Followups
                 @Description, 'New', NOW()
             );";
 
-                using var connection = _dbConnectionFactory.GetConnection();
+                
 
                 escalation.EscalationId = await GenerateEscalationId(connection);
 
-                await connection.ExecuteAsync(query, escalation);
+                await connection.ExecuteAsync(query, escalation);               
 
                 return new ApiResponse<string>(
                     ResponseType.Success,

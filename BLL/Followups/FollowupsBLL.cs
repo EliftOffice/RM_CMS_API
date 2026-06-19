@@ -164,32 +164,27 @@ namespace RM_CMS.BLL.Followups
                 try
                 {
                     if (
-    string.Equals(data.response_type, "needs follow-up", StringComparison.OrdinalIgnoreCase) ||
-    string.Equals(data.response_type, "crisis", StringComparison.OrdinalIgnoreCase)
-)
-                    {
-                        if (
       string.Equals(data.response_type, "needs follow-up", StringComparison.OrdinalIgnoreCase) ||
       string.Equals(data.response_type, "crisis", StringComparison.OrdinalIgnoreCase)
   )
+                    {
+                        if (!string.IsNullOrEmpty(data.team_lead_id))
                         {
-                            if (!string.IsNullOrEmpty(data.team_lead_id))
+                            string alertTitle;
+                            string assignText;
+
+                            if (string.Equals(data.response_type, "crisis", StringComparison.OrdinalIgnoreCase))
                             {
-                                string alertTitle;
-                                string assignText;
+                                alertTitle = "🚨 Crisis Alert";
+                                assignText = $"మీకు <b>{data.volunteer_name}</b> Crisis assign చేశారు.";
+                            }
+                            else
+                            {
+                                alertTitle = "🤝 Needs Follow-Up";
+                                assignText = $"మీకు <b>{data.volunteer_name}</b>  Follow-Up assign చేశారు.";
+                            }
 
-                                if (string.Equals(data.response_type, "crisis", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    alertTitle = "🚨 Crisis Alert";
-                                    assignText = $"మీకు <b>{data.volunteer_name}</b> Crisis assign చేశారు.";
-                                }
-                                else
-                                {
-                                    alertTitle = "🤝 Needs Follow-Up";
-                                    assignText = $"మీకు <b>{data.volunteer_name}</b>  Follow-Up assign చేశారు.";
-                                }
-
-                                string message = $@"
+                            string message = $@"
 {alertTitle}
 
 🙏 Praise the Lord {data.team_lead_name},
@@ -199,11 +194,10 @@ namespace RM_CMS.BLL.Followups
 👉 https://rmoffice.online
 ";
 
-                                await _volunteersDAL.SendTelegramMessageAsync(
-                                    data.telegram_chat_id,
-                                    message
-                                );
-                            }
+                            await _volunteersDAL.SendTelegramMessageAsync(
+                                data.telegram_chat_id,
+                                message
+                            );
                         }
                     }
                 }

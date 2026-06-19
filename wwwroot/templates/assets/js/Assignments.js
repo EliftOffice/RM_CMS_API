@@ -4,6 +4,7 @@ $(document).ready(function () {
     const volunteerId = urlParams.get('volunteerid');
     $('#volunteerIdDisplay').text(volunteerId || '-');
     VId = volunteerId;
+    localStorage.setItem('volunteer_id', volunteerId)
     if (!volunteerId) return;
 
     // ── helper: "10 Apr 2026" format ──────────────────────────────────────────
@@ -166,7 +167,7 @@ $(document).ready(function () {
                 if (!res || !res.data) return;
                 const v = res.data;
                 const fullName = `${v.firstName || ''} ${v.lastName || ''}`.trim();
-                $('#spnVolunteerName').text(fullName || 'N/A');
+                $('#spnVolunteerName').text(fullName || 'N/A');               
                 $('#spnteamLead').text(v.teamLeadFullName || 'N/A');
                 $('#hdntelegramchatId').val(v.telegramChatID || 0);
             },
@@ -335,10 +336,11 @@ $(document).ready(function () {
             stepId: document.getElementById('nurture_step_id').value,
             sequenceId: document.getElementById('nurture_sequence_id').value,
             personId: document.getElementById('nurture_person_id').value,
-            volunteerId: document.getElementById('nurture_volunteer_id').value,
-            contactStatus,
+            volunteerId: VId,
+            contactStatus:contactStatus,
             responseType: contactStatus === 'Contacted' ? responseType : null,
-            notes: document.getElementById('nurture_notes').value
+            notes: document.getElementById('nurture_notes').value,
+            method: document.getElementById('nurture_step_method').value
         };
         try {
             const res = await fetch(`${API_BASE_URL}/nurture/step/log`, {
@@ -370,9 +372,10 @@ function openNurtureStep(stepId, sequenceId, personId, personName, personPhone, 
     document.getElementById('nurture_step_id').value = stepId;
     document.getElementById('nurture_sequence_id').value = sequenceId;
     document.getElementById('nurture_person_id').value = personId;
-    document.getElementById('nurture_volunteer_id').value = localStorage.getItem('volunteer_id') || '';
+    document.getElementById('nurture_volunteer_id').value = VId || '';
     document.getElementById('nurturePersonName').textContent = personName;
     document.getElementById('nurturePersonPhone').textContent = personPhone;
+    document.getElementById('nurture_step_method').value = (method === 'Call' ? 'Phone Call' : 'House Visit');;
     document.getElementById('nurtureAvatarInitial').textContent = personName.charAt(0).toUpperCase();
     document.getElementById('nurtureStepBadge').textContent = `Step ${stepNum}/7`;
     const mb = document.getElementById('nurtureMethodBadge');

@@ -69,7 +69,7 @@ namespace RM_CMS.DAL.Nurture
                     "SELECT MAX(CAST(SUBSTRING(step_id, 4) AS UNSIGNED)) FROM nurture_steps", null, transaction);
                 var stepCounter = (stepMax ?? 0) + 1;
 
-                var startDate = DateTime.Today;
+                var startDate = DateTime.Today.AddDays(7);
                 for (int i = 0; i < 7; i++)
                 {
                     var stepId = $"NST{stepCounter.ToString().PadLeft(4, '0')}";
@@ -343,5 +343,7 @@ namespace RM_CMS.DAL.Nurture
                 return new ApiResponse<IEnumerable<NurtureStep>>(ResponseType.Error, ex.Message, null);
             }
         }
+
+        
     }
 }
