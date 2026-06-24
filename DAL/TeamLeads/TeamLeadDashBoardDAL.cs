@@ -35,6 +35,7 @@ namespace RM_CMS.DAL.TeamLeads
         Task<ApiResponse<IEnumerable<TeamHuddleFollowUpDTO>>> GetTeamHuddleFollowUpsDtoAsync(string teamLeadId, int? week = null);
 
         Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithPendingAssignmentsAsync();
+        Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithOverdueAssignmentsAsync(int hours);
     }
 
     public class TeamLeadDashBoardDAL : ITeamLeadDashBoardDAL
@@ -829,6 +830,68 @@ GROUP BY e.team_lead_id;
                 return new ApiResponse<List<TeamLeadPendingAssignmentDto>>(
                     ResponseType.Error,
                     $"Error retrieving volunteers: {ex.Message}",
+                    null
+                );
+            }
+        }
+
+        public async Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithOverdueAssignmentsAsync(int hours)
+        {
+            try
+            {
+                using (var connection = _dbConnectionFactory.GetConnection())
+                {
+                    const string query = @"
+SELECT
+    CONCAT(t.last_name, ' ', t.first_name) AS TeamLeadName,
+    t.telegram_chat_id AS TelegramChatId,
+    COUNT(*) AS PendingAssignmentsCount,
+    GROUP_CONCAT(
+        CONCAT(
+            '• ',
+            p.last_name,
+            ' ',
+            p.first_name,
+            ' (',
+            v.last_name,
+            ' ',
+            v.first_name,
+            ')'
+        )
+        SEPARATOR '\n'
+    ) AS Description
+FROM people p
+INNER JOIN volunteers v
+    ON v.volunteer_id = p.assigned_volunteer
+INNER JOIN team_leads t
+    ON t.team_lead_id = v.team_lead
+WHERE p.follow_up_status = 'ASSIGNED'
+  AND p.assigned_date <= DATE_SUB(NOW(), INTERVAL @Hours HOUR)
+GROUP BY
+    t.team_lead_id,
+    t.first_name,
+    t.last_name,
+    t.telegram_chat_id;";
+
+                    var teamLeads = await connection.QueryAsync<TeamLeadPendingAssignmentDto>(
+                        query,
+                        new { Hours = hours });
+
+                    var list = teamLeads?.ToList()
+                               ?? new List<TeamLeadPendingAssignmentDto>();
+
+                    return new ApiResponse<List<TeamLeadPendingAssignmentDto>>(
+                        ResponseType.Success,
+                        $"Team leads with assignments pending more than {hours} hours retrieved successfully",
+                        list
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<List<TeamLeadPendingAssignmentDto>>(
+                    ResponseType.Error,
+                    $"Error retrieving overdue assignments: {ex.Message}",
                     null
                 );
             }

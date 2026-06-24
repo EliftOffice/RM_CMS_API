@@ -29,6 +29,7 @@ namespace RM_CMS.Controllers.CornJobs
         {
            await _ICornJobsBLL.SendRemindersToVolunteers();
            await _ICornJobsBLL.SendRemindersToTeamLeads();
+           await _ICornJobsBLL.SendOverdueAssignmentsRemindersToTeamLeads(48);
            await _ICornJobsBLL.ProcessNurtureSteps();
 
             return Ok(new
