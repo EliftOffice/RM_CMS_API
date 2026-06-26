@@ -1,6 +1,6 @@
 ﻿$(function () {
 
-    const statuses = ["", "NEW", "ASSIGNED", "CONTACTED", "RETRY PENDING", "ESCALATED", "COMPLETE", "UNRESPONSIVE"];
+    const statuses = ["", "NEW", "ASSIGNED", "CONTACTED", "RETRY PENDING", "ESCALATED", "COMPLETE", "UNRESPONSIVE","IN_NURTURE"];
 
     function buildStatusFilter() {
         const sel = $('#statusFilter');
@@ -42,8 +42,8 @@
                         <td>${p.assignedVolunteer_Name || ''}</td>                        
                         <td>${p.nextActionDate || p.NextActionDate || ''}</td>
                         <td>
-                            <button class="btn btn-sm btn-primary action-btn edit" data-id="${p.personId || p.PersonId}">Edit</button>
-                            <button class="btn btn-sm btn-danger action-btn delete" data-id="${p.personId || p.PersonId}">Delete</button>
+                            <button class="btn btn-sm btn-primary action-btn edit" data-id="${p.personId || p.PersonId}" disabled>Edit</button>
+                            <button class="btn btn-sm btn-danger action-btn delete" data-id="${p.personId || p.PersonId}" disabled>Delete</button>
                         </td>
                     </tr>
                 `).join('');

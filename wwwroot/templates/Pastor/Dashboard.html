@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Pastor Dashboard</title>
+    <link rel="icon" href="../../templates/assets/Images/favicon.ico">
+    <link rel="icon" type="image/png" href="../../templates/assets/Images/logo.png">
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -448,14 +451,27 @@
             .logout-btn:hover {
                 text-decoration: underline;
             }
+
+        .navbar-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            background: #e6f4ef;
+            color: #053d2b;
+            border-radius: 999px;
+            letter-spacing: 0.04em;
+            text-decoration: none;
+        }
     </style>
 
 </head>
 
 <body>
     <div style="float:right">
-        <a class="logout-btn" href="../Volunteers/Login.html">Logout</a>
-        <a href="../Peoples/AllPeopleList.html">All People</a>
+        <a class="navbar-badge" href="../Peoples/AllPeopleList.html">All People</a>
+        <a class="navbar-badge" href="../nurture-sequences-management.html">Nurture Traking</a>      
+        <a  class="logout-btn" href="/">Logout</a>
+
     </div>
 
     <!-- Brand bar (from File 3) -->

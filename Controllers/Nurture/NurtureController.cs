@@ -69,12 +69,21 @@ namespace RM_CMS.Controllers.Nurture
             return Ok(result);
         }
 
-        // ── Get all 7 steps for a sequence (history / audit view)
+        // ── Get all nurture steps for a sequence (history / audit view)
         // GET /api/nurture/sequence/{sequenceId}/steps
         [HttpGet("sequence/{sequenceId}/steps")]
         public async Task<IActionResult> GetSteps(string sequenceId)
         {
             var result = await _nurtureBLL.GetStepsBySequenceAsync(sequenceId);
+            return Ok(result);
+        }
+
+        // ── Get all sequences globally (list view)
+        // GET /api/nurture/teamlead/all
+        [HttpGet("teamlead/all")]
+        public async Task<IActionResult> GetAllSequences()
+        {
+            var result = await _nurtureBLL.GetAllSequencesAsync();
             return Ok(result);
         }
     }

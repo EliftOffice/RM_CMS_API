@@ -20,6 +20,7 @@ namespace RM_CMS.BLL.Nurture
         Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetActiveSequencesForTeamLeadAsync(string teamLeadId);
         Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetSequencesAwaitingReviewAsync(string teamLeadId);
         Task<ApiResponse<IEnumerable<NurtureStep>>> GetStepsBySequenceAsync(string sequenceId);
+        Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetAllSequencesAsync();
     }
 
     public class NurtureBLL : INurtureBLL
@@ -197,6 +198,18 @@ namespace RM_CMS.BLL.Nurture
             catch (Exception ex)
             {
                 return new ApiResponse<IEnumerable<NurtureStep>>(ResponseType.Error, ex.Message, null);
+            }
+        }
+
+        public async Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetAllSequencesAsync()
+        {
+            try
+            {
+                return await _nurtureDAL.GetAllSequencesAsync();
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>(ResponseType.Error, $"Error getting sequences: {ex.Message}", null);
             }
         }
 

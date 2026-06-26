@@ -15,6 +15,7 @@ namespace RM_CMS.DAL.Nurture
         Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetActiveSequencesForTeamLeadAsync(string teamLeadId);
         Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetSequencesAwaitingReviewAsync(string teamLeadId);
         Task<ApiResponse<IEnumerable<NurtureStep>>> GetStepsBySequenceAsync(string sequenceId);
+        Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetAllSequencesAsync();
     }
 
     public class NurtureDAL : INurtureDAL
@@ -341,6 +342,46 @@ namespace RM_CMS.DAL.Nurture
             catch (Exception ex)
             {
                 return new ApiResponse<IEnumerable<NurtureStep>>(ResponseType.Error, ex.Message, null);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // GET ALL SEQUENCES — for list view (all sequences globally)
+        // ─────────────────────────────────────────────────────────────
+        public async Task<ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>> GetAllSequencesAsync()
+        {
+            try
+            {
+                using var connection = _dbConnectionFactory.GetConnection();
+                var rows = await connection.QueryAsync<NurtureSequenceSummaryDto>(@"
+                    SELECT
+                        nseq.sequence_id,
+                        nseq.person_id,
+                        CONCAT(p.first_name, ' ', p.last_name) AS person_name,
+                        p.phone                                  AS person_phone,
+                        nseq.volunteer_id,
+                        CONCAT(v.first_name, ' ', v.last_name)  AS volunteer_name,
+                        CONCAT(tl.first_name, ' ', tl.last_name) AS team_lead_name,
+                        nseq.current_step,
+                        nseq.status,
+                        nseq.started_at,
+                        IFNULL(ns.method, '') AS next_method,
+                        ns.scheduled_date AS next_scheduled_date,
+                        CASE WHEN ns.scheduled_date < CURDATE() THEN 'Overdue' ELSE 'Pending' END AS next_step_status
+                    FROM nurture_sequences nseq
+                    JOIN people    p    ON p.person_id    = nseq.person_id
+                    JOIN volunteers v   ON v.volunteer_id = nseq.volunteer_id
+                    LEFT JOIN team_leads tl ON tl.team_lead_id = nseq.team_lead_id
+                    LEFT JOIN nurture_steps ns ON ns.sequence_id = nseq.sequence_id
+                                              AND ns.step_number = nseq.current_step
+                                              AND ns.status = 'Pending'
+                    ORDER BY nseq.updated_at DESC");
+
+                return new ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>(ResponseType.Success, "OK", rows);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<IEnumerable<NurtureSequenceSummaryDto>>(ResponseType.Error, ex.Message, null);
             }
         }
 

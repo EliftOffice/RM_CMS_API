@@ -32,6 +32,7 @@ namespace RM_CMS.Data.DTO.Nurture
         public string PersonPhone { get; set; } = string.Empty;
         public string VolunteerId { get; set; } = string.Empty;
         public string VolunteerName { get; set; } = string.Empty;
+        public string TeamLeadName { get; set; } = string.Empty;
         public int CurrentStep { get; set; }
         public string Status { get; set; } = string.Empty;
         public string NextMethod { get; set; } = string.Empty;      // Call | Visit

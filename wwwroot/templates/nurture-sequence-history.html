@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nurture Sequence History - Audit View</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="assets/js/api-config.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #085c40 0%, #0d7a52 100%);
+            color: white;
+            padding: 30px;
+            position: relative;
+        }
+
+        .header-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header h1 i {
+            font-size: 32px;
+        }
+
+        .person-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 12px;
+            opacity: 0.85;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .sequence-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-active {
+            background: #d1f7e5;
+            color: #065f46;
+        }
+
+        .status-inreview {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-permanent {
+            background: #c7d2fe;
+            color: #3730a3;
+        }
+
+        .status-failed {
+            background: #fecaca;
+            color: #7f1d1d;
+        }
+
+        .progress-info {
+            text-align: right;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            width: 200px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #10b981;
+            transition: width 0.3s ease;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #085c40, #e5e7eb);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            animation: slideIn 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        .timeline-item:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .timeline-item:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .timeline-item:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .timeline-item:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+        .timeline-item:nth-child(5) {
+            animation-delay: 0.5s;
+        }
+
+        .timeline-item:nth-child(6) {
+            animation-delay: 0.6s;
+        }
+
+        .timeline-item:nth-child(7) {
+            animation-delay: 0.7s;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -32px;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border: 3px solid #085c40;
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .timeline-item.done::before {
+            background: #10b981;
+            border-color: #10b981;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+
+        .timeline-item.missed::before {
+            background: #ef4444;
+            border-color: #ef4444;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+        }
+
+        .timeline-item.pending::before {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+        }
+
+        .step-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .timeline-item:hover .step-card {
+            background: #ffffff;
+            border-color: #085c40;
+            box-shadow: 0 4px 12px rgba(8, 92, 64, 0.08);
+        }
+
+        .step-header {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .step-number {
+            font-size: 18px;
+            font-weight: 700;
+            color: #085c40;
+            min-width: 30px;
+        }
+
+        .step-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-title h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .method-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e0e7ff;
+            color: #3730a3;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .step-dates {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .step-status-pill {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-done {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-missed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .step-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .detail-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-label {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            color: #111827;
+            font-weight: 500;
+        }
+
+        .detail-value.empty {
+            color: #9ca3af;
+            font-style: italic;
+        }
+
+        .response-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .response-normal {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .response-no-response {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .response-needs-followup {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .response-crisis {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .contact-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .contact-contacted {
+            color: #10b981;
+        }
+
+        .contact-not-contacted {
+            color: #ef4444;
+        }
+
+        .notes-section {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f0fdf4;
+            border-left: 3px solid #10b981;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .notes-section.show {
+            display: block;
+        }
+
+        .notes-section.crisis {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+
+        .notes-label {
+            font-size: 11px;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .notes-text {
+            font-size: 14px;
+            color: #374151;
+            line-height: 1.5;
+        }
+
+        .footer {
+            background: #f9fafb;
+            padding: 20px 40px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-left {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .footer-right {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #085c40;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #064e35;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .loading i {
+            font-size: 32px;
+            margin-bottom: 12px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 20px 40px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .error i {
+            margin-right: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .person-info {
+                grid-template-columns: 1fr;
+            }
+
+            .progress-info {
+                text-align: left;
+            }
+
+            .step-header {
+                grid-template-columns: auto 1fr;
+            }
+
+            .step-details {
+                grid-template-columns: 1fr;
+            }
+
+            .footer {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .footer-right {
+                width: 100%;
+            }
+
+            .footer-right .btn {
+                flex: 1;
+                justify-content: center;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .timeline {
+                padding-left: 30px;
+            }
+
+            .timeline::before {
+                left: 5px;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 40px;
+            color: #9ca3af;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #d1d5db;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #6b7280;
+        }
+
+        .print-section {
+            display: none;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                max-width: 100%;
+            }
+
+            .footer {
+                display: none;
+            }
+
+            .step-card {
+                page-break-inside: avoid;
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 16px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: none;
+            z-index: 1000;
+            animation: slideInRight 0.3s ease;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="header-content">
+                <div>
+                    <h1><i class="fas fa-seedling"></i>Nurture Sequence History</h1>
+                    <div class="person-info" id="personInfo">
+                        <div class="info-item">
+                            <div class="info-label">Person Name</div>
+                            <div class="info-value" id="personName">—</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Volunteer</div>
+                            <div class="info-value" id="volunteerName">—</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Sequence ID</div>
+                            <div class="info-value" id="sequenceId" style="font-family: monospace;">—</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Started</div>
+                            <div class="info-value" id="startDate">—</div>
+                        </div>
+                    </div>
+                    <div class="sequence-status">
+                        <div>
+                            <span class="status-badge" id="sequenceStatus">Active</span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="progress-info">
+                        <div class="progress-text">
+                            <span id="completedSteps">0</span> of <span id="totalSteps">7</span> Steps Completed
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Section -->
+        <div class="error" id="errorMessage"></div>
+
+        <!-- Loading State -->
+        <div class="loading" id="loadingState" style="display: none;">
+            <i class="fas fa-spinner"></i>
+            <div>Loading sequence history...</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content" id="contentArea">
+            <div class="timeline" id="timelineContainer">
+                <!-- Timeline items will be populated here -->
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-left">
+                <span id="lastUpdated">Last updated: —</span>
+            </div>
+            <div class="footer-right">
+                <button class="btn btn-secondary" onclick="window.print()">
+                    <i class="fas fa-print"></i>Print/PDF
+                </button>
+                <button class="btn btn-secondary" onclick="exportToCSV()">
+                    <i class="fas fa-download"></i>Export CSV
+                </button>
+                <button class="btn btn-primary" id="closeBtn">
+                    <i class="fas fa-times"></i>Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Configuration - Update this with your API endpoint
+       
+        let sequenceData = null;
+        let stepsData = null;
+
+        // Get sequence ID from URL parameter or pass it as needed
+        function getSequenceIdFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('sequenceId') || 'NS0001'; // Default for testing
+        }
+
+        // Initialize the page
+        function init() {
+            const sequenceId = getSequenceIdFromUrl();
+            loadSequenceHistory(sequenceId);
+        }
+
+        // Load sequence history from API
+        async function loadSequenceHistory(sequenceId) {
+            try {
+                showLoading(true);
+                hideError();
+
+                const response = await fetch(`${API_BASE_URL}/nurture/sequence/${sequenceId}/steps`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.responseType != 0) {
+                    throw new Error(result.message || 'Failed to load sequence history');
+                }
+
+                stepsData = result.data;
+                renderSequenceHistory(stepsData);
+                updateLastModified();
+
+            } catch (error) {
+                console.error('Error loading sequence history:', error);
+                showError(`Failed to load sequence history: ${error.message}`);
+                showEmptyState();
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Render the sequence history timeline
+        function renderSequenceHistory(steps) {
+            if (!steps || steps.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            const timeline = document.getElementById('timelineContainer');
+            timeline.innerHTML = '';
+
+            let completedCount = 0;
+            let personData = null;
+            let volunteerData = null;
+
+            steps.forEach((step, index) => {
+                // Capture first instance for header
+                if (index === 0) {
+                    personData = step;
+                    volunteerData = step;
+                }
+
+                if (step.status === 'Done') {
+                    completedCount++;
+                }
+
+                const timelineItem = createTimelineItem(step);
+                timeline.appendChild(timelineItem);
+            });
+
+            // Update header information
+            updateHeader(personData, steps[0], completedCount, steps.length);
+        }
+
+        // Create a timeline item element
+        function createTimelineItem(step) {
+            const item = document.createElement('div');
+            item.className = `timeline-item ${step.status.toLowerCase()}`;
+
+            const statusClass = `status-${step.status.toLowerCase()}`;
+            const statusText = step.status === 'Done' ? '✓ Done' :
+                step.status === 'Missed' ? '✗ Missed' :
+                    '⊘ Pending';
+
+            const contactStatusHtml = step.contactStatus ?
+                `<div class="detail-field">
+                    <div class="detail-label">Contact Status</div>
+                    <div class="detail-value contact-status ${step.contactStatus === 'Contacted' ? 'contact-contacted' : 'contact-not-contacted'}">
+                        <i class="fas ${step.contactStatus === 'Contacted' ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                        ${step.contactStatus}
+                    </div>
+                </div>` : '';
+
+            const responseTypeHtml = step.responseType ?
+                `<div class="detail-field">
+                    <div class="detail-label">Response Type</div>
+                    <div class="detail-value">
+                        <span class="response-badge response-${step.responseType.toLowerCase().replace(/ /g, '-')}">
+                            ${step.responseType}
+                        </span>
+                    </div>
+                </div>` : '';
+
+            const notesHtml = step.notes ?
+                `<div class="notes-section show ${step.responseType === 'Crisis' ? 'crisis' : ''}">
+                    <div class="notes-label"><i class="fas fa-sticky-note"></i>Notes</div>
+                    <div class="notes-text">${escapeHtml(step.notes)}</div>
+                </div>` : '';
+
+            item.innerHTML = `
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-number">Step ${step.stepNumber}</div>
+                        <div class="step-title">
+                            <h3>${getStepTitle(step.stepNumber)}</h3>
+                            <span class="method-badge">${step.method}</span>
+                        </div>
+                        <div class="step-dates">
+                            <i class="fas fa-calendar-alt"></i> 
+                            ${formatDate(step.scheduledDate)}
+                        </div>
+                        <span class="step-status-pill ${statusClass}">${statusText}</span>
+                    </div>
+                    
+                    <div class="step-details">
+                        <div class="detail-field">
+                            <div class="detail-label">Scheduled Date</div>
+                            <div class="detail-value">${formatDate(step.scheduledDate)}</div>
+                        </div>
+                        
+                        <div class="detail-field">
+                            <div class="detail-label">Completed Date</div>
+                            <div class="detail-value ${step.completedAt ? '' : 'empty'}">
+                                ${step.completedAt ? formatDate(step.completedAt) : 'Not completed yet'}
+                            </div>
+                        </div>
+                        
+                        <div class="detail-field">
+                            <div class="detail-label">Method</div>
+                            <div class="detail-value">${step.method}</div>
+                        </div>
+                        
+                        ${contactStatusHtml}
+                        ${responseTypeHtml}
+                        
+                        <div class="detail-field">
+                            <div class="detail-label">Status</div>
+                            <div class="detail-value">
+                                <span class="step-status-pill ${statusClass}">${step.status}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${notesHtml}
+                </div>
+            `;
+
+            return item;
+        }
+
+        // Get step title based on step number
+        function getStepTitle(stepNumber) {
+            const titles = [
+                'First Contact Call',
+                'First In-Person Visit',
+                'Second Contact Call',
+                'Second In-Person Visit',
+                'Third Contact Call',
+                'Third In-Person Visit',
+                'Final Contact Call & Decision'
+            ];
+            return titles[stepNumber - 1] || `Step ${stepNumber}`;
+        }
+
+        // Update header information
+        function updateHeader(personData, firstStep, completedCount, totalCount) {
+            if (personData) {
+                document.getElementById('personName').textContent = personData.personName || '—';
+                document.getElementById('volunteerName').textContent = personData.volunteerName || '—';
+                document.getElementById('sequenceId').textContent = personData.sequenceId || '—';
+                document.getElementById('startDate').textContent = personData.scheduledDate ?
+                    new Date(personData.scheduledDate).toLocaleDateString() : '—';
+            }
+
+            document.getElementById('completedSteps').textContent = completedCount;
+            document.getElementById('totalSteps').textContent = totalCount;
+
+            // Update progress bar
+            const progressPercent = (completedCount / totalCount) * 100;
+            document.getElementById('progressFill').style.width = progressPercent + '%';
+
+            // Update status badge
+            const statusElement = document.getElementById('sequenceStatus');
+            if (completedCount === totalCount && completedCount > 0) {
+                statusElement.textContent = 'Completed';
+                statusElement.className = 'status-badge status-permanent';
+            } else if (completedCount > 0) {
+                statusElement.textContent = 'In Progress';
+                statusElement.className = 'status-badge status-inreview';
+            } else {
+                statusElement.textContent = 'Active';
+                statusElement.className = 'status-badge status-active';
+            }
+        }
+
+        // Show/hide loading state
+        function showLoading(show) {
+            const loadingElement = document.getElementById('loadingState');
+            loadingElement.style.display = show ? 'block' : 'none';
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+            errorElement.classList.add('show');
+        }
+
+        // Hide error message
+        function hideError() {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.classList.remove('show');
+        }
+
+        // Show empty state
+        function showEmptyState() {
+            const timeline = document.getElementById('timelineContainer');
+            timeline.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h3>No Steps Found</h3>
+                    <p>No nurture steps have been recorded for this sequence yet.</p>
+                </div>
+            `;
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            if (!dateString) return '—';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Update last modified timestamp
+        function updateLastModified() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('lastUpdated').textContent = `Last updated: ${timeString}`;
+        }
+
+        // Export to CSV
+        function exportToCSV() {
+            if (!stepsData || stepsData.length === 0) {
+                showToast('No data to export', 'error');
+                return;
+            }
+
+            const headers = [
+                'Step #',
+                'Title',
+                'Method',
+                'Scheduled Date',
+                'Completed Date',
+                'Status',
+                'Contact Status',
+                'Response Type',
+                'Notes'
+            ];
+
+            const rows = stepsData.map((step, index) => [
+                step.stepNumber,
+                getStepTitle(step.stepNumber),
+                step.method,
+                formatDate(step.scheduledDate),
+                step.completedAt ? formatDate(step.completedAt) : 'Not completed',
+                step.status,
+                step.contactStatus || '—',
+                step.responseType || '—',
+                step.notes ? `"${step.notes.replace(/"/g, '""')}"` : ''
+            ]);
+
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `nurture-sequence-${document.getElementById('sequenceId').textContent}-${Date.now()}.csv`;
+            link.click();
+            window.URL.revokeObjectURL(url);
+
+            showToast('CSV exported successfully', 'success');
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast show`;
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Close button handler
+        document.getElementById('closeBtn').addEventListener('click', () => {
+            window.history.back();
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>
