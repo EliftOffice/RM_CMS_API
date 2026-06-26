@@ -1,0 +1,635 @@
+/**
+ * Nurture Sequence History - Audit View Styles
+ * Comprehensive styling for the nurture sequence history/audit view
+ */
+
+/* Root Styles */
+:root {
+    --color-primary: #085c40;
+    --color-primary-dark: #064e35;
+    --color-primary-light: #0d7a52;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-info: #3b82f6;
+
+    --color-gray-50: #f9fafb;
+    --color-gray-100: #f3f4f6;
+    --color-gray-200: #e5e7eb;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-500: #6b7280;
+    --color-gray-600: #4b5563;
+    --color-gray-700: #374151;
+    --color-gray-800: #1f2937;
+    --color-gray-900: #111827;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+    --border-radius: 8px;
+    --transition: all 0.3s ease;
+}
+
+/* Timeline Container */
+.nurture-timeline {
+    position: relative;
+    padding-left: 40px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+.nurture-timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom,
+            var(--color-primary),
+            var(--color-gray-200));
+}
+
+/* Timeline Items */
+.nurture-timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    animation: nurture-slideIn 0.5s ease forwards;
+    opacity: 0;
+}
+
+@keyframes nurture-slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.nurture-timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -32px;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border: 3px solid var(--color-primary);
+    border-radius: 50%;
+    z-index: 1;
+    transition: var(--transition);
+}
+
+.nurture-timeline-item.nurture-done::before {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+.nurture-timeline-item.nurture-missed::before {
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
+.nurture-timeline-item.nurture-pending::before {
+    background: var(--color-gray-100);
+    border-color: var(--color-gray-300);
+}
+
+/* Step Card */
+.nurture-step-card {
+    background: var(--color-gray-50);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    transition: var(--transition);
+}
+
+.nurture-timeline-item:hover .nurture-step-card {
+    background: white;
+    border-color: var(--color-primary);
+    box-shadow: 0 4px 12px rgba(8, 92, 64, 0.08);
+}
+
+/* Step Header */
+.nurture-step-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.nurture-step-number {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-primary);
+    min-width: 30px;
+}
+
+.nurture-step-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nurture-step-title h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-gray-900);
+}
+
+.nurture-method-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #e0e7ff;
+    color: #3730a3;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 50px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.nurture-step-dates {
+    font-size: 13px;
+    color: var(--color-gray-500);
+    white-space: nowrap;
+}
+
+.nurture-status-pill {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.nurture-status-pill.nurture-status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.nurture-status-pill.nurture-status-done {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.nurture-status-pill.nurture-status-missed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Step Details Grid */
+.nurture-step-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--color-gray-200);
+}
+
+/* Detail Fields */
+.nurture-detail-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.nurture-detail-label {
+    font-size: 11px;
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.nurture-detail-value {
+    font-size: 14px;
+    color: var(--color-gray-900);
+    font-weight: 500;
+}
+
+.nurture-detail-value.nurture-empty {
+    color: var(--color-gray-400);
+    font-style: italic;
+}
+
+/* Contact Status */
+.nurture-contact-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.nurture-contact-contacted {
+    color: var(--color-success);
+}
+
+.nurture-contact-not-contacted {
+    color: var(--color-danger);
+}
+
+/* Response Badges */
+.nurture-response-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.nurture-response-normal {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.nurture-response-no-response {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.nurture-response-needs-followup {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.nurture-response-crisis {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Notes Section */
+.nurture-notes-section {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f0fdf4;
+    border-left: 3px solid var(--color-success);
+    border-radius: 4px;
+    display: none;
+}
+
+.nurture-timeline-item .nurture-notes-section {
+    display: block;
+}
+
+.nurture-notes-section.nurture-crisis {
+    background: #fef2f2;
+    border-left-color: var(--color-danger);
+}
+
+.nurture-notes-label {
+    font-size: 11px;
+    color: var(--color-gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.nurture-notes-label i {
+    margin-right: 4px;
+}
+
+.nurture-notes-text {
+    font-size: 14px;
+    color: var(--color-gray-700);
+    line-height: 1.5;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+/* Status Badges */
+.nurture-status-badge {
+    display: inline-block;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nurture-status-active {
+    background: #d1f7e5;
+    color: #065f46;
+}
+
+.nurture-status-in-progress {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.nurture-status-completed {
+    background: #c7d2fe;
+    color: #3730a3;
+}
+
+.nurture-status-failed {
+    background: #fecaca;
+    color: #7f1d1d;
+}
+
+/* Buttons */
+.nurture-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nurture-btn-primary {
+    background: var(--color-primary);
+    color: white;
+}
+
+.nurture-btn-primary:hover {
+    background: var(--color-primary-dark);
+    box-shadow: var(--shadow-md);
+}
+
+.nurture-btn-secondary {
+    background: var(--color-gray-200);
+    color: var(--color-gray-700);
+}
+
+.nurture-btn-secondary:hover {
+    background: var(--color-gray-300);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Footer */
+.nurture-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Empty State */
+.nurture-empty-state {
+    text-align: center;
+    color: var(--color-gray-400);
+}
+
+.nurture-empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    color: var(--color-gray-300);
+}
+
+.nurture-empty-state h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: var(--color-gray-500);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .nurture-step-details {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .nurture-step-header {
+        grid-template-columns: auto 1fr;
+        row-gap: 10px;
+    }
+
+    .nurture-step-dates {
+        grid-column: 1 / -1;
+    }
+
+    .nurture-status-pill {
+        grid-column: 1 / -1;
+    }
+
+    .nurture-step-details {
+        grid-template-columns: 1fr;
+    }
+
+    .nurture-timeline {
+        padding-left: 30px;
+    }
+
+    .nurture-timeline::before {
+        left: 5px;
+    }
+
+    .nurture-timeline-item::before {
+        left: -28px;
+    }
+
+    .nurture-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .nurture-footer>div {
+        width: 100%;
+    }
+
+    .nurture-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .nurture-step-header {
+        grid-template-columns: auto;
+    }
+
+    .nurture-step-header>* {
+        grid-column: auto !important;
+    }
+
+    .nurture-method-badge {
+        width: 100%;
+    }
+
+    .nurture-step-card {
+        padding: 12px;
+    }
+
+    .nurture-timeline {
+        padding-left: 25px;
+    }
+
+    .nurture-timeline::before {
+        left: 3px;
+    }
+
+    .nurture-timeline-item::before {
+        left: -26px;
+        width: 14px;
+        height: 14px;
+        border-width: 2px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .nurture-timeline-item {
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+    }
+
+    .nurture-btn,
+    .nurture-footer {
+        display: none;
+    }
+
+    .nurture-timeline-item:hover .nurture-step-card {
+        border-color: var(--color-gray-200);
+        box-shadow: none;
+    }
+
+    .nurture-step-card {
+        border: 1px solid var(--color-gray-200);
+        background: white;
+    }
+}
+
+/* Accessibility */
+.nurture-btn:focus,
+.nurture-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Loading Animation */
+@keyframes nurture-spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.nurture-loading-spinner {
+    animation: nurture-spin 1s linear infinite;
+}
+
+/* Utility Classes */
+.nurture-mt-0 {
+    margin-top: 0;
+}
+
+.nurture-mt-1 {
+    margin-top: 4px;
+}
+
+.nurture-mt-2 {
+    margin-top: 8px;
+}
+
+.nurture-mt-3 {
+    margin-top: 12px;
+}
+
+.nurture-mt-4 {
+    margin-top: 16px;
+}
+
+.nurture-mb-0 {
+    margin-bottom: 0;
+}
+
+.nurture-mb-1 {
+    margin-bottom: 4px;
+}
+
+.nurture-mb-2 {
+    margin-bottom: 8px;
+}
+
+.nurture-mb-3 {
+    margin-bottom: 12px;
+}
+
+.nurture-mb-4 {
+    margin-bottom: 16px;
+}
+
+.nurture-text-center {
+    text-align: center;
+}
+
+.nurture-text-muted {
+    color: var(--color-gray-500);
+}
+
+.nurture-text-success {
+    color: var(--color-success);
+}
+
+.nurture-text-danger {
+    color: var(--color-danger);
+}
+
+.nurture-text-warning {
+    color: var(--color-warning);
+}
+
+.nurture-flex {
+    display: flex;
+}
+
+.nurture-flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nurture-gap-2 {
+    gap: 8px;
+}
+
+.nurture-gap-3 {
+    gap: 12px;
+}
+
+.nurture-gap-4 {
+    gap: 16px;
+}
+
+/* Dark Mode Support (Optional) */
+@media (prefers-color-scheme: dark) {
+    .nurture-step-card {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .nurture-detail-value {
+        color: #e5e7eb;
+    }
+
+    .nurture-step-title h3 {
+        color: #f3f4f6;
+    }
+
+    .nurture-timeline-item:hover .nurture-step-card {
+        background: #111827;
+        border-color: var(--color-primary);
+    }
+}

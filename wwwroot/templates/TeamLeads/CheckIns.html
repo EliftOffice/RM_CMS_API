@@ -1,0 +1,303 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Check-In Form</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/checkins.js"></script>
+    <script src="../assets/js/toast.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #eef0f4;
+            min-height: 100vh;
+            padding: 40px 16px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a5c4a;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 32px 36px;
+            max-width: 560px;
+            margin: 0 auto;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+        }
+
+        #message {
+            font-size: .9rem;
+            margin-bottom: 14px;
+            min-height: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+            .form-group label {
+                display: block;
+                font-size: .92rem;
+                font-weight: 500;
+                color: #222;
+                margin-bottom: 6px;
+            }
+
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid #d0d5dd;
+                border-radius: 6px;
+                font-size: .95rem;
+                font-family: inherit;
+                color: #222;
+                background: #fff;
+                outline: none;
+                transition: border-color .15s;
+            }
+
+                .form-group input:focus,
+                .form-group select:focus,
+                .form-group textarea:focus {
+                    border-color: #1a5c4a;
+                }
+
+            .form-group textarea {
+                resize: vertical;
+                min-height: 72px;
+            }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+            .check-row input[type=checkbox] {
+                width: 16px;
+                height: 16px;
+                accent-color: #1a5c4a;
+                cursor: pointer;
+            }
+
+            .check-row label {
+                font-size: .92rem;
+                color: #222;
+                cursor: pointer;
+            }
+
+        .section-label {
+            font-size: .75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: #888;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 6px;
+            margin: 20px 0 14px;
+        }
+
+        .btn-save {
+            width: 35%;
+            padding: 13px;
+            background: #1a5c4a;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background .15s;
+        }
+
+            .btn-save:hover {
+                background: #154a3b;
+            }
+
+            .btn-save:disabled {
+                background: #7aab99;
+                cursor: not-allowed;
+            }
+    </style>
+</head>
+<body>
+
+    <h1>Create Check-In</h1>
+
+    <div class="card">
+
+
+        <!-- Hidden IDs -->
+        <input type="hidden" id="volunteer_id" />
+        <input type="hidden" id="team_lead_id" />
+
+        <!-- Visible Names -->
+        <div class="d-flex flex-wrap gap-4">
+
+            <div>
+                <strong>Volunteer:</strong>
+                <span id="volunteer_name"></span>
+            </div>
+
+            <div>
+                <strong>Team Lead:</strong>
+                <span id="team_lead_name"></span>
+            </div>
+            <br />
+        </div>
+
+        <!--<div class="form-group">
+        <label>Check-In Date</label>
+        <input type="date" id="check_in_date" />
+    </div>-->
+
+        <div class="form-group">
+            <label>Duration (minutes)</label>
+            <input type="number" id="duration_min" min="1" />
+        </div>
+
+        <div class="form-group">
+            <label>Meeting Type</label>
+            <select id="meeting_type" disabled>
+                <option selected="selected" value="Monthly">Monthly</option>
+                <option value="Bi-Weekly">Bi-Weekly</option>
+                <option value="Ad-Hoc">Ad-Hoc</option>
+                <option value="Onboarding">Onboarding</option>
+                <option value="Emergency">Emergency</option>
+            </select>
+        </div>
+
+        <!-- Assessment -->
+        <div class="section-label">Assessment</div>
+
+        <div class="form-group">
+            <label>Emotional Tone *</label>
+            <select id="emotional_tone">
+                <option value="">— Select —</option>
+                <option value="😊">😊 Happy</option>
+                <option value="😐">😐 Neutral</option>
+                <option value="😟">😟 Worried</option>
+                <option value="😴">😴 Burned Out</option>
+                <option value="😤">😤 Frustrated</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Concerns Noted</label>
+            <textarea id="concerns_noted" placeholder="Any concerns raised…"></textarea>
+        </div>
+
+        <div class="check-row">
+            <input type="checkbox" id="capacity_adjustment" />
+            <label for="capacity_adjustment">Capacity Adjustment Made</label>
+        </div>
+
+        <div id="capBandWrap" class="form-group" style="display:none;">
+
+            <label>New Capacity Band</label>
+
+            <select id="new_capacity_band">
+            </select>
+
+        </div>
+
+        <div class="check-row">
+            <input type="checkbox" id="follow_up_needed" />
+            <label for="follow_up_needed">Follow-Up Needed</label>
+        </div>
+        <!--<div class="section-label">Next Steps</div>-->
+        <div id="nextcheckindate" class="form-group " style="display:none">
+            <label>Next Check-In Date</label>
+            <input type="date" id="next_check_in_date" />
+        </div>
+        <div id="action_itemsDiv" class="form-group " style="display:none">
+            <label>Action Items</label>
+            <textarea id="action_items" placeholder="Action items from this meeting…"></textarea>
+        </div>
+
+
+
+        <!-- Performance -->
+        <div class="section-label">Performance Discussion</div>
+
+        <div class="check-row">
+            <input type="checkbox" id="completion_rate_discussed" />
+            <label for="completion_rate_discussed">Completion Rate Discussed</label>
+        </div>
+
+        <div class="check-row">
+            <input type="checkbox" id="boundary_issues" />
+            <label for="boundary_issues">Boundary Issues Noted</label>
+        </div>
+
+        <div class="form-group">
+            <label>Training Needs</label>
+            <textarea id="training_needs" placeholder="Any training requirements…"></textarea>
+        </div>
+
+        <!-- Next Steps -->
+
+
+
+
+        <button style="margin-left:30%" class="btn-save" id="saveBtn">Save</button>
+        <p id="message"></p>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         NURTURE SEQUENCE REVIEW (Huddle Section)
+         Loads below the check-in form for TL to
+         review their team's active nurture journeys
+    ══════════════════════════════════════════ -->
+    <div id="nurtureHuddlePanel" style="display:none; max-width:560px; margin:24px auto 48px;">
+
+        <div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:10px;padding:20px;">
+            <h3 style="font-size:1rem;font-weight:700;color:#7c3aed;margin:0 0 16px;">
+                🌱 Nurture Sequence Review
+            </h3>
+
+            <!-- Stats row -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+                <span style="background:#ede9fe;color:#7c3aed;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;" id="huddleActiveCount">Active: 0</span>
+                <span style="background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;" id="huddleOverdueCount">Overdue: 0</span>
+                <span style="background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;" id="huddleReviewCount">Awaiting Decision: 0</span>
+            </div>
+
+            <!-- Awaiting decision -->
+            <div id="huddleReviewList" style="display:none;margin-bottom:16px;">
+                <p style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:8px;">⚠️ Need your decision:</p>
+                <div id="huddleReviewCards"></div>
+            </div>
+
+            <!-- Active sequence list -->
+            <div id="huddleActiveList">
+                <p style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;">Active journeys:</p>
+                <div id="huddleActiveCards"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="checkin.js"></script>
+    
+</body>
+</html>

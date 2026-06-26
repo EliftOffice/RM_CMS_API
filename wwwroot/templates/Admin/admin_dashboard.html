@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RM Office Admin Dashboard</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    body {
+      background: #f5f7fb;
+    }
+    .card {
+      border: 0;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+    .brand {
+      color: #0f4c81;
+      font-weight: 700;
+    }
+    .status-pill {
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .status-active {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .status-inactive {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .table td,
+    .table th {
+      vertical-align: middle;
+    }
+    .section-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+    .mono {
+      font-family: Consolas, Monaco, monospace;
+    }
+    .radius-value {
+      font-weight: 700;
+      color: #0f4c81;
+    }
+    .hint-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e3a8a;
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      font-size: 0.92rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
+      <div>
+        <h2 class="brand mb-1">Resurrection Ministries Admin</h2>
+        <div class="text-muted">Event configuration, live monitoring, and API tools</div>
+      </div>
+      <div class="text-end">
+        <div class="small text-muted">Base API URL</div>
+        <div class="mono" id="apiBaseLabel">https://rmoffice.online/api</div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="card p-4 h-100">
+          <div class="section-title mb-3">API Configuration</div>
+
+          <div class="mb-3">
+            <label class="form-label">API Base URL</label>
+            <input id="apiBaseUrl" class="form-control" value="https://rmoffice.online/api" />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Admin Token</label>
+            <input id="adminToken" class="form-control" placeholder="Optional Bearer token" />
+          </div>
+
+          <div class="d-grid gap-2">
+            <button class="btn btn-primary" id="saveConfigBtn">Save Configuration</button>
+            <button class="btn btn-outline-secondary" id="pingApiBtn">Ping Active Events API</button>
+          </div>
+
+          <hr />
+
+          <div class="section-title mb-3">Quick Stats</div>
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="border rounded-4 p-3 bg-white">
+                <div class="text-muted small">Events</div>
+                <div class="fs-4 fw-bold" id="eventCount">0</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="border rounded-4 p-3 bg-white">
+                <div class="text-muted small">Active</div>
+                <div class="fs-4 fw-bold text-success" id="activeCount">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <div class="section-title mb-2">API Log</div>
+            <textarea id="apiLog" class="form-control mono" rows="14" readonly></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card p-4 mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="section-title">Create / Update Event</div>
+            <button class="btn btn-outline-dark btn-sm" id="clearFormBtn">Clear Form</button>
+          </div>
+
+          <form id="eventForm" class="row g-3">
+            <input type="hidden" id="eventId" />
+
+            <div class="col-md-6">
+              <label class="form-label">Event Title</label>
+              <input id="title" class="form-control" required />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Venue Name</label>
+              <input id="venueName" class="form-control" required />
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Address</label>
+              <textarea id="address" class="form-control" rows="2" required></textarea>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Latitude</label>
+              <input id="latitude" type="number" step="0.0000001" class="form-control" required />
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Longitude</label>
+              <input id="longitude" type="number" step="0.0000001" class="form-control" required />
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Radius (m)</label>
+              <input id="radius" type="number" class="form-control" value="200" required />
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Active</label>
+              <select id="isActive" class="form-select">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label d-flex justify-content-between">
+                <span>Dynamic Geofence Boundary</span>
+                <span class="radius-value"><span id="radiusPreview">200</span>m</span>
+              </label>
+              <input id="radiusSlider" type="range" class="form-range" min="50" max="2000" step="50" value="200" />
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-secondary btn-sm radius-preset" type="button" data-radius="100">100m</button>
+                <button class="btn btn-outline-secondary btn-sm radius-preset" type="button" data-radius="200">200m</button>
+                <button class="btn btn-outline-secondary btn-sm radius-preset" type="button" data-radius="300">300m</button>
+                <button class="btn btn-outline-secondary btn-sm radius-preset" type="button" data-radius="500">500m</button>
+                <button class="btn btn-outline-secondary btn-sm radius-preset" type="button" data-radius="1000">1000m</button>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Start Time</label>
+              <input id="startTime" type="datetime-local" class="form-control" required />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">End Time</label>
+              <input id="endTime" type="datetime-local" class="form-control" required />
+            </div>
+
+            <div class="col-12">
+              <div class="hint-box">
+                Save one venue latitude and longitude once, then reuse the same location automatically for recurring events such as every Sunday service.
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Recurrence Type</label>
+              <select id="recurrenceType" class="form-select">
+                <option value="once">One-time Event</option>
+                <option value="weekly">Weekly</option>
+                <option value="every_sunday">Every Sunday</option>
+              </select>
+            </div>
+
+            <div class="col-md-4" id="recurrenceDayWrap">
+              <label class="form-label">Recurring Day</label>
+              <select id="recurrenceDay" class="form-select">
+                <option value="Sunday">Sunday</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Repeat Until</label>
+              <input id="repeatUntil" type="date" class="form-control" />
+            </div>
+
+            <div class="col-md-6">
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" id="reuseSameLocation" checked />
+                <label class="form-check-label" for="reuseSameLocation">
+                  Reuse the same latitude and longitude for future recurring dates
+                </label>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" id="autoActivateRecurring" checked />
+                <label class="form-check-label" for="autoActivateRecurring">
+                  Automatically activate this event on each recurring day
+                </label>
+              </div>
+            </div>
+
+            <div class="col-12 d-flex gap-2">
+              <button class="btn btn-primary" type="submit">Save Event</button>
+              <button class="btn btn-outline-primary" type="button" id="refreshEventsBtn">Refresh Events</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="section-title">Events</div>
+            <input id="searchBox" class="form-control w-auto" placeholder="Search title or venue" />
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Venue</th>
+                  <th>Radius</th>
+                  <th>Recurrence</th>
+                  <th>Time</th>
+                  <th>Status</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="eventsTableBody">
+                <tr>
+                  <td colspan="6" class="text-center text-muted py-4">No events loaded yet</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const storageKeys = {
+      baseUrl: "rm_admin_base_url",
+      token: "rm_admin_token"
+    };
+
+    const state = {
+      events: []
+    };
+
+    function byId(id) {
+      return document.getElementById(id);
+    }
+
+    function log(message, data) {
+      const stamp = new Date().toLocaleString();
+      const payload = data ? "\n" + JSON.stringify(data, null, 2) : "";
+      byId("apiLog").value = `[${stamp}] ${message}${payload}\n\n` + byId("apiLog").value;
+    }
+
+    function getBaseUrl() {
+      return byId("apiBaseUrl").value.trim().replace(/\/+$/, "");
+    }
+
+    function getHeaders(includeJson = true) {
+      const token = byId("adminToken").value.trim();
+      const headers = {};
+
+      if (includeJson) {
+        headers["Content-Type"] = "application/json";
+      }
+
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      return headers;
+    }
+
+    function setStats() {
+      byId("eventCount").textContent = state.events.length;
+      byId("activeCount").textContent = state.events.filter(e => e.isActive !== false).length;
+    }
+
+    function normalizeEvent(event) {
+      return {
+        id: event.id,
+        title: event.title,
+        venueName: event.venueName,
+        address: event.address,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        radius: event.radius,
+        startTime: event.startTime || event.dateTime || "",
+        endTime: event.endTime || event.dateTime || "",
+        isActive: event.isActive ?? true,
+        recurrenceType: event.recurrenceType || "once",
+        recurrenceDay: event.recurrenceDay || "",
+        repeatUntil: event.repeatUntil || "",
+        reuseSameLocation: event.reuseSameLocation ?? true,
+        autoActivateRecurring: event.autoActivateRecurring ?? true
+      };
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString();
+    }
+
+    function renderEvents() {
+      const tbody = byId("eventsTableBody");
+      const keyword = byId("searchBox").value.trim().toLowerCase();
+
+      const filtered = state.events.filter(event =>
+        event.title.toLowerCase().includes(keyword) ||
+        event.venueName.toLowerCase().includes(keyword)
+      );
+
+      if (!filtered.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">No matching events found</td>
+          </tr>
+        `;
+        setStats();
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(event => `
+        <tr>
+          <td>
+            <div class="fw-semibold">${escapeHtml(event.title)}</div>
+            <div class="small text-muted">${escapeHtml(event.address)}</div>
+          </td>
+          <td>${escapeHtml(event.venueName)}</td>
+          <td>${event.radius}m</td>
+          <td>
+            <div class="small fw-semibold">${formatRecurrence(event)}</div>
+            <div class="small text-muted">${event.reuseSameLocation ? "Same saved location" : "Custom location per date"}</div>
+          </td>
+          <td>
+            <div class="small">${formatDateTime(event.startTime)}</div>
+            <div class="small text-muted">${formatDateTime(event.endTime)}</div>
+          </td>
+          <td>
+            <span class="status-pill ${event.isActive ? "status-active" : "status-inactive"}">
+              ${event.isActive ? "Active" : "Inactive"}
+            </span>
+          </td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary me-1" onclick="editEvent(${event.id})">Edit</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="toggleEvent(${event.id}, ${!event.isActive})">
+              ${event.isActive ? "Disable" : "Enable"}
+            </button>
+          </td>
+        </tr>
+      `).join("");
+
+      setStats();
+    }
+
+    function escapeHtml(text) {
+      return String(text ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatRecurrence(event) {
+      if (event.recurrenceType === "every_sunday") {
+        return "Every Sunday";
+      }
+
+      if (event.recurrenceType === "weekly") {
+        return `Weekly${event.recurrenceDay ? " - " + event.recurrenceDay : ""}`;
+      }
+
+      return "One-time";
+    }
+
+    function syncRadiusUi(value) {
+      const radius = Number(value || 200);
+      byId("radius").value = radius;
+      byId("radiusSlider").value = radius;
+      byId("radiusPreview").textContent = radius;
+    }
+
+    function toggleRecurrenceUi() {
+      const recurrenceType = byId("recurrenceType").value;
+      const showDay = recurrenceType === "weekly";
+      byId("recurrenceDayWrap").style.display = showDay ? "" : "none";
+
+      if (recurrenceType === "every_sunday") {
+        byId("recurrenceDay").value = "Sunday";
+      }
+    }
+
+    function formToPayload() {
+      return {
+        id: byId("eventId").value ? Number(byId("eventId").value) : 0,
+        title: byId("title").value.trim(),
+        venueName: byId("venueName").value.trim(),
+        address: byId("address").value.trim(),
+        latitude: Number(byId("latitude").value),
+        longitude: Number(byId("longitude").value),
+        radius: Number(byId("radius").value),
+        // Send the raw local value to avoid UTC conversion shift
+        startTime: byId("startTime").value,
+        endTime: byId("endTime").value,
+        isActive: byId("isActive").value === "true",
+        recurrenceType: byId("recurrenceType").value,
+        recurrenceDay: byId("recurrenceType").value === "every_sunday" ? "Sunday" : byId("recurrenceDay").value,
+        repeatUntil: byId("repeatUntil").value || null,
+        reuseSameLocation: byId("reuseSameLocation").checked,
+        autoActivateRecurring: byId("autoActivateRecurring").checked
+      };
+    }
+
+    function fillForm(event) {
+      byId("eventId").value = event.id ?? "";
+      byId("title").value = event.title ?? "";
+      byId("venueName").value = event.venueName ?? "";
+      byId("address").value = event.address ?? "";
+      byId("latitude").value = event.latitude ?? "";
+      byId("longitude").value = event.longitude ?? "";
+      syncRadiusUi(event.radius ?? 200);
+      byId("isActive").value = String(event.isActive ?? true);
+      byId("startTime").value = toLocalDateTimeInput(event.startTime);
+      byId("endTime").value = toLocalDateTimeInput(event.endTime);
+      byId("recurrenceType").value = event.recurrenceType ?? "once";
+      byId("recurrenceDay").value = event.recurrenceDay || "Sunday";
+      byId("repeatUntil").value = event.repeatUntil ? String(event.repeatUntil).slice(0, 10) : "";
+      byId("reuseSameLocation").checked = event.reuseSameLocation ?? true;
+      byId("autoActivateRecurring").checked = event.autoActivateRecurring ?? true;
+      toggleRecurrenceUi();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function clearForm() {
+      byId("eventForm").reset();
+      byId("eventId").value = "";
+      syncRadiusUi(200);
+      byId("isActive").value = "true";
+      byId("recurrenceType").value = "once";
+      byId("recurrenceDay").value = "Sunday";
+      byId("reuseSameLocation").checked = true;
+      byId("autoActivateRecurring").checked = true;
+      toggleRecurrenceUi();
+    }
+
+    function toLocalDateTimeInput(value) {
+      if (!value) return "";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "";
+      
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    async function apiFetch(path, options = {}) {
+      const url = `${getBaseUrl()}${path}`;
+      const response = await fetch(url, options);
+      const text = await response.text();
+      let data = null;
+
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = text;
+      }
+
+      if (!response.ok) {
+        log(`API error ${response.status} ${path}`, data);
+        throw new Error(typeof data === "string" ? data : data?.message || "API request failed");
+      }
+
+      log(`API success ${response.status} ${path}`, data);
+      return data;
+    }
+
+    async function loadEvents() {
+      try {
+        const result = await apiFetch("/events/active");
+        const list = Array.isArray(result) ? result : (result.data || []);
+        state.events = list.map(normalizeEvent);
+        renderEvents();
+      } catch (error) {
+        alert(`Failed to load events: ${error.message}`);
+      }
+    }
+
+    async function saveEvent(payload) {
+      const isUpdate = payload.id > 0;
+      const path = isUpdate ? `/admin/events/${payload.id}` : "/admin/events";
+      const method = isUpdate ? "PUT" : "POST";
+
+      return apiFetch(path, {
+        method,
+        headers: getHeaders(true),
+        body: JSON.stringify(payload)
+      });
+    }
+
+    async function updateEventStatus(id, isActive) {
+      return apiFetch(`/admin/events/${id}/status`, {
+        method: "PATCH",
+        headers: getHeaders(true),
+        body: JSON.stringify({ isActive })
+      });
+    }
+
+    window.editEvent = function(id) {
+      const event = state.events.find(x => Number(x.id) === Number(id));
+      if (!event) return;
+      fillForm(event);
+    };
+
+    window.toggleEvent = async function(id, isActive) {
+      try {
+        await updateEventStatus(id, isActive);
+        await loadEvents();
+      } catch (error) {
+        alert(`Failed to update event status: ${error.message}`);
+      }
+    };
+
+    byId("saveConfigBtn").addEventListener("click", () => {
+      localStorage.setItem(storageKeys.baseUrl, byId("apiBaseUrl").value.trim());
+      localStorage.setItem(storageKeys.token, byId("adminToken").value.trim());
+      byId("apiBaseLabel").textContent = getBaseUrl();
+      log("Configuration saved");
+    });
+
+    byId("pingApiBtn").addEventListener("click", async () => {
+      await loadEvents();
+    });
+
+    byId("refreshEventsBtn").addEventListener("click", async () => {
+      await loadEvents();
+    });
+
+    byId("clearFormBtn").addEventListener("click", clearForm);
+
+    byId("radius").addEventListener("input", (event) => {
+      syncRadiusUi(event.target.value);
+    });
+
+    byId("radiusSlider").addEventListener("input", (event) => {
+      syncRadiusUi(event.target.value);
+    });
+
+    document.querySelectorAll(".radius-preset").forEach(button => {
+      button.addEventListener("click", () => {
+        syncRadiusUi(button.dataset.radius);
+      });
+    });
+
+    byId("recurrenceType").addEventListener("change", toggleRecurrenceUi);
+
+    byId("searchBox").addEventListener("input", renderEvents);
+
+    byId("eventForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      try {
+        const payload = formToPayload();
+        await saveEvent(payload);
+        clearForm();
+        await loadEvents();
+      } catch (error) {
+        alert(`Failed to save event: ${error.message}`);
+      }
+    });
+
+    function bootstrapConfig() {
+      const savedBaseUrl = localStorage.getItem(storageKeys.baseUrl);
+      const savedToken = localStorage.getItem(storageKeys.token);
+
+      if (savedBaseUrl) {
+        byId("apiBaseUrl").value = savedBaseUrl;
+      }
+
+      if (savedToken) {
+        byId("adminToken").value = savedToken;
+      }
+
+      byId("apiBaseLabel").textContent = getBaseUrl();
+    }
+
+    bootstrapConfig();
+    syncRadiusUi(200);
+    toggleRecurrenceUi();
+    loadEvents();
+  </script>
+</body>
+</html>

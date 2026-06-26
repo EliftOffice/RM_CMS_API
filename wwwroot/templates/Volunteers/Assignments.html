@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RM CMS Volunteer Portal</title>
+    <link rel="icon" href="../assets/Images/favicon.ico">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/utils.js"></script>
+    <script src="/templates/assets/js/toast.js"></script>
+    <script src="../assets/js/auth.js"></script>  
+
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f5f7f6;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* ═══════════════════════════════════
+           HEADER
+        ═══════════════════════════════════ */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 24px;
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #e6f4ef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+            .header-logo img {
+                width: 30px;
+                height: 30px;
+                object-fit: contain;
+            }
+
+        .page-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .page-subtitle {
+            font-size: 11px;
+            color: #9ca3af;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            padding: 0;
+        }
+
+            .logout-btn:hover {
+                text-decoration: underline;
+            }
+
+        /* ═══════════════════════════════════
+           ASSIGNMENTS PAGE
+        ═══════════════════════════════════ */
+        .page-body {
+            display: flex;
+            justify-content: center;
+            padding: 32px 16px;
+        }
+
+        .assignments-panel {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #9ca3af;
+            margin: 0 0 12px;
+        }
+
+        /* Cards */
+        .grid-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .assignment-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+            .assignment-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+            }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin-bottom: 2px;
+        }
+
+        .person-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin: 0;
+        }
+
+        .phone {
+            font-size: 12px;
+            color: #9ca3af;
+            margin: 2px 0 0;
+        }
+
+        .status-badge {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-left: 8px;
+            margin-top: 2px;
+        }
+
+        .status-pending {
+            background: #f1f3f4;
+            color: #5f6368;
+        }
+
+        .status-contacted {
+            background: #d1f2e0;
+            color: #0f9d58;
+        }
+
+        /* ── Nurture step cards ── */
+        .nurture-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #7c3aed;
+            margin: 20px 0 10px;
+        }
+
+        .nurture-card {
+            background: #faf5ff;
+            border: 1px solid #ddd6fe;
+            border-radius: 14px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 4px rgba(124,58,237,0.06);
+        }
+
+        .nurture-badge {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: #ede9fe;
+            color: #7c3aed;
+            margin-left: 8px;
+        }
+
+        .nurture-method-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .nurture-method-badge.visit {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .overdue-tag {
+            font-size: 10px;
+            font-weight: 700;
+            color: #ef4444;
+            background: #fee2e2;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .retry-text {
+            font-size: 12px;
+            color: #f39c12;
+            font-weight: 500;
+            margin: 6px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+            .retry-text::before {
+                content: '●';
+                font-size: 8px;
+            }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding: 0;
+            background: transparent;
+            border: none;
+        }
+
+        .assign-date {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        /* Card action buttons — pill style, NOT full width */
+        .action-btn {
+            border: none;
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s, transform 0.1s;
+            width: auto;
+            display: inline-block;
+        }
+
+            .action-btn:active {
+                transform: scale(0.97);
+            }
+
+        .btn-start {
+            background: #085c40;
+            color: #ffffff;
+        }
+
+            .btn-start:hover {
+                background: #064d35;
+            }
+
+        .btn-update {
+            background: #e6f4ef;
+            color: #085c40;
+            border: 1px solid #b3dcc9;
+        }
+
+            .btn-update:hover {
+                background: #d1ece0;
+            }
+
+        #responseContainer .alert {
+            border-radius: 10px;
+            font-size: 13px;
+        }
+
+        /* ═══════════════════════════════════
+           FOLLOW-UP PAGE  (hidden by default)
+        ═══════════════════════════════════ */
+        #followupPage {
+            display: none;
+        }
+
+        /* Top bar */
+        .followup-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 10px 24px;
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .followup-back {
+            position: absolute;
+            left: 16px;
+            background: transparent;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: #085c40;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0;
+            font-family: inherit;
+        }
+
+            .followup-back:hover {
+                text-decoration: underline;
+            }
+
+        .followup-topbar-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        /* Body */
+        .followup-body {
+            display: flex;
+            justify-content: center;
+            padding: 28px 16px 48px;
+            background: #f5f7f6;
+            min-height: calc(100vh - 53px);
+        }
+
+        .followup-panel {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        /* Person card */
+        .person-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 20px 16px;
+            text-align: center;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+
+        .person-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #d1f2e0;
+            color: #0f9d58;
+            font-weight: 700;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+        }
+
+        .person-card-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
+        }
+
+        .person-card-phone {
+            font-size: 12px;
+            color: #9ca3af;
+            margin: 2px 0 0;
+        }
+
+        /* Form sections */
+        .form-section {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+
+        .form-section-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #9ca3af;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        /* Radio rows */
+        .radio-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.1s;
+            gap: 10px;
+        }
+
+            .radio-row:hover {
+                background: #f9fafb;
+            }
+
+            .radio-row + .radio-row {
+                border-top: 1px solid #f3f4f6;
+            }
+
+            .radio-row input[type="radio"] {
+                accent-color: #085c40;
+                width: 16px;
+                height: 16px;
+                flex-shrink: 0;
+                cursor: pointer;
+            }
+
+            .radio-row label {
+                font-size: 13px;
+                color: #111827;
+                font-weight: 500;
+                cursor: pointer;
+                margin: 0;
+            }
+
+                .radio-row label.crisis {
+                    color: #ef4444;
+                }
+
+        /* Text inputs inside sections */
+        .followup-input {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-size: 13px;
+            color: #111827;
+            font-family: inherit;
+            background: transparent;
+            padding: 4px 0;
+        }
+
+            .followup-input::placeholder {
+                color: #9ca3af;
+            }
+
+        textarea.followup-input {
+            resize: vertical;
+            min-height: 72px;
+        }
+
+        /* ── Submit row: Back + Submit, centered, fixed widths ── */
+        .submit-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-back-bottom {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px 0;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            width: 140px;
+            transition: background 0.15s;
+        }
+
+            .btn-back-bottom:hover {
+                background: #e5e7eb;
+            }
+
+        .btn-submit-followup {
+            background: #085c40;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 0;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            width: 200px;
+            transition: background 0.15s, transform 0.1s;
+        }
+
+            .btn-submit-followup:hover {
+                background: #064d35;
+            }
+
+            .btn-submit-followup:active {
+                transform: scale(0.98);
+            }
+
+            .btn-submit-followup:disabled {
+                background: #9ca3af;
+                cursor: not-allowed;
+                transform: none;
+            }
+    </style>
+</head>
+
+<body>
+    <input type="hidden" value="" id="hdntelegramchatId" />
+    <!-- ════════════════════════════════════════
+         PAGE 1 — ASSIGNMENTS LIST
+    ════════════════════════════════════════ -->
+    <div id="assignmentsPage">
+
+        <div class="page-header">
+            <div class="header-left">
+                <div class="header-logo">
+                    <img src="../assets/Images/logo.jpeg" alt="RM"
+                         onerror="this.style.display='none';this.parentElement.textContent='R'">
+                </div>
+                <div>
+                    <div class="page-title">Assignments</div>
+                    <div class="page-subtitle">
+                        <span id="spnVolunteerName">Volunteer Name</span> &bull;
+                        Lead: <span id="spnteamLead">Team Lead Name</span>
+                    </div>
+                </div>
+            </div>
+            <button class="logout-btn" id="logoutBtn">Log out</button>
+        </div>
+
+        <div class="page-body">
+            <div class="assignments-panel">
+                <div id="responseContainer"></div>
+
+                <!-- Regular follow-up assignments -->
+                <h5 class="section-title" id="listLabel">My List</h5>
+                <div id="assignmentsGrid" class="grid-container"></div>
+
+                <!-- Nurture sequence steps due today -->
+                <h5 class="nurture-section-title" id="nurtureSectionTitle" style="display:none">🌱 Nurture Steps Due</h5>
+                <div id="nurtureGrid" class="grid-container"></div>
+            </div>
+        </div>
+
+    </div><!-- /assignmentsPage -->
+    <!-- ════════════════════════════════════════
+         PAGE 2 — FOLLOW-UP FORM  (inline)
+    ════════════════════════════════════════ -->
+    <div id="followupPage">
+
+        <div class="followup-topbar">
+            <button class="followup-back" id="topBackBtn">&#8249; Back</button>
+            <span class="followup-topbar-title">Update Status</span>
+        </div>
+
+        <div class="followup-body">
+            <div class="followup-panel">
+
+                <!-- hidden fields -->
+                <input type="hidden" id="person_id">
+                <input type="hidden" id="volunteer_id">
+
+                <!-- Person card -->
+                <div class="person-card">
+                    <div class="person-avatar" id="avatarInitial">V</div>
+                    <div class="person-card-name" id="displayPersonName"></div>
+                    <div class="person-card-phone" id="displayPhone"></div>
+                </div>
+
+                <!-- Did you contact them? -->
+                <div class="form-section">
+                    <span class="form-section-label">Did you contact them?</span>
+                    <div class="radio-row">
+                        <input type="radio" name="contact_status" id="cs_yes" value="Contacted" checked>
+                        <label for="cs_yes">Yes, Contacted</label>
+                        <input type="radio" name="contact_status" id="cs_no" value="Not Contacted">
+                        <label for="cs_no">Not Contacted</label>
+                    </div>
+                    <!--<div class="radio-row">
+                       
+                    </div>-->
+                </div>
+
+                <!-- Response Type (hidden when Not Contacted) -->
+                <div class="form-section" id="responseTypeSection">
+                    <span class="form-section-label">Response Type</span>
+                    <div class="radio-row">
+                        <input type="radio" name="response_type" id="rt_no" value="No Response">
+                        <label for="rt_no">No response — Try again in 3 days</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="response_type" id="rt_normal" value="Normal">
+                        <label for="rt_normal">Normal — Mark complete</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="response_type" id="rt_followup" value="Needs Follow-Up">
+                        <label for="rt_followup">Needs follow-up — Assign to lead</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="response_type" id="rt_crisis" value="Crisis">
+                        <label for="rt_crisis" class="crisis">Crisis — Immediate alert</label>
+                    </div>
+                </div>
+
+                <!-- Call Duration -->
+                <div class="form-section">
+                    <span class="form-section-label">Call Duration (Minutes) — Optional</span>
+                    <input type="number" id="call_duration_min"  placeholder="e.g. 5" min="0">
+                </div>
+
+                <!-- Notes -->
+                <div class="form-section">
+                    <span class="form-section-label">Notes</span>
+                    <textarea id="notes" class="followup-input" placeholder="Add any notes here..."></textarea>
+                </div>
+
+                <!-- Feedback message -->
+                <div id="modalResponse"></div>
+
+                <!-- Back + Submit — centered, fixed widths -->
+                <div class="submit-row">
+                    <button class="btn-back-bottom" id="bottomBackBtn">Back</button>
+                    <button class="btn-submit-followup" id="submitFollowupBtn">Submit Update</button>
+                </div>
+
+            </div>
+        </div>
+
+    </div><!-- /followupPage -->
+
+
+    <!-- ════════════════════════════════════════
+         PAGE 3 — NURTURE STEP FORM  (inline)
+    ════════════════════════════════════════ -->
+    <div id="nurtureFollowupPage" style="display:none">
+        <div class="followup-topbar">
+            <button class="followup-back" id="nurtureBackBtn">&#8249; Back</button>
+            <span class="followup-topbar-title">Nurture Step</span>
+        </div>
+        <div class="followup-body">
+            <div class="followup-panel">
+                <input type="hidden" id="nurture_step_id">
+                <input type="hidden" id="nurture_sequence_id">
+                <input type="hidden" id="nurture_person_id">
+                <input type="hidden" id="nurture_volunteer_id">
+                <input type="hidden" id="nurture_step_method">
+                
+
+                <!-- Person card with step badge -->
+                <div class="person-card">
+                    <div class="person-avatar" id="nurtureAvatarInitial">V</div>
+                    <div class="person-card-name" id="nurturePersonName"></div>
+                    <div class="person-card-phone" id="nurturePersonPhone"></div>
+                    <div style="margin-top:8px">
+                        <span id="nurtureStepBadge" class="nurture-badge"></span>
+                        <span id="nurtureMethodBadge" class="nurture-method-badge" style="margin-left:6px"></span>
+                    </div>
+                </div>
+
+                <!-- Contact status -->
+                <div class="form-section">
+                    <span class="form-section-label">Did you complete this step?</span>
+                    <div class="radio-row">
+                        <input type="radio" name="nurture_contact" id="nc_yes" value="Contacted" checked>
+                        <label for="nc_yes">Yes, Done</label>
+                        <input type="radio" name="nurture_contact" id="nc_no" value="Not Contacted" style="margin-left:16px">
+                        <label for="nc_no">Not Contacted</label>
+                    </div>
+                </div>
+
+                <!-- Response type -->
+                <div class="form-section" id="nurtureResponseSection">
+                    <span class="form-section-label">How did it go?</span>
+                    <div class="radio-row">
+                        <input type="radio" name="nurture_response" id="nr_normal" value="Normal" checked>
+                        <label for="nr_normal">Normal — All good</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="nurture_response" id="nr_no" value="No Response">
+                        <label for="nr_no">No Response</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="nurture_response" id="nr_followup" value="Needs Follow-Up">
+                        <label for="nr_followup">Needs Follow-Up — Escalate to lead</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" name="nurture_response" id="nr_crisis" value="Crisis">
+                        <label for="nr_crisis" class="crisis">Crisis — Immediate alert</label>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="form-section">
+                    <span class="form-section-label">Notes</span>
+                    <textarea id="nurture_notes" class="followup-input" placeholder="Any notes from this step..."></textarea>
+                </div>
+
+                <div id="nurtureModalResponse"></div>
+
+                <div class="submit-row">
+                    <button class="btn-back-bottom" id="nurtureBottomBackBtn">Back</button>
+                    <button class="btn-submit-followup" id="submitNurtureStepBtn">Submit Step</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/Assignments.js"></script>
+</body>
+</html>

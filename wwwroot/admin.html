@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RM CMS</title>
+    <link rel="icon" href="assets/Images/favicon.ico">
+    <link rel="icon" type="image/png" href="assets/Images/logo.png">
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #ffffff;
+            color: #111827;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        .logo-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 2.5rem;
+        }
+
+        .logo-box {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #e6f4ef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #085c40;
+            overflow: hidden;
+        }
+
+            .logo-box img {
+                width: 36px;
+                height: 36px;
+                object-fit: contain;
+                border-radius: 8px;
+            }
+
+        .brand {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #111827;
+        }
+
+            .brand span {
+                color: #085c40;
+            }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin: 0 0 2rem;
+            text-align: center;
+        }
+
+        .list {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            text-decoration: none;
+            color: inherit;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+            .item:hover {
+                border-color: #085c40;
+                background: #f4faf7;
+            }
+
+        .item-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        .item-sub {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        .arrow {
+            color: #9ca3af;
+            font-size: 1.1rem;
+        }
+
+        .admin-wrap { max-width: 1000px; margin: 0 auto; }
+        .admin-panel { background: #fff; border: 1px solid #e5e7eb; padding: 18px; border-radius: 8px; }
+        .admin-actions { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+        .admin-actions button { padding:10px 14px; border-radius:8px; border:1px solid #ccc; cursor:pointer; background:#f3f4f6; }
+        .admin-iframe { width:100%; height:70vh; border:1px solid #ddd; border-radius:6px; }
+    </style>
+</head>
+<body>
+    <div class="logo-row">
+        <div class="logo-box">
+            <img src="assets/Images/logo.jpeg" alt="Logo" onerror="this.style.display='none';this.parentElement.textContent='RM'">
+        </div>
+        <span class="brand"> <span>CMS</span></span>
+    </div>
+
+    <h1>Welcome</h1>
+
+    <div class="list">
+        <a href="../templates/Peoples/PeopleEntry.html" class="item">
+            <div>
+                <p class="item-title">Visitor Entry</p>
+                <p class="item-sub">Check-in and registration</p>
+            </div>
+            <span class="arrow">›</span>
+        </a>
+        <a href="../templates/Volunteers/Login.html" class="item">
+            <div>
+                <p class="item-title">Volunteer</p>
+                <p class="item-sub">Team portal access</p>
+            </div>
+            <span class="arrow">›</span>
+        </a>
+        <a href="../templates/TeamLeads/TeamLeadDashboard.html" class="item">
+            <div>
+                <p class="item-title">Leaders</p>
+                <p class="item-sub">Management dashboard</p>
+            </div>
+            <span class="arrow">›</span>
+        </a>
+    </div>
+
+    <div class="admin-wrap">
+        <h2>Site Admin</h2>
+        <div class="admin-panel">
+            <div class="admin-actions">
+                <button id="btnSendReminders">Send Reminders (Volunteers & Team Leads)</button>
+                <button id="btnAssignNew">Assign New People</button>
+                <button id="btnRefreshFrame">Open Frontend Index</button>
+            </div>
+            <div id="adminStatus"></div>
+        </div>
+
+        <div style="margin-top:16px;">
+            <iframe id="adminFrame" class="admin-iframe" src="/templates/index.html"></iframe>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/templates/assets/js/api-config.js"></script>
+    <script src="/templates/assets/js/toast.js"></script>
+    <script src="/templates/assets/js/session.js"></script>
+    <script>
+        $(function(){
+            function showMsg(msg, type){
+                if(window.showToast) showToast(msg, type || 'success');
+                else alert(msg);
+                $('#adminStatus').text(msg);
+            }
+
+            $('#btnSendReminders').on('click', function(){
+                if(!confirm('Execute reminders job now?')) return;
+                $(this).prop('disabled', true).text('Running...');
+                $.ajax({
+                    url: API_BASE_URL + '/cornjobs/send-reminders',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    success: function(res){
+                        showMsg(res.message || 'Reminders executed', 'success');
+                    },
+                    error: function(xhr){
+                        const msg = xhr.responseJSON?.message || xhr.responseText || 'Error executing job';
+                        showMsg(msg, 'error');
+                    },
+                    complete: function(){
+                        $('#btnSendReminders').prop('disabled', false).text('Send Reminders (Volunteers & Team Leads)');
+                    }
+                });
+            });
+
+            $('#btnAssignNew').on('click', function(){
+                if(!confirm('Assign new people now?')) return;
+                $(this).prop('disabled', true).text('Running...');
+                $.ajax({
+                    url: API_BASE_URL + '/cornjobs/assign-new-people',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    success: function(res){
+                        showMsg(res.message || 'Assign job executed', 'success');
+                    },
+                    error: function(xhr){
+                        const msg = xhr.responseJSON?.message || xhr.responseText || 'Error executing job';
+                        showMsg(msg, 'error');
+                    },
+                    complete: function(){
+                        $('#btnAssignNew').prop('disabled', false).text('Assign New People');
+                    }
+                });
+            });
+
+            $('#btnRefreshFrame').on('click', function(){
+                $('#adminFrame').attr('src', '/templates/index.html');
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+/* fallback CSS in case someone prefers separate file */
+#rm-toast-container { position: fixed; top: 12px; left: 12px; display:flex; flex-direction:column; gap:10px; z-index:2147483647; pointer-events:none; width:320px; max-width: calc(100% - 24px);} 
+.rm-toast{ pointer-events:auto; display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:10px; box-shadow:0 8px 24px rgba(17,24,39,0.12); color:#0f172a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size:14px; line-height:1.2; opacity:0; transform:translateY(-8px) scale(.995); transition:opacity 260ms ease, transform 260ms ease; border:1px solid rgba(15,23,42,0.06);} 
+.rm-toast.show{ opacity:1; transform:translateY(0) scale(1);} 
+.rm-toast .rm-toast-content{ flex:1 1 auto;} 
+.rm-toast .rm-toast-close{ background:transparent; border:none; color:inherit; cursor:pointer; font-size:14px; padding:6px; border-radius:6px;} 
+.rm-toast-success{ background:linear-gradient(90deg,#ecfdf5,#f0fdf4); border-left:4px solid #10b981;} 
+.rm-toast-error{ background:linear-gradient(90deg,#fff1f2,#fff1f2); border-left:4px solid #ef4444;} 
+.rm-toast-warning{ background:linear-gradient(90deg,#fffbeb,#fffbeb); border-left:4px solid #f59e0b;} 
+@media (max-width:520px){ #rm-toast-container{ left:8px; top:8px; width: calc(100% - 16px);} .rm-toast{ padding:10px; font-size:13px; } }

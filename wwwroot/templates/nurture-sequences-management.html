@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nurture Sequences Management</title>
+    <link rel="icon" href="../templates/assets/Images/favicon.ico">
+    <link rel="icon" type="image/png" href="../../templates/assets/Images/logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="assets/js/api-config.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            gap: 0;
+            /*overflow: hidden;*/
+        }
+
+        /* ===== LIST PANEL ===== */
+        .list-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #ddd;
+            background: white;
+        }
+
+        .list-header {
+            background: linear-gradient(135deg, #085c40 0%, #0d7a52 100%);
+            color: white;
+            padding: 12px 16px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+            .list-header h1 {
+                font-size: 18px;
+                font-weight: 600;
+                margin: 0;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+        .filter-bar {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+            .filter-btn.active {
+                background: #085c40;
+                color: white;
+                border-color: #085c40;
+            }
+
+            .filter-btn:hover {
+                border-color: #085c40;
+            }
+
+        .sequences-list {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sequence-item {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+            .sequence-item:hover {
+                background: #f9fafb;
+                border-left-color: #085c40;
+            }
+
+            .sequence-item.active {
+                background: #e6f4ef;
+                border-left-color: #085c40;
+            }
+
+        .item-row {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px;
+            margin-bottom: 4px;
+            align-items: center;
+        }
+
+        .item-status-icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .item-status-active {
+            color: #10b981;
+        }
+
+        .item-status-inreview {
+            color: #f59e0b;
+        }
+
+        .item-status-done {
+            color: #3b82f6;
+        }
+
+        .item-status-failed {
+            color: #ef4444;
+        }
+
+        .item-main {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .item-person {
+            font-weight: 600;
+            font-size: 13px;
+            color: #111;
+        }
+
+        .item-person-detail {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .item-progress {
+            font-size: 11px;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+
+        .item-vol-team {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 12px;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        .item-vol,
+        .item-team {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #6b7280;
+        }
+
+            .item-vol i,
+            .item-team i {
+                font-size: 10px;
+            }
+
+        .item-dates {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 12px;
+            font-size: 10px;
+            margin-top: 4px;
+            color: #9ca3af;
+        }
+
+        /* ===== TRACKING PANEL ===== */
+        .tracking-panel {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            position: relative;
+        }
+
+        .tracking-header {
+            background: linear-gradient(135deg, #085c40 0%, #0d7a52 100%);
+            color: white;
+            padding: 12px 16px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+            .tracking-header h2 {
+                font-size: 16px;
+                font-weight: 600;
+                margin: 0;
+            }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            display: none;
+        }
+
+        .tracking-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .tracking-info {
+            padding: 8px 12px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 11px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-size: 9px;
+            letter-spacing: 0.2px;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #111;
+        }
+
+        .timeline-track {
+            padding: 8px 12px;
+        }
+
+        .step-track {
+            display: grid;
+            grid-template-columns: 30px 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5e7eb;
+            position: relative;
+        }
+
+            .step-track:last-child {
+                border-bottom: none;
+                margin-bottom: 0;
+                padding-bottom: 0;
+            }
+
+        .step-num {
+            text-align: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: #085c40;
+            background: #f0fdf4;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .step-track.done .step-num {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .step-track.missed .step-num {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .step-content {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 8px;
+            align-items: start;
+            font-size: 12px;
+        }
+
+        .step-method {
+            display: inline-block;
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .step-dates {
+            display: grid;
+            gap: 2px;
+            font-size: 11px;
+        }
+
+        .step-date-label {
+            color: #6b7280;
+            text-transform: uppercase;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        .step-date {
+            color: #111;
+            font-weight: 500;
+        }
+
+        .step-meta {
+            display: grid;
+            gap: 4px;
+            font-size: 11px;
+        }
+
+        .step-status {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+
+            .step-status.pending {
+                background: #fef3c7;
+                color: #92400e;
+            }
+
+            .step-status.done {
+                background: #d1fae5;
+                color: #065f46;
+            }
+
+            .step-status.missed {
+                background: #fee2e2;
+                color: #991b1b;
+            }
+
+        .step-contact {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            background: #f3f4f6;
+            border-radius: 3px;
+            color: #6b7280;
+            font-size: 10px;
+        }
+
+            .step-contact.yes {
+                background: #d1fae5;
+                color: #065f46;
+            }
+
+            .step-contact.no {
+                background: #fee2e2;
+                color: #991b1b;
+            }
+
+        .step-response {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 10px;
+        }
+
+        .response-normal {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .response-crisis {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .response-followup {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .step-notes {
+            grid-column: 2 / -1;
+            margin-top: 4px;
+            padding: 8px;
+            background: #f9fafb;
+            border-left: 3px solid #10b981;
+            border-radius: 3px;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #374151;
+        }
+
+        .step-track.crisis .step-notes {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #9ca3af;
+            text-align: center;
+        }
+
+            .empty-state i {
+                font-size: 48px;
+                margin-bottom: 12px;
+                color: #d1d5db;
+            }
+
+        @media (max-width: 1024px) {
+            .app-container {
+                grid-template-columns: 1fr;
+            }
+
+            .list-panel {
+                display: none;
+            }
+
+            .tracking-panel {
+                display: flex;
+            }
+
+            .close-btn {
+                display: block;
+            }
+
+            .list-panel.show {
+                display: flex;
+            }
+        }
+
+        /* Scrollbar Styles */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+            ::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 10px;
+            color: #6b7280;
+        }
+
+            .loading i {
+                animation: spin 1s linear infinite;
+            }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error-msg {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 10px 12px;
+            margin: 10px 12px;
+            border-radius: 4px;
+            border-left: 3px solid #ef4444;
+            font-size: 12px;
+        }
+
+        .btn-group {
+            padding: 10px 16px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+            .btn:hover {
+                background: #f3f4f6;
+            }
+
+            .btn.primary {
+                background: #085c40;
+                color: white;
+                border-color: #085c40;
+            }
+
+                .btn.primary:hover {
+                    background: #064e35;
+                }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- LIST PANEL -->
+        <div class="list-panel">
+            <div class="list-header">
+                <h1><i class="fas fa-list"></i>Nurture Sequences</h1>
+                <span id="count"
+                    style="font-size:14px; background: rgba(255,255,255,0.3); padding: 4px 8px; border-radius: 3px;">0</span>
+            </div>
+
+            <div class="filter-bar">
+                <button class="filter-btn active" data-status="all">All</button>
+                <button class="filter-btn" data-status="Active">Active</button>
+                <button class="filter-btn" data-status="InReview">In Review</button>
+                <button class="filter-btn" data-status="Permanent">Completed</button>
+                <button class="filter-btn" data-status="Failed">Failed</button>
+            </div>
+
+            <div class="sequences-list" id="sequencesList">
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    <div>Loading sequences...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRACKING PANEL -->
+        <div class="tracking-panel">
+            <div class="tracking-header">
+                <h2 id="trackingTitle">Select a sequence to view details</h2>
+                <button class="close-btn" onclick="backToList()"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="tracking-content" id="trackingContent">
+                <div class="empty-state">
+                    <div>
+                        <i class="fas fa-inbox"></i>
+                        <p>Select a sequence from the list to view tracking details</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-group" id="btnGroup" style="display:none;">
+                <button class="btn" onclick="window.print()"><i class="fas fa-print"></i>Print</button>
+                <button class="btn" onclick="exportCSV()"><i class="fas fa-download"></i>Export CSV</button>
+                <button class="btn primary" onclick="backToList()" style="margin-left:auto;"><i
+                        class="fas fa-arrow-left"></i>Back</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        const PEOPLE_API = API_BASE_URL + '/peoples';
+        const VOLUNTEERS_API = API_BASE_URL + 'volunteers';
+        let allSequences = [];
+        let currentFilter = 'all';
+        let selectedSequence = null;
+        let sequencesWithDetails = {};
+
+        // Initialize
+        function init() {
+            loadSequences();
+            attachFilterListeners();
+        }
+
+        // Load all sequences
+        async function loadSequences() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/nurture/teamlead/all`);
+                const result = await response.json();
+
+                if (result.responseType == '0') {
+                    allSequences = result.data || [];
+                    renderList(allSequences);
+                } else {
+                    showError('Failed to load sequences');
+                }
+            } catch (error) {
+                console.error(error);
+                showError(`Error: ${error.message}`);
+            }
+        }
+
+        // Render sequence list
+        function renderList(sequences) {
+            const list = document.getElementById('sequencesList');
+            document.getElementById('count').textContent = sequences.length;
+
+            if (sequences.length === 0) {
+                list.innerHTML = '<div class="empty-state"><div><i class="fas fa-inbox"></i><p>No sequences found</p></div></div>';
+                return;
+            }
+
+            list.innerHTML = sequences.map(seq => `
+                <div class="sequence-item" data-seq-id="${seq.sequenceId}" onclick="selectSequence('${seq.sequenceId}', this)">
+                    <div class="item-row">
+                        <div class="item-status-icon item-status-${seq.status.toLowerCase()}">
+                            ${getStatusIcon(seq.status)}
+                        </div>
+                        <div class="item-main">
+                            <div>
+                                <div class="item-person">${seq.personName}</div>
+                                <div class="item-person-detail">${seq.personPhone || ''}</div>
+                            </div>
+                            <div class="item-progress">${seq.currentStep}/7</div>
+                        </div>
+                    </div>
+                    <div class="item-vol-team">
+                        <div class="item-vol"><i class="fas fa-user"></i> ${seq.volunteerName || '—'}</div>
+                        <div class="item-team"><i class="fas fa-users"></i> ${seq.teamLeadName || '—'}</div>
+                    </div>
+                    <div class="item-dates">
+                        <span><strong>Started:</strong> ${formatDate(seq.startedAt)}</span>
+                        <span><strong>ID:</strong> ${seq.sequenceId}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Select sequence and show tracking
+        async function selectSequence(sequenceId, element) {
+            selectedSequence = sequenceId;
+            document.querySelectorAll('.sequence-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+
+            // Show on mobile
+            if (window.innerWidth <= 1024) {
+                document.querySelector('.list-panel').classList.remove('show');
+            }
+
+            await loadTrackingDetails(sequenceId);
+        }
+
+        // Load tracking details (steps)
+        async function loadTrackingDetails(sequenceId) {
+            try {
+                const content = document.getElementById('trackingContent');
+                content.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Loading...</div>';
+
+                const response = await fetch(`${API_BASE_URL}/nurture/sequence/${sequenceId}/steps`);
+                const result = await response.json();
+
+                if (result.responseType == '0' && result.data) {
+                    const steps = result.data;
+                    sequencesWithDetails[sequenceId] = steps;
+
+                    renderTracking(steps, sequenceId);
+                    document.getElementById('btnGroup').style.display = 'flex';
+                } else {
+                    content.innerHTML = '<div class="error-msg">Failed to load tracking details</div>';
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('trackingContent').innerHTML = '<div class="error-msg">Error loading details: ' + error.message + '</div>';
+            }
+        }
+
+        // Render tracking/history timeline
+        function renderTracking(steps, sequenceId) {
+            const seq = allSequences.find(s => s.sequenceId === sequenceId);
+            if (!seq) return;
+
+            let html = '';
+
+            // Info section
+            html += `
+                <div class="tracking-info">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Person</div>
+                            <div class="info-value">${seq.personName}</div>
+                            <div style="font-size:10px; color:#6b7280;">${seq.personPhone || ''}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Volunteer</div>
+                            <div class="info-value">${seq.volunteerName || '—'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Team Lead</div>
+                            <div class="info-value">${seq.teamLeadName || '—'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Sequence ID</div>
+                            <div class="info-value" style="font-family:monospace;">${sequenceId}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Status</div>
+                            <div class="info-value">${seq.status}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Progress</div>
+                            <div class="info-value">${seq.currentStep}/7 Steps</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Timeline
+            html += '<div class="timeline-track">';
+
+            steps.forEach(step => {
+                const statusClass = step.status.toLowerCase();
+                const isCrisis = step.responseType === 'Crisis' || (step.notes && step.notes.includes('🚨'));
+                const stepClass = isCrisis ? 'crisis' : statusClass;
+
+                html += `
+                    <div class="step-track ${stepClass}">
+                        <div class="step-num">${step.stepNumber}</div>
+                        <div class="step-content">
+                            <div>
+                                <div style="font-weight:600; margin-bottom:2px;">${getStepTitle(step.stepNumber)}</div>
+                                <span class="step-method">${step.method}</span>
+                            </div>
+                            <div class="step-dates">
+                                <div class="step-date-label">Scheduled</div>
+                                <div class="step-date">${formatDate(step.scheduledDate)}</div>
+                                ${step.completedAt ? `
+                                    <div class="step-date-label">Completed</div>
+                                    <div class="step-date">${formatDate(step.completedAt)}</div>
+                                ` : ''}
+                            </div>
+                            <div class="step-meta">
+                                <span class="step-status ${statusClass}">${step.status}</span>
+                                ${step.contactStatus ? `<span class="step-contact ${step.contactStatus === 'Contacted' ? 'yes' : 'no'}"><i class="fas ${step.contactStatus === 'Contacted' ? 'fa-check' : 'fa-times'}"></i> ${step.contactStatus}</span>` : ''}
+                                ${step.responseType ? `<span class="step-response response-${step.responseType.toLowerCase().replace(/ /g, '')}">${step.responseType}</span>` : ''}
+                            </div>
+                        </div>
+                        ${step.notes ? `<div class="step-notes"><strong><i class="fas fa-sticky-note"></i> Notes:</strong><br>${escapeHtml(step.notes)}</div>` : ''}
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+
+            document.getElementById('trackingTitle').textContent = `${seq.personName} - ${seq.sequenceId}`;
+            document.getElementById('trackingContent').innerHTML = html;
+        }
+
+        // Helper functions
+        function getStatusIcon(status) {
+            const icons = {
+                'Active': '●',
+                'InReview': '⦿',
+                'Permanent': '✓',
+                'Failed': '✗'
+            };
+            return icons[status] || '●';
+        }
+
+        function getStepTitle(stepNumber) {
+            const titles = [
+                'First Contact Call',
+                'First In-Person Visit',
+                'Second Contact Call',
+                'Second In-Person Visit',
+                'Third Contact Call',
+                'Third In-Person Visit',
+                'Final Contact Call'
+            ];
+            return titles[stepNumber - 1] || `Step ${stepNumber}`;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '—';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showError(msg) {
+            document.getElementById('sequencesList').innerHTML = `<div class="error-msg">${msg}</div>`;
+        }
+
+        function attachFilterListeners() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+
+                    currentFilter = e.target.dataset.status;
+                    const filtered = currentFilter === 'all'
+                        ? allSequences
+                        : allSequences.filter(s => s.status === currentFilter);
+                    renderList(filtered);
+                });
+            });
+        }
+
+        function backToList() {
+            if (window.innerWidth <= 1024) {
+                document.querySelector('.list-panel').classList.add('show');
+            }
+        }
+
+        function exportCSV() {
+            if (!selectedSequence) return;
+
+            const steps = sequencesWithDetails[selectedSequence];
+            if (!steps || !steps.length) return;
+
+            const seq = allSequences.find(s => s.sequenceId === selectedSequence);
+            const headers = ['Step', 'Method', 'Scheduled', 'Completed', 'Status', 'Contact', 'Response', 'Notes'];
+            const rows = steps.map(s => [
+                getStepTitle(s.stepNumber),
+                s.method,
+                formatDate(s.scheduledDate),
+                s.completedAt ? formatDate(s.completedAt) : '',
+                s.status,
+                s.contactStatus || '',
+                s.responseType || '',
+                s.notes ? `"${s.notes.replace(/"/g, '""')}"` : ''
+            ]);
+
+            const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${selectedSequence}-${seq.personName}-tracking.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>

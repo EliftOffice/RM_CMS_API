@@ -1,0 +1,1270 @@
+================================================================================
+                    RM OFFICE ATTENDANCE API - FRONTEND REFERENCE
+                           COMPLETE CONTROLLER GUIDE
+================================================================================
+
+PROJECT: RM_CMS - Attendance & Event Management API
+FRAMEWORK: ASP.NET Core 8
+BASE URL: http://localhost:5000/api
+
+================================================================================
+                            TABLE OF CONTENTS
+================================================================================
+
+1. UserController - User Management
+2. EventController - Event Management (Mobile)
+3. AttendanceController - Attendance Tracking
+4. AdminEventsController - Admin Event Management
+
+================================================================================
+                        1. USER CONTROLLER
+                    Route Prefix: /api/user
+================================================================================
+
+???????????????????????????????????????????????????????????????????????????????
+? ENDPOINT 1.1: CHECK USER                                                    ?
+???????????????????????????????????????????????????????????????????????????????
+? METHOD:              POST                                                    ?
+? ROUTE:               /api/user/check                                         ?
+? REQUEST TYPE:        application/json                                        ?
+? AUTHENTICATION:      No                                                      ?
+? RESPONSE TYPE:       application/json                                        ?
+? HTTP STATUS CODES:   200 OK, 400 Bad Request, 500 Internal Server Error     ?
+???????????????????????????????????????????????????????????????????????????????
+
+DESCRIPTION:
+  Check if a user exists in the system by mobile number.
+
+REQUEST BODY:
+{
+  "mobileNumber": "08012345678"
+}
+
+REQUEST PARAMETERS:
+  mobileNumber (string, required) - User's mobile number. Must be provided and not empty.
+
+SAMPLE REQUEST (cURL):
+curl -X POST http://localhost:5000/api/user/check \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mobileNumber": "08012345678"
+  }'
+
+SAMPLE REQUEST (JavaScript/Fetch):
+const response = await fetch('http://localhost:5000/api/user/check', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    mobileNumber: '08012345678'
+  })
+});
+const data = await response.json();
+
+SAMPLE REQUEST (C#):
+using (var client = new HttpClient())
+{
+    var content = new StringContent(
+        JsonConvert.SerializeObject(new { mobileNumber = "08012345678" }),
+        Encoding.UTF8,
+        "application/json"
+    );
+    var response = await client.PostAsync("http://localhost:5000/api/user/check", content);
+    var result = await response.Content.ReadAsStringAsync();
+}
+
+SAMPLE RESPONSE (User Exists - 200 OK):
+{
+  "success": true,
+  "exists": true,
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "mobileNumber": "08012345678"
+  }
+}
+
+SAMPLE RESPONSE (User Not Found - 200 OK):
+{
+  "success": true,
+  "exists": false,
+  "data": null
+}
+
+SAMPLE RESPONSE (Bad Request - 400):
+{
+  "success": false,
+  "message": "Mobile number is required"
+}
+
+SAMPLE RESPONSE (Server Error - 500):
+{
+  "success": false,
+  "message": "An error occurred while checking user"
+}
+
+RESPONSE FIELDS:
+  success (boolean)      - Whether the operation completed successfully
+  exists (boolean)       - Whether the user exists in the system
+  data (object|null)     - User information if found, null otherwise
+    ?? id (long)         - User's unique identifier
+    ?? name (string)     - User's name
+    ?? mobileNumber (string) - User's mobile number
+
+ERROR CODES:
+  400 Bad Request        - Mobile number is missing or empty
+  500 Internal Server Error - Database or system error
+
+
+???????????????????????????????????????????????????????????????????????????????
+? ENDPOINT 1.2: REGISTER USER                                                 ?
+???????????????????????????????????????????????????????????????????????????????
+? METHOD:              POST                                                    ?
+? ROUTE:               /api/user/register                                      ?
+? REQUEST TYPE:        multipart/form-data                                     ?
+? AUTHENTICATION:      No                                                      ?
+? RESPONSE TYPE:       application/json                                        ?
+? HTTP STATUS CODES:   200 OK, 400 Bad Request, 500 Internal Server Error     ?
+???????????????????????????????????????????????????????????????????????????????
+
+DESCRIPTION:
+  Register a new user in the system. If user with same mobile already exists,
+  returns the existing user.
+
+FORM DATA:
+  name (string, required)           - User's full name. Must be provided and not empty.
+  mobileNumber (string, required)   - User's mobile number. Must be unique.
+
+SAMPLE REQUEST (cURL):
+curl -X POST http://localhost:5000/api/user/register \
+  -F "name=John Doe" \
+  -F "mobileNumber=08012345678"
+
+SAMPLE REQUEST (JavaScript/FormData):
+const formData = new FormData();
+formData.append('name', 'John Doe');
+formData.append('mobileNumber', '08012345678');
+
+const response = await fetch('http://localhost:5000/api/user/register', {
+  method: 'POST',
+  body: formData
+});
+const data = await response.json();
+
+SAMPLE REQUEST (C# using HttpClient):
+using (var client = new HttpClient())
+{
+    using (var formContent = new MultipartFormDataContent())
+    {
+        formContent.Add(new StringContent("John Doe"), "name");
+        formContent.Add(new StringContent("08012345678"), "mobileNumber");
+        
+        var response = await client.PostAsync("http://localhost:5000/api/user/register", formContent);
+        var result = await response.Content.ReadAsStringAsync();
+    }
+}
+
+SAMPLE RESPONSE (Success - 200 OK):
+{
+  "responseType": 0,
+  "message": "User created successfully",
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "mobileNumber": "08012345678"
+  }
+}
+
+SAMPLE RESPONSE (User Already Exists - 200 OK):
+{
+  "responseType": 0,
+  "message": "User already exists",
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "mobileNumber": "08012345678"
+  }
+}
+
+SAMPLE RESPONSE (Bad Request - 400):
+{
+  "responseType": 1,
+  "message": "Name and mobile number are required",
+  "data": null
+}
+
+SAMPLE RESPONSE (Server Error - 500):
+{
+  "responseType": 2,
+  "message": "An error occurred while registering user",
+  "data": null
+}
+
+RESPONSE FIELDS:
+  responseType (integer)  - 0=Success, 1=Warning, 2=Error
+  message (string)        - Response message describing the result
+  data (object|null)      - User information if created/found, null on error
+    ?? id (long)          - User's unique identifier
+    ?? name (string)      - User's name
+    ?? mobileNumber (string) - User's mobile number
+
+ERROR CODES:
+  400 Bad Request         - Missing required fields (name or mobileNumber)
+  500 Internal Server Error - Database or system error
+
+
+================================================================================
+                        2. EVENT CONTROLLER
+                    Route Prefix: /api/events
+================================================================================
+
+???????????????????????????????????????????????????????????????????????????????
+? ENDPOINT 2.1: GET ACTIVE EVENTS                                             ?
+???????????????????????????????????????????????????????????????????????????????
+? METHOD:              GET                                                     ?
+? ROUTE:               /api/events/active                                      ?
+? REQUEST TYPE:        Query Parameters                                        ?
+? AUTHENTICATION:      No                                                      ?
+? RESPONSE TYPE:       application/json                                        ?
+? HTTP STATUS CODES:   200 OK, 500 Internal Server Error                      ?
+???????????????????????????????????????????????????????????????????????????????
+
+DESCRIPTION:
+  Retrieve all active events. Can optionally include attendance status for a
+  specific user. Includes recurring events that are currently active based on
+  the current date and time.
+
+QUERY PARAMETERS:
+  userId (long, optional) - User ID to check attendance status. If provided,
+                            each event will include whether this user has
+                            attended the event today.
+
+SAMPLE REQUEST (Without userId):
+GET http://localhost:5000/api/events/active
+
+SAMPLE REQUEST (With userId):
+GET http://localhost:5000/api/events/active?userId=1
+
+SAMPLE REQUEST (cURL):
+curl -X GET "http://localhost:5000/api/events/active?userId=1"
+
+SAMPLE REQUEST (JavaScript/Fetch):
+const response = await fetch('http://localhost:5000/api/events/active?userId=1');
+const data = await response.json();
+
+SAMPLE REQUEST (C#):
+using (var client = new HttpClient())
+{
+    var response = await client.GetAsync("http://localhost:5000/api/events/active?userId=1");
+    var result = await response.Content.ReadAsStringAsync();
+}
+
+SAMPLE RESPONSE (Success - 200 OK):
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "title": "Sunday Worship Service",
+      "venueName": "Resurrection Main Auditorium",
+      "address": "12 Faith Avenue, Lagos",
+      "latitude": 6.5244,
+      "longitude": 3.3792,
+      "radius": 300,
+      "startTime": "2026-05-25T09:00:00",
+      "endTime": "2026-05-25T13:00:00",
+      "isActive": true,
+      "recurrenceType": "every_sunday",
+      "recurrenceDay": "Sunday",
+      "repeatUntil": "2027-12-31",
+      "reuseSameLocation": true,
+      "autoActivateRecurring": true,
+      "isAttended": false
+    },
+    {
+      "id": 2,
+      "title": "Leadership Conference",
+      "venueName": "Conference Hall B",
+      "address": "10 Hope Street, Abuja",
+      "latitude": 9.0765,
+      "longitude": 7.3986,
+      "radius": 500,
+      "startTime": "2026-05-26T14:00:00",
+      "endTime": "2026-05-26T19:00:00",
+      "isActive": true,
+      "recurrenceType": "once",
+      "recurrenceDay": "",
+      "repeatUntil": null,
+      "reuseSameLocation": true,
+      "autoActivateRecurring": true,
+      "isAttended": true
+    }
+  ]
+}
+
+SAMPLE RESPONSE (Empty List - 200 OK):
+{
+  "success": true,
+  "data": []
+}
+
+SAMPLE RESPONSE (Server Error - 500):
+{
+  "success": false,
+  "message": "An error occurred while fetching active events"
+}
+
+RESPONSE FIELDS:
+  success (boolean)       - Whether the request was successful
+  data (array)            - Array of event objects
+    ?? id (long)          - Event's unique identifier
+    ?? title (string)     - Event title/name
+    ?? venueName (string) - Venue name where event takes place
+    ?? address (string)   - Full address of the venue
+    ?? latitude (decimal) - GPS latitude coordinate
+    ?? longitude (decimal) - GPS longitude coordinate
+    ?? radius (integer)   - Geofence radius in meters
+    ?? startTime (datetime) - Event start time (ISO 8601 format)
+    ?? endTime (datetime) - Event end time (ISO 8601 format)
+    ?? isActive (boolean) - Whether event is currently active
+    ?? recurrenceType (string) - Type of recurrence: "once", "weekly", "every_sunday"
+    ?? recurrenceDay (string) - Day of week for recurring events (e.g., "Sunday")
+    ?? repeatUntil (date|null) - Last date event should recur, or null if no end date
+    ?? reuseSameLocation (boolean) - Whether to reuse location for recurring events
+    ?? autoActivateRecurring (boolean) - Auto-activate recurring events
+    ?? isAttended (boolean) - (Only if userId provided) Whether user attended today
+
+ERROR CODES:
+  500 Internal Server Error - Database or system error
+
+
+================================================================================
+                        3. ATTENDANCE CONTROLLER
+                    Route Prefix: /api/attendance
+================================================================================
+
+???????????????????????????????????????????????????????????????????????????????
+? ENDPOINT 3.1: CHECK-IN (Mark Attendance)                                    ?
+???????????????????????????????????????????????????????????????????????????????
+? METHOD:              POST                                                    ?
+? ROUTE:               /api/attendance/checkin                                 ?
+? REQUEST TYPE:        application/json                                        ?
+? AUTHENTICATION:      No                                                      ?
+? RESPONSE TYPE:       application/json                                        ?
+? HTTP STATUS CODES:   200 OK, 409 Conflict, 400 Bad Request, 500 Error      ?
+???????????????????????????????????????????????????????????????????????????????
+
+DESCRIPTION:
+  Mark attendance for a user at an event. This endpoint records the user's
+  location (GPS coordinates), device info, and timestamp. Returns 409 Conflict
+  if the user has already checked in to this event today.
+
+REQUEST BODY:
+{
+  "userId": 1,
+  "eventId": 1,
+  "eventTitle": "Sunday Worship Service",
+  "timestamp": "2026-05-25T09:05:00Z",
+  "latitude": 6.5244,
+  "longitude": 3.3792,
+  "deviceInfo": "Android 14 - Pixel 7",
+  "isSynced": true
+}
+
+REQUEST PARAMETERS:
+  userId (long, required)      - ID of the user checking in
+  eventId (long, required)     - ID of the event to check in to
+  eventTitle (string, required) - Title of the event
+  timestamp (datetime, required) - When the check-in occurred (ISO 8601, UTC)
+  latitude (decimal, required) - GPS latitude coordinate
+  longitude (decimal, required) - GPS longitude coordinate
+  deviceInfo (string, optional) - Device information (e.g., "Android 14 - Pixel 7")
+  isSynced (boolean, optional)  - Whether data is synchronized
+
+SAMPLE REQUEST (cURL):
+curl -X POST http://localhost:5000/api/attendance/checkin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": 1,
+    "eventId": 1,
+    "eventTitle": "Sunday Worship Service",
+    "timestamp": "2026-05-25T09:05:00Z",
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "deviceInfo": "Android 14 - Pixel 7",
+    "isSynced": true
+  }'
+
+SAMPLE REQUEST (JavaScript/Fetch):
+const response = await fetch('http://localhost:5000/api/attendance/checkin', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    userId: 1,
+    eventId: 1,
+    eventTitle: 'Sunday Worship Service',
+    timestamp: new Date().toISOString(),
+    latitude: 6.5244,
+    longitude: 3.3792,
+    deviceInfo: 'Android 14 - Pixel 7',
+    isSynced: true
+  })
+});
+const data = await response.json();
+
+SAMPLE REQUEST (C#):
+using (var client = new HttpClient())
+{
+    var checkInRequest = new
+    {
+        userId = 1,
+        eventId = 1,
+        eventTitle = "Sunday Worship Service",
+        timestamp = DateTime.UtcNow.ToString("O"),
+        latitude = 6.5244,
+        longitude = 3.3792,
+        deviceInfo = "Android 14 - Pixel 7",
+        isSynced = true
+    };
+    
+    var content = new StringContent(
+        JsonConvert.SerializeObject(checkInRequest),
+        Encoding.UTF8,
+        "application/json"
+    );
+    var response = await client.PostAsync("http://localhost:5000/api/attendance/checkin", content);
+    var result = await response.Content.ReadAsStringAsync();
+}
+
+SAMPLE RESPONSE (First Check-in Success - 200 OK):
+{
+  "responseType": 0,
+  "message": "Attendance marked successfully",
+  "data": {
+    "attendanceId": 1,
+    "status": "present"
+  }
+}
+
+SAMPLE RESPONSE (Duplicate Check-in - 409 Conflict):
+{
+  "responseType": 0,
+  "message": "Attendance already marked",
+  "data": {
+    "attendanceId": 1,
+    "status": "duplicate"
+  }
+}
+
+SAMPLE RESPONSE (Bad Request - 400):
+{
+  "responseType": 1,
+  "message": "Invalid user or event",
+  "data": null
+}
+
+SAMPLE RESPONSE (Server Error - 500):
+{
+  "responseType": 2,
+  "message": "An error occurred during check-in",
+  "data": null
+}
+
+RESPONSE FIELDS:
+  responseType (integer)     - 0=Success, 1=Warning, 2=Error
+  message (string)           - Response message
+  data (object|null)         - Attendance result information
+    ?? attendanceId (long)   - ID of the attendance record
+    ?? status (string)       - Status: "present" (first check-in) or "duplicate"
+
+STATUS CODES:
+  200 OK                     - Check-in recorded successfully (status: "present")
+  200 OK                     - Check-in already exists (status: "duplicate")
+  409 Conflict               - Duplicate check-in (alternative response format)
+  400 Bad Request            - Missing required fields or invalid data
+  500 Internal Server Error  - Database or system error
+
+
+???????????????????????????????????????????????????????????????????????????????
+? ENDPOINT 3.2: GET ATTENDANCE HISTORY                                        ?
+???????????????????????????????????????????????????????????????????????????????
+? METHOD:              GET                                                     ?
+? ROUTE:               /api/attendance/history                                 ?
+? REQUEST TYPE:        Query Parameters                                        ?
+? AUTHENTICATION:      No                                                      ?
+? RESPONSE TYPE:       application/json                                        ?
+? HTTP STATUS CODES:   200 OK, 400 Bad Request, 500 Internal Server Error     ?
+???????????????????????????????????????????????????????????????????????????????
+
+DESCRIPTION:
+  Retrieve the attendance history for a specific user. Shows all events the
+  user has attended, ordered by most recent first.
+
+QUERY PARAMETERS:
+  userId (long, required) - ID of the user whose attendance history to retrieve
+
+SAMPLE REQUEST:
+GET http://localhost:5000/api/attendance/history?userId=1
+
+SAMPLE REQUEST (cURL):
+curl -X GET "http://localhost:5000/api/attendance/history?userId=1"
+
+SAMPLE REQUEST (JavaScript/Fetch):
+const response = await fetch('http://localhost:5000/api/attendance/history?userId=1');
+const data = await response.json();
+
+SAMPLE REQUEST (C#):
+using (var client = new HttpClient())
+{
+    var response = await client.GetAsync("http://localhost:5000/api/attendance/history?userId=1");
+    var result = await response.Content.ReadAsStringAsync();
+}
+
+SAMPLE RESPONSE (Success - 200 OK):
+{
+  "success": true,
+  "data": [
+    {
+      "userId": 1,
+      "eventId": 1,
+      "eventTitle": "Sunday Worship Service",
+      "timestamp": "2026-05-25T09:05:00",
+      "latitude": 6.5244,
+      "longitude": 3.3792,
+      "deviceInfo": "Android 14 - Pixel 7",
+      "isSynced": true
+    },
+    {
+      "userId": 1,
+      "eventId": 2,
+      "eventTitle": "Leadership Conference",
+      "timestamp": "2026-05-24T14:30:00",
+      "latitude": 9.0765,
+      "longitude": 7.3986,
+      "deviceInfo": "iPhone 12",
+      "isSynced": true
+    }
+  ]
+}
+
+SAMPLE RESPONSE (Empty History - 200 OK):
+{
+  "success": true,
+  "data": []
+}
+
+SAMPLE RESPONSE (Bad Request - 400):
+{
+  "success": false,
+  "message": "Invalid userId"
+}
+
+SAMPLE RESPONSE (Server Error - 500):
+{
+  "success": false,
+  "message": "An error occurred while fetching history"
+}
+
+RESPONSE FIELDS:
+  success (boolean)       - Whether the request was successful
+  data (array)            - Array of attendance records
+    ?? userId (long)      - ID of the attending user
+    ?? eventId (long)     - ID of the event attended
+    ?? eventTitle (string) - Title of the event
+    ?? timestamp (datetime) - When the check-in occurred
+    ?? latitude (decimal) - GPS latitude coordinate of check-in location
+    ?? longitude (decimal) - GPS longitude coordinate of check-in location
+    ?? deviceInfo (string) - Device information used for check-in
+    ?? isSynced (boolean) - Whether the record is synchronized
+
+ERROR CODES:
+  400 Bad Request         - Missing or invalid userId
+  500 Internal Server Error - Database or system error
+
+
+================================================================================
+                        4. ADMIN EVENTS CONTROLLER
+                    Route Prefix: /api/admin/events
+================================================================================
+
+???????????????????????????????????????????????????????????????????????????????
+? ENDPOINT 4.1: GET ALL EVENTS (Admin)                                        ?
+???????????????????????????????????????????????????????????????????????????????
+? METHOD:              GET                                                     ?
+? ROUTE:               /api/admin/events                                       ?
+? REQUEST TYPE:        None                                                    ?
+? AUTHENTICATION:      No (Admin access assumed)                               ?
+? RESPONSE TYPE:       application/json                                        ?
+? HTTP STATUS CODES:   200 OK, 500 Internal Server Error                      ?
+???????????????????????????????????????????????????????????????????????????????
+
+DESCRIPTION:
+  Retrieve all events in the system regardless of active status. This is the
+  admin view with full event details. Events are ordered by most recent first.
+
+SAMPLE REQUEST:
+GET http://localhost:5000/api/admin/events
+
+SAMPLE REQUEST (cURL):
+curl -X GET "http://localhost:5000/api/admin/events"
+
+SAMPLE REQUEST (JavaScript/Fetch):
+const response = await fetch('http://localhost:5000/api/admin/events');
+const data = await response.json();
+
+SAMPLE REQUEST (C#):
+using (var client = new HttpClient())
+{
+    var response = await client.GetAsync("http://localhost:5000/api/admin/events");
+    var result = await response.Content.ReadAsStringAsync();
+}
+
+SAMPLE RESPONSE (Success - 200 OK):
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "title": "Sunday Worship Service",
+      "venueName": "Resurrection Main Auditorium",
+      "address": "12 Faith Avenue, Lagos",
+      "latitude": 6.5244,
+      "longitude": 3.3792,
+      "radius": 300,
+      "startTime": "2026-05-25T09:00:00",
+      "endTime": "2026-05-25T13:00:00",
+      "isActive": true,
+      "recurrenceType": "every_sunday",
+      "recurrenceDay": "Sunday",
+      "repeatUntil": "2027-12-31",
+      "reuseSameLocation": true,
+      "autoActivateRecurring": true,
+      "isAttended": false
+    },
+    {
+      "id": 2,
+      "title": "Leadership Conference",
+      "venueName": "Conference Hall B",
+      "address": "10 Hope Street, Abuja",
+      "latitude": 9.0765,
+      "longitude": 7.3986,
+      "radius": 500,
+      "startTime": "2026-05-26T14:00:00",
+      "endTime": "2026-05-26T19:00:00",
+      "isActive": true,
+      "recurrenceType": "once",
+      "recurrenceDay": "",
+      "repeatUntil": null,
+      "reuseSameLocation": true,
+      "autoActivateRecurring": true,
+      "isAttended": false
+    }
+  ]
+}
+
+SAMPLE RESPONSE (Empty List - 200 OK):
+{
+  "success": true,
+  "data": []
+}
+
+SAMPLE RESPONSE (Server Error - 500):
+{
+  "success": false,
+  "message": "An error occurred while fetching events"
+}
+
+RESPONSE FIELDS:
+  success (boolean)       - Whether the request was successful
+  data (array)            - Array of event objects
+    ?? id (long)          - Event's unique identifier
+    ?? title (string)     - Event title
+    ?? venueName (string) - Venue name
+    ?? address (string)   - Venue address
+    ?? latitude (decimal) - GPS latitude
+    ?? longitude (decimal) - GPS longitude
+    ?? radius (integer)   - Geofence radius in meters
+    ?? startTime (datetime) - Event start time
+    ?? endTime (datetime) - Event end time
+    ?? isActive (boolean) - Is event active
+    ?? recurrenceType (string) - "once", "weekly", or "every_sunday"
+    ?? recurrenceDay (string) - Day for recurring events
+    ?? repeatUntil (date|null) - Last recurrence date
+    ?? reuseSameLocation (boolean) - Reuse location for recurring
+    ?? autoActivateRecurring (boolean) - Auto-activate recurring
+    ?? isAttended (boolean) - Attendance flag (always false in admin view)
+
+ERROR CODES:
+  500 Internal Server Error - Database or system error
+
+
+???????????????????????????????????????????????????????????????????????????????
+? ENDPOINT 4.2: GET EVENT BY ID (Admin)                                       ?
+???????????????????????????????????????????????????????????????????????????????
+? METHOD:              GET                                                     ?
+? ROUTE:               /api/admin/events/{id}                                  ?
+? REQUEST TYPE:        URL Parameter                                           ?
+? AUTHENTICATION:      No (Admin access assumed)                               ?
+? RESPONSE TYPE:       application/json                                        ?
+? HTTP STATUS CODES:   200 OK, 404 Not Found, 500 Internal Server Error       ?
+???????????????????????????????????????????????????????????????????????????????
+
+DESCRIPTION:
+  Retrieve detailed information about a specific event by its ID.
+
+URL PARAMETERS:
+  id (long, required) - The unique identifier of the event
+
+SAMPLE REQUEST:
+GET http://localhost:5000/api/admin/events/1
+
+SAMPLE REQUEST (cURL):
+curl -X GET "http://localhost:5000/api/admin/events/1"
+
+SAMPLE REQUEST (JavaScript/Fetch):
+const eventId = 1;
+const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}`);
+const data = await response.json();
+
+SAMPLE REQUEST (C#):
+using (var client = new HttpClient())
+{
+    var response = await client.GetAsync("http://localhost:5000/api/admin/events/1");
+    var result = await response.Content.ReadAsStringAsync();
+}
+
+SAMPLE RESPONSE (Success - 200 OK):
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "title": "Sunday Worship Service",
+    "venueName": "Resurrection Main Auditorium",
+    "address": "12 Faith Avenue, Lagos",
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "radius": 300,
+    "startTime": "2026-05-25T09:00:00",
+    "endTime": "2026-05-25T13:00:00",
+    "isActive": true,
+    "recurrenceType": "every_sunday",
+    "recurrenceDay": "Sunday",
+    "repeatUntil": "2027-12-31",
+    "reuseSameLocation": true,
+    "autoActivateRecurring": true,
+    "isAttended": false
+  }
+}
+
+SAMPLE RESPONSE (Not Found - 404):
+{
+  "responseType": 1,
+  "message": "Event not found",
+  "data": null
+}
+
+SAMPLE RESPONSE (Server Error - 500):
+{
+  "success": false,
+  "message": "An error occurred while fetching event"
+}
+
+RESPONSE FIELDS:
+  (Same as GET ALL EVENTS, but for a single event)
+
+ERROR CODES:
+  404 Not Found           - Event with specified ID does not exist
+  500 Internal Server Error - Database or system error
+
+
+???????????????????????????????????????????????????????????????????????????????
+? ENDPOINT 4.3: CREATE EVENT (Admin)                                          ?
+???????????????????????????????????????????????????????????????????????????????
+? METHOD:              POST                                                    ?
+? ROUTE:               /api/admin/events                                       ?
+? REQUEST TYPE:        application/json                                        ?
+? AUTHENTICATION:      No (Admin access assumed)                               ?
+? RESPONSE TYPE:       application/json                                        ?
+? HTTP STATUS CODES:   200 OK, 400 Bad Request, 500 Internal Server Error     ?
+???????????????????????????????????????????????????????????????????????????????
+
+DESCRIPTION:
+  Create a new event in the system. Can be a one-time or recurring event.
+
+REQUEST BODY:
+{
+  "title": "Sunday Worship Service",
+  "venueName": "Resurrection Main Auditorium",
+  "address": "12 Faith Avenue, Lagos",
+  "latitude": 6.5244,
+  "longitude": 3.3792,
+  "radius": 500,
+  "startTime": "2026-05-25T09:00:00Z",
+  "endTime": "2026-05-25T13:00:00Z",
+  "isActive": true,
+  "recurrenceType": "every_sunday",
+  "recurrenceDay": "Sunday",
+  "repeatUntil": "2027-12-31",
+  "reuseSameLocation": true,
+  "autoActivateRecurring": true
+}
+
+REQUEST PARAMETERS:
+  title (string, required)           - Event title (max 200 characters)
+  venueName (string, required)       - Venue name (max 200 characters)
+  address (string, required)         - Full address
+  latitude (decimal, required)       - GPS latitude coordinate
+  longitude (decimal, required)      - GPS longitude coordinate
+  radius (integer, required)         - Geofence radius in meters (must be > 0)
+  startTime (datetime, required)     - Event start time (ISO 8601, UTC)
+  endTime (datetime, required)       - Event end time (must be > startTime)
+  isActive (boolean, required)       - Whether event is active
+  recurrenceType (string, optional)  - "once", "weekly", or "every_sunday" (default: "once")
+  recurrenceDay (string, optional)   - Day name for recurring (e.g., "Sunday")
+  repeatUntil (date, optional)       - Last date event should recur
+  reuseSameLocation (boolean)        - Reuse location for recurring events (default: true)
+  autoActivateRecurring (boolean)    - Auto-activate recurring events (default: true)
+
+SAMPLE REQUEST (One-time Event - cURL):
+curl -X POST http://localhost:5000/api/admin/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Leadership Conference",
+    "venueName": "Conference Hall B",
+    "address": "10 Hope Street, Abuja",
+    "latitude": 9.0765,
+    "longitude": 7.3986,
+    "radius": 500,
+    "startTime": "2026-05-26T14:00:00Z",
+    "endTime": "2026-05-26T19:00:00Z",
+    "isActive": true,
+    "recurrenceType": "once",
+    "recurrenceDay": "",
+    "repeatUntil": null,
+    "reuseSameLocation": true,
+    "autoActivateRecurring": true
+  }'
+
+SAMPLE REQUEST (Recurring Event - cURL):
+curl -X POST http://localhost:5000/api/admin/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Sunday Worship Service",
+    "venueName": "Main Auditorium",
+    "address": "12 Faith Avenue, Lagos",
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "radius": 300,
+    "startTime": "2026-05-25T09:00:00Z",
+    "endTime": "2026-05-25T13:00:00Z",
+    "isActive": true,
+    "recurrenceType": "every_sunday",
+    "recurrenceDay": "Sunday",
+    "repeatUntil": "2027-12-31",
+    "reuseSameLocation": true,
+    "autoActivateRecurring": true
+  }'
+
+SAMPLE REQUEST (JavaScript/Fetch):
+const eventData = {
+  title: 'Sunday Worship Service',
+  venueName: 'Main Auditorium',
+  address: '12 Faith Avenue, Lagos',
+  latitude: 6.5244,
+  longitude: 3.3792,
+  radius: 300,
+  startTime: '2026-05-25T09:00:00Z',
+  endTime: '2026-05-25T13:00:00Z',
+  isActive: true,
+  recurrenceType: 'every_sunday',
+  recurrenceDay: 'Sunday',
+  repeatUntil: '2027-12-31',
+  reuseSameLocation: true,
+  autoActivateRecurring: true
+};
+
+const response = await fetch('http://localhost:5000/api/admin/events', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(eventData)
+});
+const data = await response.json();
+
+SAMPLE REQUEST (C#):
+using (var client = new HttpClient())
+{
+    var eventRequest = new
+    {
+        title = "Sunday Worship Service",
+        venueName = "Main Auditorium",
+        address = "12 Faith Avenue, Lagos",
+        latitude = 6.5244,
+        longitude = 3.3792,
+        radius = 300,
+        startTime = "2026-05-25T09:00:00Z",
+        endTime = "2026-05-25T13:00:00Z",
+        isActive = true,
+        recurrenceType = "every_sunday",
+        recurrenceDay = "Sunday",
+        repeatUntil = "2027-12-31",
+        reuseSameLocation = true,
+        autoActivateRecurring = true
+    };
+    
+    var content = new StringContent(
+        JsonConvert.SerializeObject(eventRequest),
+        Encoding.UTF8,
+        "application/json"
+    );
+    var response = await client.PostAsync("http://localhost:5000/api/admin/events", content);
+    var result = await response.Content.ReadAsStringAsync();
+}
+
+SAMPLE RESPONSE (Success - 200 OK):
+{
+  "responseType": 0,
+  "message": "Event created successfully",
+  "data": {
+    "id": 3
+  }
+}
+
+SAMPLE RESPONSE (Bad Request - 400):
+{
+  "responseType": 1,
+  "message": "Title and venue name are required",
+  "data": null
+}
+
+SAMPLE RESPONSE (Validation Error - 400):
+{
+  "responseType": 1,
+  "message": "Radius must be greater than zero",
+  "data": null
+}
+
+SAMPLE RESPONSE (Server Error - 500):
+{
+  "responseType": 2,
+  "message": "An error occurred while creating event",
+  "data": null
+}
+
+RESPONSE FIELDS:
+  responseType (integer) - 0=Success, 1=Warning, 2=Error
+  message (string)       - Response message
+  data (object|null)     - Contains created event ID on success
+    ?? id (long)         - The newly created event ID
+
+VALIDATION RULES:
+  - Title: Required, max 200 characters
+  - Venue Name: Required, max 200 characters
+  - Latitude/Longitude: Required, valid decimal values
+  - Radius: Required, must be > 0
+  - StartTime: Required, must be before EndTime
+  - EndTime: Required, must be after StartTime
+  - RecurrenceType: If "every_sunday", recurrenceDay must be "Sunday"
+
+ERROR CODES:
+  400 Bad Request         - Missing required fields or validation failed
+  500 Internal Server Error - Database or system error
+
+
+???????????????????????????????????????????????????????????????????????????????
+? ENDPOINT 4.4: UPDATE EVENT (Admin)                                          ?
+???????????????????????????????????????????????????????????????????????????????
+? METHOD:              PUT                                                     ?
+? ROUTE:               /api/admin/events/{id}                                  ?
+? REQUEST TYPE:        application/json                                        ?
+? AUTHENTICATION:      No (Admin access assumed)                               ?
+? RESPONSE TYPE:       application/json                                        ?
+? HTTP STATUS CODES:   200 OK, 400 Bad Request, 500 Internal Server Error     ?
+???????????????????????????????????????????????????????????????????????????????
+
+DESCRIPTION:
+  Update an existing event. All fields must be provided (full update).
+
+URL PARAMETERS:
+  id (long, required) - The event ID to update
+
+REQUEST BODY:
+(Same structure as CREATE EVENT)
+
+SAMPLE REQUEST (cURL):
+curl -X PUT http://localhost:5000/api/admin/events/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": 1,
+    "title": "Sunday Worship Service - Updated",
+    "venueName": "Main Auditorium",
+    "address": "12 Faith Avenue, Lagos",
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "radius": 400,
+    "startTime": "2026-05-25T08:30:00Z",
+    "endTime": "2026-05-25T13:00:00Z",
+    "isActive": true,
+    "recurrenceType": "every_sunday",
+    "recurrenceDay": "Sunday",
+    "repeatUntil": "2027-12-31",
+    "reuseSameLocation": true,
+    "autoActivateRecurring": true
+  }'
+
+SAMPLE REQUEST (JavaScript/Fetch):
+const eventId = 1;
+const updatedEvent = {
+  id: eventId,
+  title: 'Sunday Worship Service - Updated',
+  venueName: 'Main Auditorium',
+  address: '12 Faith Avenue, Lagos',
+  latitude: 6.5244,
+  longitude: 3.3792,
+  radius: 400,
+  startTime: '2026-05-25T08:30:00Z',
+  endTime: '2026-05-25T13:00:00Z',
+  isActive: true,
+  recurrenceType: 'every_sunday',
+  recurrenceDay: 'Sunday',
+  repeatUntil: '2027-12-31',
+  reuseSameLocation: true,
+  autoActivateRecurring: true
+};
+
+const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}`, {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(updatedEvent)
+});
+const data = await response.json();
+
+SAMPLE RESPONSE (Success - 200 OK):
+{
+  "responseType": 0,
+  "message": "Event updated successfully",
+  "data": {
+    "id": 1
+  }
+}
+
+SAMPLE RESPONSE (Bad Request - 400):
+{
+  "responseType": 1,
+  "message": "End time must be greater than start time",
+  "data": null
+}
+
+SAMPLE RESPONSE (Server Error - 500):
+{
+  "responseType": 2,
+  "message": "An error occurred while updating event",
+  "data": null
+}
+
+RESPONSE FIELDS:
+  responseType (integer) - 0=Success, 1=Warning, 2=Error
+  message (string)       - Response message
+  data (object|null)     - Contains updated event ID
+    ?? id (long)         - The updated event ID
+
+ERROR CODES:
+  400 Bad Request         - Validation failed or invalid data
+  500 Internal Server Error - Database or system error
+
+
+???????????????????????????????????????????????????????????????????????????????
+? ENDPOINT 4.5: UPDATE EVENT STATUS (Admin)                                   ?
+???????????????????????????????????????????????????????????????????????????????
+? METHOD:              PATCH                                                   ?
+? ROUTE:               /api/admin/events/{id}/status                           ?
+? REQUEST TYPE:        application/json                                        ?
+? AUTHENTICATION:      No (Admin access assumed)                               ?
+? RESPONSE TYPE:       application/json                                        ?
+? HTTP STATUS CODES:   200 OK, 400 Bad Request, 500 Internal Server Error     ?
+???????????????????????????????????????????????????????????????????????????????
+
+DESCRIPTION:
+  Toggle the active/inactive status of an event. Used to quickly enable or
+  disable events without modifying other details.
+
+URL PARAMETERS:
+  id (long, required) - The event ID to update
+
+REQUEST BODY:
+{
+  "isActive": false
+}
+
+REQUEST PARAMETERS:
+  isActive (boolean, required) - New active status for the event
+
+SAMPLE REQUEST (Deactivate Event - cURL):
+curl -X PATCH http://localhost:5000/api/admin/events/1/status \
+  -H "Content-Type: application/json" \
+  -d '{
+    "isActive": false
+  }'
+
+SAMPLE REQUEST (Activate Event - cURL):
+curl -X PATCH http://localhost:5000/api/admin/events/1/status \
+  -H "Content-Type: application/json" \
+  -d '{
+    "isActive": true
+  }'
+
+SAMPLE REQUEST (JavaScript/Fetch):
+const eventId = 1;
+const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}/status`, {
+  method: 'PATCH',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    isActive: false
+  })
+});
+const data = await response.json();
+
+SAMPLE REQUEST (C#):
+using (var client = new HttpClient())
+{
+    var statusUpdate = new { isActive = false };
+    var content = new StringContent(
+        JsonConvert.SerializeObject(statusUpdate),
+        Encoding.UTF8,
+        "application/json"
+    );
+    
+    var request = new HttpRequestMessage(new HttpMethod("PATCH"), 
+        "http://localhost:5000/api/admin/events/1/status")
+    {
+        Content = content
+    };
+    var response = await client.SendAsync(request);
+    var result = await response.Content.ReadAsStringAsync();
+}
+
+SAMPLE RESPONSE (Success - 200 OK):
+{
+  "responseType": 0,
+  "message": "Event status updated",
+  "data": {
+    "id": 1
+  }
+}
+
+SAMPLE RESPONSE (Bad Request - 400):
+{
+  "responseType": 1,
+  "message": "isActive is required",
+  "data": null
+}
+
+SAMPLE RESPONSE (Server Error - 500):
+{
+  "responseType": 2,
+  "message": "An error occurred while updating event status",
+  "data": null
+}
+
+RESPONSE FIELDS:
+  responseType (integer) - 0=Success, 1=Warning, 2=Error
+  message (string)       - Response message
+  data (object|null)     - Contains updated event ID
+    ?? id (long)         - The updated event ID
+
+ERROR CODES:
+  400 Bad Request         - isActive field is missing
+  500 Internal Server Error - Database or system error
+
+
+================================================================================
+                            IMPORTANT NOTES
+================================================================================
+
+1. TIMESTAMP FORMAT
+   - All timestamps use ISO 8601 format
+   - Times are in UTC (Coordinated Universal Time)
+   - Example: "2026-05-25T09:00:00Z"
+   - Always include "Z" suffix to indicate UTC
+
+2. RECURRING EVENTS
+   - recurrenceType options: "once", "weekly", "every_sunday"
+   - For "every_sunday" events, recurrenceDay should be "Sunday"
+   - repeatUntil is optional - null means event repeats indefinitely
+   - autoActivateRecurring should be true to auto-activate on matching day/time
+
+3. DUPLICATE CHECK-IN PREVENTION
+   - Same user cannot check in to same event on same day
+   - Returns HTTP 409 Conflict on duplicate attempt
+   - Database has unique constraint on (user_id, event_id, attendance_day)
+
+4. GEOFENCE RADIUS
+   - Radius is in meters
+   - Must be greater than 0
+   - Used to validate check-in location is within geofence
+
+5. RESPONSE FORMAT VARIATIONS
+   - Some endpoints return { "success": true, "data": [] }
+   - Others return { "responseType": 0, "message": "", "data": null }
+   - Both formats are valid depending on the endpoint
+
+6. ERROR HANDLING
+   - Always check responseType or success field
+   - 400 errors usually indicate validation issues
+   - 409 Conflict indicates duplicate check-in
+   - 500 errors indicate server/database issues
+
+7. DATABASE CONSTRAINTS
+   - Mobile number must be unique for users
+   - Event title and venue name are required
+   - StartTime must be before EndTime
+   - Each user can only check in once per event per day
+
+================================================================================
+                            QUICK REFERENCE
+================================================================================
+
+CONTROLLERS: 4
+  1. UserController (2 endpoints)
+  2. EventController (1 endpoint)
+  3. AttendanceController (2 endpoints)
+  4. AdminEventsController (5 endpoints)
+
+TOTAL ENDPOINTS: 10
+
+AUTHENTICATION: None required (assumed by role)
+
+BASE URL: http://localhost:5000/api
+
+RESPONSE FORMATS: 2 variations (success-based and responseType-based)
+
+DATABASE TABLES: 3
+  - app_users (renamed from users)
+  - events
+  - attendances
+
+KEY FEATURES:
+  ? User registration and verification by mobile number
+  ? Event management with recurring support
+  ? Attendance tracking with GPS coordinates
+  ? Duplicate check-in prevention (409 Conflict)
+  ? UTC timestamp handling
+  ? Geofence radius validation
+  ? Device information logging
+
+================================================================================
+                            END OF REFERENCE
+================================================================================
+
+For more detailed documentation, see:
+- ATTENDANCE_API_INTEGRATION.md
+- QUICK_START.md
+- COMPLETION_CHECKLIST.md

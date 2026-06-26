@@ -1,0 +1,122 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Administration - RM CMS</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom Auth check -->
+    <!--<script src="../assets/js/auth.js"></script>-->
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 960px;
+        }
+        .table-description {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">RM_CMS</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/templates/index.html">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="/templates/Admin/siteadmin.html">Admin</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/diagnostics">Diagnostics</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">System Configuration</h1>
+            <button id="saveAllBtn" class="btn btn-primary">Save All Changes</button>
+        </div>
+
+        <!-- Response Message Placeholder -->
+        <div id="responseContainer" class="mb-3"></div>
+
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">Key</th>
+                            <th style="width: 45%;">Description</th>
+                            <th style="width: 25%;">Value</th>
+                            <th style="width: 10%;" class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="configTableBody">
+                        <!-- Rows will be dynamically inserted here -->
+                        <tr>
+                            <td colspan="4" class="text-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- CornJobs / Maintenance Actions -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Maintenance Jobs</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text text-muted">Run background maintenance tasks manually from the admin UI.</p>
+                <div class="d-flex gap-2">
+                    <button id="sendRemindersBtn" class="btn btn-outline-success">Send Reminders</button>
+                    <button id="assignNewPeopleBtn" class="btn btn-outline-primary">Assign New People</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Broadcast Message Card -->
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Broadcast Telegram Message to Volunteers</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text text-muted">This message will be sent to all 'Active' volunteers who have linked their Telegram account.</p>
+                <div class="mb-3">
+                    <label for="broadcastMessage" class="form-label">Message</label>
+                    <textarea class="form-control" id="broadcastMessage" rows="4" placeholder="Enter your message here..."></textarea>
+                </div>
+                <button id="sendBroadcastBtn" class="btn btn-success">Send to All Volunteers</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Shared Configs & Utilities -->
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/toast.js"></script>
+    <script src="../assets/js/session.js"></script>
+    <!-- Custom JS for this page -->
+    <script src="../assets/js/siteadmin.js"></script>
+</body>
+</html>

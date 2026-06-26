@@ -1,0 +1,705 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>All People - RM_CMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../assets/css/styles.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/utils.js"></script>
+    <script src="../assets/js/toast.js"></script>
+    <script src="../assets/js/allpeople.js"></script>
+    <style>
+        :root {
+            --primary: #085c40;
+            --primary-hover: #064d35;
+            --primary-light: #e6f4ef;
+            --primary-dark: #053d2b;
+            --white: #ffffff;
+            --bg: #ffffff;
+            --surface: #f9fafb;
+            --border: #e5e7eb;
+            --text: #111827;
+            --muted: #6b7280;
+            --danger: #ef4444;
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --t: 0.18s ease;
+            --radius: 12px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+            body::before {
+                content: '';
+                display: block;
+                height: 3px;
+                background: var(--primary);
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 999;
+            }
+
+        /* ── Navbar ── */
+        .site-navbar {
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            position: sticky;
+            top: 3px;
+            z-index: 100;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .navbar-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 2px solid var(--primary-light);
+        }
+
+            .navbar-logo img {
+                width: 30px;
+                height: 30px;
+                object-fit: contain;
+            }
+
+        .navbar-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+
+            .navbar-name span {
+                color: var(--primary);
+            }
+
+        .navbar-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border-radius: 999px;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Page Body ── */
+        .page-body {
+            padding: 28px 20px 60px;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .page-eyebrow {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .page-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.03em;
+            margin-bottom: 20px;
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--white) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 16px !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04) !important;
+            overflow: hidden;
+            margin-bottom: 0;
+        }
+
+        .card-header {
+            background: var(--white) !important;
+            border-bottom: 1px solid var(--border) !important;
+            padding: 14px 20px !important;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .card-header::before {
+                content: '👥';
+                width: 28px;
+                height: 28px;
+                background: var(--primary-light);
+                border-radius: 7px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.8rem;
+                flex-shrink: 0;
+            }
+
+            .card-header h5 {
+                font-size: 0.9rem;
+                font-weight: 700;
+                color: var(--text);
+                margin: 0;
+                letter-spacing: -0.01em;
+            }
+
+        .card-body {
+            padding: 0 !important;
+        }
+
+        /* ── Table ── */
+        .table {
+            margin-bottom: 0;
+        }
+
+            .table thead th {
+                font-size: 0.72rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                color: var(--muted);
+                background: var(--surface);
+                border-bottom: 1px solid var(--border);
+                padding: 11px 16px;
+                white-space: nowrap;
+            }
+
+            .table tbody td {
+                font-size: 0.875rem;
+                color: var(--text);
+                border-bottom: 1px solid var(--border);
+                padding: 12px 16px;
+                vertical-align: middle;
+            }
+
+            .table tbody tr:last-child td {
+                border-bottom: none;
+            }
+
+            .table tbody tr:hover td {
+                background: var(--surface);
+            }
+
+        .table-striped tbody tr:nth-of-type(odd) td {
+            background: var(--surface);
+        }
+
+        .table-striped tbody tr:nth-of-type(odd):hover td {
+            background: #eef6f1;
+        }
+
+        /* Action Buttons */
+        .btn.action-btn {
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-family: var(--font);
+            transition: background var(--t), box-shadow var(--t);
+        }
+
+            .btn.action-btn.edit {
+                background: var(--primary-light);
+                color: white;
+                margin-right: 4px;
+            }
+
+                .btn.action-btn.edit:hover {
+                    background: #b6dccb;
+                }
+
+            .btn.action-btn.delete {
+                background: #fee2e2;
+                color: #991b1b;
+            }
+
+                .btn.action-btn.delete:hover {
+                    background: #fca5a5;
+                }
+
+        /* ── Modal ── */
+        .modal-content {
+            border: 1px solid var(--border) !important;
+            border-radius: 18px !important;
+            font-family: var(--font) !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1) !important;
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--border) !important;
+            padding: 16px 22px !important;
+            background: var(--white) !important;
+        }
+
+            .modal-header .modal-title {
+                font-size: 1rem;
+                font-weight: 700;
+                color: var(--text);
+                letter-spacing: -0.02em;
+            }
+
+        .modal-body {
+            padding: 20px 22px !important;
+        }
+
+        .modal-footer {
+            border-top: 1px solid var(--border) !important;
+            padding: 14px 22px !important;
+        }
+
+        /* Form elements inside modal */
+        .form-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .form-control, .form-select {
+            padding: 10px 13px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-family: var(--font);
+            color: var(--text);
+            background: var(--surface);
+            outline: none;
+            transition: border-color var(--t), box-shadow var(--t), background var(--t);
+            appearance: none;
+        }
+
+            .form-control[readonly] {
+                background: #f3f4f6;
+                color: var(--muted);
+                cursor: not-allowed;
+            }
+
+            .form-control:focus, .form-select:focus {
+                border-color: var(--primary);
+                background: var(--white);
+                box-shadow: 0 0 0 3px rgba(8,92,64,0.12);
+            }
+
+            .form-control::placeholder {
+                color: #9ca3af;
+            }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 72px;
+        }
+
+        select.form-select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        /* Interested In card */
+        .form-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+            .form-card.no_display {
+                display: none !important;
+            }
+
+        .form-card-header {
+            padding: 11px 15px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-card-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            background: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .form-card-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0;
+        }
+
+        .form-card-body {
+            padding: 13px 15px;
+        }
+
+            /* Checkbox labels */
+            .form-card-body label,
+            .form-card-body div > label {
+                display: flex !important;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px !important;
+                border: 1.5px solid var(--border) !important;
+                border-radius: 8px !important;
+                cursor: pointer;
+                font-size: 0.875rem;
+                font-weight: 500;
+                color: var(--text);
+                background: var(--white);
+                transition: background var(--t), border-color var(--t);
+            }
+
+                .form-card-body label:hover {
+                    background: var(--primary-light);
+                    border-color: var(--primary) !important;
+                }
+
+                .form-card-body label:has(input:checked) {
+                    background: var(--primary-light);
+                    border-color: var(--primary) !important;
+                    color: var(--primary-dark);
+                    font-weight: 600;
+                }
+
+            .form-card-body input[type="checkbox"] {
+                accent-color: var(--primary);
+                width: 15px;
+                height: 15px;
+                flex-shrink: 0;
+            }
+
+        /* Modal footer buttons */
+        .modal-footer .btn-secondary {
+            background: var(--surface);
+            color: var(--muted);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: var(--font);
+            padding: 8px 18px;
+        }
+
+            .modal-footer .btn-secondary:hover {
+                background: #e5e7eb;
+                color: var(--text);
+            }
+
+        .modal-footer .btn-primary {
+            background: var(--primary) !important;
+            border-color: var(--primary) !important;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 700;
+            font-family: var(--font);
+            padding: 8px 22px;
+        }
+
+            .modal-footer .btn-primary:hover {
+                background: var(--primary-hover) !important;
+                box-shadow: 0 4px 12px rgba(8,92,64,0.22);
+            }
+
+        /* Modal response alerts */
+        #modalResponse .alert {
+            border-radius: 8px;
+            font-size: 0.875rem;
+            padding: 10px 14px;
+        }
+
+        #modalResponse .alert-success {
+            background: #f0fdf4;
+            border-color: #86efac;
+            color: #166534;
+        }
+
+        #modalResponse .alert-danger {
+            background: #fef2f2;
+            border-color: #fca5a5;
+            color: #991b1b;
+        }
+
+        /* Bootstrap overrides */
+        .btn-primary {
+            background: var(--primary) !important;
+            border-color: var(--primary) !important;
+        }
+
+            .btn-primary:hover {
+                background: var(--primary-hover) !important;
+                border-color: var(--primary-hover) !important;
+            }
+
+        .btn-danger {
+            background: #fee2e2 !important;
+            border-color: #fee2e2 !important;
+            color: #991b1b !important;
+        }
+
+            .btn-danger:hover {
+                background: #fca5a5 !important;
+                border-color: #fca5a5 !important;
+            }
+
+        @media (max-width: 768px) {
+            .page-body {
+                padding: 20px 12px 48px;
+            }
+
+            .site-navbar {
+                padding: 0 16px;
+            }
+        }
+
+        .action-btn {
+            margin-right: 6px;
+        }
+
+        .filter-wrap {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Navbar -->
+    <nav class="site-navbar">
+        <a class="navbar-brand" href="#">
+            <div class="navbar-logo">
+                <img src="../assets/Images/logo.jpeg" alt="RM"
+                     onerror="this.style.display='none';this.parentElement.textContent='R'">
+            </div>
+            <span class="navbar-name">RM <span>CMS</span></span>
+        </a>
+        <div>
+            <span class="navbar-badge">People</span>
+        </div>
+    </nav>
+
+    <!-- Page Body -->
+    <div class="page-body">       
+        <h1 class="page-title">All Visitors <span id="people_count"></span></h1>
+        <!-- ── ORIGINAL MARKUP — UNTOUCHED ── -->
+        <div class="container" style="padding:0; max-width:100%;">
+            <div class="row mt-0">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">                            
+                            <div class="filter-wrap">
+                                <label class="m-0">Status:</label>
+                                <select id="statusFilter" class="form-select" style="width:200px"></select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="peopleTable">
+                                    <thead>
+                                        <tr>
+                                          
+                                            <th>Name</th>                                            
+                                            <th>Phone</th>
+                                            <th>Age</th>
+                                            <th>Address</th>
+                                            <th>Location</th>
+                                            <th>Status</th>
+                                            <th>Assigned Volunteer</th>
+                                            <th>Next Action</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Edit Modal — UNTOUCHED ── -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Person</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        <input type="hidden" id="person_id">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">First Name</label>
+                                <input id="first_name" class="form-control" readonly />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Last Name</label>
+                                <input id="last_name" class="form-control" readonly />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email</label>
+                                <input id="email" class="form-control" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone</label>
+                                <input id="phone" class="form-control" readonly />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Campus</label>
+                                <input id="campus" class="form-control" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Visit Type</label>
+                                <select id="visit_type" class="form-select">
+                                    <option>First-Time Visitor</option>
+                                    <option>Returning Visitor</option>
+                                    <option>New Member</option>
+                                    <option>Guest</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Follow-up Status</label>
+                                <select id="follow_up_status" class="form-select">
+                                    <option>NEW</option>
+                                    <option>ASSIGNED</option>
+                                    <option>CONTACTED</option>
+                                    <option>RETRY PENDING</option>
+                                    <option>ESCALATED</option>
+                                    <option>COMPLETE</option>
+                                    <option>UNRESPONSIVE</option>
+                                    <option>IN Nurturing</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Priority</label>
+                                <select id="follow_up_priority" class="form-select">
+                                    <option>Normal</option>
+                                    <option>High</option>
+                                    <option>Urgent</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Assigned Volunteer</label>
+                                <input id="assigned_volunteer" class="form-control" />
+                            </div>
+                        </div>
+
+                        <div class="form-card">
+                            <div class="form-card-header">
+                                <div class="form-card-icon">❤️</div>
+                                <h2 class="form-card-title">Interested In</h2>
+                            </div>
+                            <div class="form-card-body">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                        <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+                                            <input class="form-check-input" type="checkbox" value="Membership" id="interest_membership">
+                                            <span>Membership</span>
+                                        </label>
+                                        <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+                                            <input class="form-check-input" type="checkbox" value="Volunteering" id="interest_volunteering">
+                                            <span>Volunteering</span>
+                                        </label>
+                                        <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+                                            <input class="form-check-input" type="checkbox" value="Small Groups" id="interest_groups">
+                                            <span>Small Groups</span>
+                                        </label>
+                                        <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+                                            <input class="form-check-input" type="checkbox" value="Counseling" id="Counseling">
+                                            <span>Counseling</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Prayer Requests</label>
+                            <textarea id="prayer_requests" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Specific Needs</label>
+                            <textarea id="specific_needs" class="form-control" rows="2"></textarea>
+                        </div>
+                    </form>
+                    <div id="modalResponse" class="mt-2"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" id="savePerson" class="btn btn-primary">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

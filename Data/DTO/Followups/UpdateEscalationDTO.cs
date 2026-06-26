@@ -1,0 +1,12 @@
+﻿namespace RM_CMS.Data.DTO.Followups
+{
+    public class UpdateEscalationDTO
+    {
+        public string Status { get; set; } = string.Empty;
+        public string? ResolutionNotes { get; set; }
+        public string? Outcome { get; set; }
+        public string FollowUpId { get; set; }
+        public string EscalationAppropriate { get; set; } = string.Empty;
+    }
+}
+

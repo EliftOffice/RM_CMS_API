@@ -7,15 +7,42 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Data\DTO\Followups\FollowUpResponseDto.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="appsettings.Development.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="bin\Debug\net8.0\appsettings.json" />
+    <Content Include="bin\Debug\net8.0\RM_CMS.deps.json" />
+    <Content Include="bin\Debug\net8.0\RM_CMS.runtimeconfig.json" />
+    <Content Include="bin\Debug\net8.0\RM_CMS.staticwebassets.endpoints.json" />
+    <Content Include="bin\Debug\net8.0\RM_CMS.staticwebassets.runtime.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="appsettings.Development.json" />
+    <None Include="bin\Debug\net8.0\Dapper.dll" />
+    <None Include="bin\Debug\net8.0\Microsoft.OpenApi.dll" />
+    <None Include="bin\Debug\net8.0\MySqlConnector.dll" />
+    <None Include="bin\Debug\net8.0\RM_CMS.dll" />
+    <None Include="bin\Debug\net8.0\RM_CMS.exe" />
+    <None Include="bin\Debug\net8.0\RM_CMS.pdb" />
+    <None Include="bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll" />
+    <None Include="bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll" />
+    <None Include="bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerUI.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Dapper" Version="2.1.15" />
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="BLL\TeamLeads\" />
-    <Folder Include="Controllers\TeamLeads\" />
-    <Folder Include="DAL\TeamLeads\" />
+    <Folder Include="wwwroot\templates\assets\Images\" />
   </ItemGroup>
 
 </Project>
