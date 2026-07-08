@@ -108,16 +108,50 @@ namespace RM_CMS.DAL.Volunteers
                     using (var transaction = connection.BeginTransaction())
                     {
                         // 2. Find & lock volunteer (prevents race condition)
+                        //        const string volunteerQuery = @"
+                        //    SELECT volunteer_id, first_name, last_name, capacity_max, current_assignments, telegram_chat_id
+                        //    FROM volunteers
+                        //    WHERE status = 'Active'
+                        //      AND current_assignments < capacity_max
+                        //      AND campus = @Campus
+                        //    ORDER BY current_assignments ASC, RAND()
+                        //    LIMIT 1
+                        //    FOR UPDATE;
+                        //";
+
+
                         const string volunteerQuery = @"
-                    SELECT volunteer_id, first_name, last_name, capacity_max, current_assignments, telegram_chat_id
-                    FROM volunteers
-                    WHERE status = 'Active'
-                      AND current_assignments < capacity_max
-                      AND campus = @Campus
-                    ORDER BY current_assignments ASC, RAND()
-                    LIMIT 1
-                    FOR UPDATE;
-                ";
+                            SELECT
+                                v.volunteer_id,
+                                v.first_name,
+                                v.last_name,
+                                v.capacity_max,
+                                v.current_assignments,
+                                COUNT(ns.sequence_id) AS active_nurture_sequences,
+                                (v.current_assignments + COUNT(ns.sequence_id)) AS total_workload,
+                                v.telegram_chat_id
+                            FROM volunteers v
+                            LEFT JOIN nurture_sequences ns
+                                ON ns.volunteer_id = v.volunteer_id
+                                AND lower(ns.status) = 'active'
+                            WHERE lower(v.status) = 'active'
+                              AND v.campus = @Campus
+                            GROUP BY
+                                v.volunteer_id,
+                                v.first_name,
+                                v.last_name,
+                                v.capacity_max,
+                                v.current_assignments,
+                                v.telegram_chat_id,
+                                v.last_assigned_at
+                            HAVING total_workload < v.capacity_max
+                            ORDER BY
+                                total_workload ASC,
+                                COALESCE(v.last_assigned_at, '1900-01-01 00:00:00') ASC,
+                                v.volunteer_id ASC
+                            LIMIT 1
+                            FOR UPDATE;
+                            ";
 
                         var volunteer = await connection.QueryFirstOrDefaultAsync<AssignedVolunteerDTO>(
                             volunteerQuery,
@@ -162,7 +196,7 @@ namespace RM_CMS.DAL.Volunteers
                         //";
                         const string updateOnAssign = @"
                                                     UPDATE volunteers
-                                                    SET
+                                                    SET last_assigned_at = NOW(),
                                                         current_assignments = current_assignments + 1,
                                                         total_assigned = total_assigned + 1  WHERE volunteer_id = @VolunteerId;
                                                     UPDATE volunteers
@@ -191,13 +225,14 @@ namespace RM_CMS.DAL.Volunteers
 
 📌 మీకు కొత్త Follow-Up కేటాయించబడింది.
 
-ఈ link openించి complete చేయండి:
+ఈ link open చేసి complete చేయండి:
 👉 https://rmoffice.online
 
 🙏 ధన్యవాదాలు!
 ";
 
                             await SendTelegramMessageAsync(volunteer.telegram_chat_id, message);
+                            await SendTelegramMessageAsync("-1004344100211", message);
                         }
 
                         return new ApiResponse<AssignedVolunteerDTO>(

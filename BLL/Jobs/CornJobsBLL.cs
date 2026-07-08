@@ -93,7 +93,7 @@ namespace RM_CMS.BLL.Jobs
 
                     //For testing purpose, sending to my telegram
 
-                    await _volunteersBLL.SendTelegramMessageAsync("1671347213",
+                    await _volunteersBLL.SendTelegramMessageAsync("-1004344100211",
                             $@"🔔 Reminder to  {volunteer.FirstName} 
 
 మీకు <b>{volunteer.PendingAssignmentsCount}</b> pending follow-ups ఉన్నాయి.
@@ -171,7 +171,7 @@ Praise the Lord {volunteer.FirstName},
                         await _volunteersBLL.SendTelegramMessageAsync(volunteer.TelegramChatID, message);
 
                         // For Testing Sending To my Telegram
-                        await _volunteersBLL.SendTelegramMessageAsync("1671347213", message);
+                        await _volunteersBLL.SendTelegramMessageAsync("-1004344100211", message);
                         notified++;
                     }
                 }
@@ -220,7 +220,7 @@ Praise the Lord {volunteer.FirstName},
                         );
 
                     //For testing purpose, sending to my telegram
-                    await _volunteersBLL.SendTelegramMessageAsync("1671347213",
+                    await _volunteersBLL.SendTelegramMessageAsync("-1004344100211",
                             $@"🔔 Reminder ➜ {TeamLead.TeamLeadName}
 
 మీకు <b>{TeamLead.PendingAssignmentsCount}</b> pending follow-ups ఉన్నాయి.
@@ -302,7 +302,7 @@ Praise the Lord {volunteer.FirstName},
 
                     // For testing purpose
                     await _volunteersBLL.SendTelegramMessageAsync(
-                        "1671347213",
+                        "-1004344100211",
                         message
                     );
 
