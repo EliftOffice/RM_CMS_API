@@ -835,43 +835,136 @@ GROUP BY e.team_lead_id;
             }
         }
 
+        //        public async Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithOverdueAssignmentsAsync(int hours)
+        //        {
+        //            try
+        //            {
+        //                using (var connection = _dbConnectionFactory.GetConnection())
+        //                {
+        //                    const string query = @"
+        //SELECT
+        //    CONCAT(t.last_name, ' ', t.first_name) AS TeamLeadName,
+        //    t.telegram_chat_id AS TelegramChatId,
+        //    COUNT(*) AS PendingAssignmentsCount,
+        //    GROUP_CONCAT(
+        //        CONCAT(
+        //            '• ',
+        //            p.last_name,
+        //            ' ',
+        //            p.first_name,
+        //            ' (',
+        //            v.last_name,
+        //            ' ',
+        //            v.first_name,
+        //            ')'
+        //        )
+        //        SEPARATOR '\n'
+        //    ) AS Description
+        //FROM people p
+        //INNER JOIN volunteers v
+        //    ON v.volunteer_id = p.assigned_volunteer
+        //INNER JOIN team_leads t
+        //    ON t.team_lead_id = v.team_lead
+        //WHERE p.follow_up_status = 'ASSIGNED'
+        //  AND p.assigned_date <= DATE_SUB(NOW(), INTERVAL @Hours HOUR)
+        //GROUP BY
+        //    t.team_lead_id,
+        //    t.first_name,
+        //    t.last_name,
+        //    t.telegram_chat_id;";
+
+        //                    var teamLeads = await connection.QueryAsync<TeamLeadPendingAssignmentDto>(
+        //                        query,
+        //                        new { Hours = hours });
+
+        //                    var list = teamLeads?.ToList()
+        //                               ?? new List<TeamLeadPendingAssignmentDto>();
+
+        //                    return new ApiResponse<List<TeamLeadPendingAssignmentDto>>(
+        //                        ResponseType.Success,
+        //                        $"Team leads with assignments pending more than {hours} hours retrieved successfully",
+        //                        list
+        //                    );
+        //                }
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                return new ApiResponse<List<TeamLeadPendingAssignmentDto>>(
+        //                    ResponseType.Error,
+        //                    $"Error retrieving overdue assignments: {ex.Message}",
+        //                    null
+        //                );
+        //            }
+        //        }
+
+
+
         public async Task<ApiResponse<List<TeamLeadPendingAssignmentDto>>> GetTeamLeadsWithOverdueAssignmentsAsync(int hours)
         {
             try
             {
                 using (var connection = _dbConnectionFactory.GetConnection())
                 {
-                    const string query = @"
-SELECT
-    CONCAT(t.last_name, ' ', t.first_name) AS TeamLeadName,
-    t.telegram_chat_id AS TelegramChatId,
+                    const string query = @"SELECT
+    x.TeamLeadName,
+    x.TelegramChatId,
     COUNT(*) AS PendingAssignmentsCount,
     GROUP_CONCAT(
-        CONCAT(
-            '• ',
-            p.last_name,
-            ' ',
-            p.first_name,
-            ' (',
-            v.last_name,
-            ' ',
-            v.first_name,
-            ')'
-        )
+        x.Description
+        ORDER BY x.PersonName
         SEPARATOR '\n'
     ) AS Description
-FROM people p
-INNER JOIN volunteers v
-    ON v.volunteer_id = p.assigned_volunteer
-INNER JOIN team_leads t
-    ON t.team_lead_id = v.team_lead
-WHERE p.follow_up_status = 'ASSIGNED'
-  AND p.assigned_date <= DATE_SUB(NOW(), INTERVAL @Hours HOUR)
+FROM
+(
+    /* -------------------- Regular Follow-ups -------------------- */
+    SELECT
+        CONCAT(t.last_name, ' ', t.first_name) AS TeamLeadName,
+        t.telegram_chat_id AS TelegramChatId,
+        CONCAT(
+            '• ',
+            p.last_name, ' ', p.first_name,
+            ' (', v.last_name, ' ', v.first_name, ')',
+            ' [Follow-up]'
+        ) AS Description,
+        CONCAT(p.last_name, ' ', p.first_name) AS PersonName
+    FROM people p
+    INNER JOIN volunteers v
+        ON v.volunteer_id = p.assigned_volunteer
+    INNER JOIN team_leads t
+        ON t.team_lead_id = v.team_lead
+    WHERE p.follow_up_status = 'ASSIGNED'
+      AND p.assigned_date <= DATE_SUB(NOW(), INTERVAL @Hours HOUR)
+
+    UNION ALL
+
+    /* -------------------- Nurture Sequence -------------------- */
+    SELECT
+        CONCAT(t.last_name, ' ', t.first_name) AS TeamLeadName,
+        t.telegram_chat_id AS TelegramChatId,
+        CONCAT(
+            '• ',
+            p.last_name, ' ', p.first_name,
+            ' (', v.last_name, ' ', v.first_name, ')',
+            ' [Nurture Step ', ns.current_step, ']'
+        ) AS Description,
+        CONCAT(p.last_name, ' ', p.first_name) AS PersonName
+    FROM nurture_sequences ns
+    INNER JOIN nurture_steps st
+        ON st.sequence_id = ns.sequence_id
+       AND st.step_number = ns.current_step
+    INNER JOIN people p
+        ON p.person_id = ns.person_id
+    INNER JOIN volunteers v
+        ON v.volunteer_id = ns.volunteer_id
+    INNER JOIN team_leads t
+        ON t.team_lead_id = v.team_lead
+    WHERE BINARY ns.status = 'Active'
+      AND BINARY st.status = 'Pending'
+      AND st.scheduled_date <= DATE_SUB(CURDATE(), INTERVAL @Hours HOUR)
+) x
 GROUP BY
-    t.team_lead_id,
-    t.first_name,
-    t.last_name,
-    t.telegram_chat_id;";
+    x.TeamLeadName,
+    x.TelegramChatId;";
 
                     var teamLeads = await connection.QueryAsync<TeamLeadPendingAssignmentDto>(
                         query,

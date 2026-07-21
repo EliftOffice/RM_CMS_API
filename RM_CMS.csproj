@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -11,10 +11,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Remove="appsettings.Development.json" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="bin\Debug\net8.0\appsettings.json" />
     <Content Include="bin\Debug\net8.0\RM_CMS.deps.json" />
     <Content Include="bin\Debug\net8.0\RM_CMS.runtimeconfig.json" />
@@ -23,7 +19,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="appsettings.Development.json" />
     <None Include="bin\Debug\net8.0\Dapper.dll" />
     <None Include="bin\Debug\net8.0\Microsoft.OpenApi.dll" />
     <None Include="bin\Debug\net8.0\MySqlConnector.dll" />
