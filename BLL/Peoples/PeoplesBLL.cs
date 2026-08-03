@@ -140,7 +140,8 @@ namespace RM_CMS.BLL.Peoples
                     HouseholdType = dto.HouseholdType,
                     RefName = dto.RefName,
                     refPhone = dto.RefPhone,
-                    Address = dto.Address
+                    Address = dto.Address,
+                    LocationType=dto.locationType
 
                 };
 
