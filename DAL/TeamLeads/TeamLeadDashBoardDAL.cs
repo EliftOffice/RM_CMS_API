@@ -930,6 +930,7 @@ FROM
     FROM people p
     INNER JOIN volunteers v
         ON v.volunteer_id = p.assigned_volunteer
+ AND BINARY lower(v.status) = 'active'
     INNER JOIN team_leads t
         ON t.team_lead_id = v.team_lead
     WHERE p.follow_up_status = 'ASSIGNED'
@@ -956,10 +957,11 @@ FROM
         ON p.person_id = ns.person_id
     INNER JOIN volunteers v
         ON v.volunteer_id = ns.volunteer_id
+   AND BINARY lower(v.status) = 'active'
     INNER JOIN team_leads t
         ON t.team_lead_id = v.team_lead
-    WHERE BINARY ns.status = 'Active'
-      AND BINARY st.status = 'Pending'
+    WHERE BINARY lower(ns.status) = 'active'
+      AND BINARY lower(st.status) = 'pending'
       AND st.scheduled_date <= DATE_SUB(CURDATE(), INTERVAL @Hours HOUR)
 ) x
 GROUP BY
