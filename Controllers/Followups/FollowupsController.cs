@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Security;
+using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Followups;
 using RM_CMS.BLL.Volunteers;
 using RM_CMS.Controllers.Volunteers;
@@ -10,6 +12,7 @@ namespace RM_CMS.Controllers.Followups
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Policy = Policies.VolunteerOrAbove)]
     public class FollowupsController : ControllerBase
     {
         private readonly ILogger<FollowupsController> _logger;

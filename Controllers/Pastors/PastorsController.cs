@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Security;
+using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Pastors;
 using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Pastors;
@@ -8,6 +10,7 @@ namespace RM_CMS.Controllers.Pastors
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Policy = Policies.PastorOrAdmin)]
     public class PastorsController : ControllerBase
     {
         private readonly IPastorDashboardBLL _pastorDashboardBLL;

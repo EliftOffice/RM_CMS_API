@@ -10,27 +10,16 @@
     <Compile Remove="Data\DTO\Followups\FollowUpResponseDto.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="bin\Debug\net8.0\appsettings.json" />
-    <Content Include="bin\Debug\net8.0\RM_CMS.deps.json" />
-    <Content Include="bin\Debug\net8.0\RM_CMS.runtimeconfig.json" />
-    <Content Include="bin\Debug\net8.0\RM_CMS.staticwebassets.endpoints.json" />
-    <Content Include="bin\Debug\net8.0\RM_CMS.staticwebassets.runtime.json" />
-  </ItemGroup>
+  <!--
+    Build output (bin\Debug\net8.0\*) used to be listed here as Content/None items.
+    That is removed: it risks publishing a stale appsettings.json from a previous
+    Debug build over the real one, which for a config file that now carries auth
+    settings is a security problem, not just untidiness.
+  -->
 
   <ItemGroup>
-    <None Include="bin\Debug\net8.0\Dapper.dll" />
-    <None Include="bin\Debug\net8.0\Microsoft.OpenApi.dll" />
-    <None Include="bin\Debug\net8.0\MySqlConnector.dll" />
-    <None Include="bin\Debug\net8.0\RM_CMS.dll" />
-    <None Include="bin\Debug\net8.0\RM_CMS.exe" />
-    <None Include="bin\Debug\net8.0\RM_CMS.pdb" />
-    <None Include="bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll" />
-    <None Include="bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll" />
-    <None Include="bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerUI.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="8.0.11" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Dapper" Version="2.1.15" />
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
@@ -38,6 +27,10 @@
 
   <ItemGroup>
     <Folder Include="wwwroot\templates\assets\Images\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\Downloads\latest_schema.sql" Link="Database\SQL_Scripts\latest_schema.sql" />
   </ItemGroup>
 
 </Project>

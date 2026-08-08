@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Security;
+using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Jobs;
 using RM_CMS.BLL.Peoples;
 using RM_CMS.BLL.Volunteers;
@@ -12,6 +14,7 @@ namespace RM_CMS.Controllers.CornJobs
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Policy = Policies.JobRunner)]
     public class CornJobs : ControllerBase
     {
         private readonly ICornJobsBLL _ICornJobsBLL;        

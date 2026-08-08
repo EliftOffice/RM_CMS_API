@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using RM_CMS.Data.DTO.Telegram;
+using RM_CMS.Security;
 
 namespace RM_CMS.Controllers.Telegram
 {
@@ -14,7 +16,17 @@ namespace RM_CMS.Controllers.Telegram
             _logger = logger;
         }
 
+        /// <summary>
+        /// Receives bot updates from Telegram's servers.
+        ///
+        /// Telegram cannot present a JWT, so this endpoint is anonymous to the auth system
+        /// and instead authenticated by the shared <c>secret_token</c> that Telegram echoes
+        /// on every delivery — enforced by <see cref="TelegramWebhookSecretAttribute"/>.
+        /// Without that filter this route is world-callable and anyone can inject fake chats.
+        /// </summary>
         [HttpPost("webhook")]
+        [AllowAnonymous]
+        [TelegramWebhookSecret]
         public async Task<IActionResult> Webhook([FromBody] TelegramUpdate update)
         {
             _logger.LogInformation("Telegram webhook received.");
@@ -24,16 +36,14 @@ namespace RM_CMS.Controllers.Telegram
                 var chatId = update.Message.Chat.Id;
                 var text = update.Message.Text;
 
-                _logger.LogInformation($"ChatId: {chatId}");
-                _logger.LogInformation($"Message: {text}");
+                // Chat ids and message bodies are user data — log the fact, not the content.
+                _logger.LogDebug("Telegram update accepted for chat {ChatId}", chatId);
 
                 if (!string.IsNullOrEmpty(text) && text.StartsWith("/start"))
                 {
                     var parts = text.Split(' ');
 
                     string token = parts.Length > 1 ? parts[1] : "";
-
-                    _logger.LogInformation($"Start Token: {token}");
 
                     // TODO:
                     // 1. Validate token

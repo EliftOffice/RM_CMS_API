@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Security;
+using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Followups;
 using RM_CMS.Data.DTO.Followups;
 using RM_CMS.Data.DTO.TeamLeads;
@@ -9,6 +11,7 @@ namespace RM_CMS.Controllers.Followups
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Policy = Policies.TeamLeadOrAbove)]
     public class EscalationsController : ControllerBase
     {
         private readonly ILogger<FollowupsController> _logger;

@@ -16,6 +16,9 @@
 
     <script src="../../templates/assets/js/toast.js"></script>
 
+    <!-- auth.js must load before any page script that issues API calls -->
+    <script src="../../templates/assets/js/auth.js"></script>
+
     <script src="../../templates/assets/js/VolunteerLogin.js"></script>
    
 
@@ -255,77 +258,56 @@
 
         <form id="loginForm">
 
-            <!-- MOBILE SECTION -->
+            <!-- CREDENTIALS -->
             <div id="mobileSection">
 
                 <label class="vl-label" for="mobile">
-                 Enter   Mobile Number
+                    Mobile Number
                 </label>
 
-                <input type="text"
+                <input type="tel"
                        id="mobile"
+                       name="username"
                        class="vl-input"
-                      
+                       autocomplete="username"
+                       inputmode="numeric"
+                       required
                        maxlength="10">
+
+                <label class="vl-label" for="password" style="margin-top:14px;">
+                    Password
+                </label>
+
+                <input type="password"
+                       id="password"
+                       name="password"
+                       class="vl-input"
+                       autocomplete="current-password"
+                       required
+                       maxlength="128">
 
                 <div class="vl-btn-wrap">
 
                     <button type="submit"
+                            id="loginBtn"
                             class="vl-btn">
 
-                      Submit
+                        Sign In
 
                     </button>
 
                 </div>
 
-            </div>
-
-            <!-- OTP SECTION -->
-            <div id="otpSection">
-
-                <label class="vl-label">
-                    Enter 4 Digit OTP
-                </label>
-
-                <div class="otp-wrap">
-
-                    <input type="text"
-                           class="otp-input"
-                           maxlength="1">
-
-                    <input type="text"
-                           class="otp-input"
-                           maxlength="1">
-
-                    <input type="text"
-                           class="otp-input"
-                           maxlength="1">
-
-                    <input type="text"
-                           class="otp-input"
-                           maxlength="1">
-
-                </div>
-
-                <div class="vl-btn-wrap">
-
-                    <!--<button type="button"
-                    id="verifyOtpBtn"
-                    class="vl-btn">
-
-                Verify OTP
-
-            </button>-->
-
-                </div>
+                <p style="margin-top:14px; font-size:13px; color:#666; text-align:center;">
+                    No password yet? Ask an administrator to set one for your account.
+                </p>
 
             </div>
 
             <div id="loadingOverlay">
                 <div class="loader-box">
                     <div class="spinner"></div>
-                    <div class="loading-text">Verifying OTP...</div>
+                    <div class="loading-text">Signing in...</div>
                 </div>
             </div>
 

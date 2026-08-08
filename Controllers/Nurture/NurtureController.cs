@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Security;
+using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Nurture;
 using RM_CMS.Data.DTO.Nurture;
 
@@ -6,6 +8,7 @@ namespace RM_CMS.Controllers.Nurture
 {
     [ApiController]
     [Route("api/nurture")]
+    [Authorize(Policy = Policies.VolunteerOrAbove)]
     public class NurtureController : ControllerBase
     {
         private readonly INurtureBLL _nurtureBLL;
@@ -38,6 +41,7 @@ namespace RM_CMS.Controllers.Nurture
 
         // ── Team Lead: active sequences for dashboard + huddle
         // GET /api/nurture/teamlead/{teamLeadId}/active
+        [Authorize(Policy = Policies.TeamLeadOrAbove)]
         [HttpGet("teamlead/{teamLeadId}/active")]
         public async Task<IActionResult> GetActiveSequences(string teamLeadId)
         {
@@ -47,6 +51,7 @@ namespace RM_CMS.Controllers.Nurture
 
         // ── Team Lead: sequences awaiting final decision (step 7 done)
         // GET /api/nurture/teamlead/{teamLeadId}/review
+        [Authorize(Policy = Policies.TeamLeadOrAbove)]
         [HttpGet("teamlead/{teamLeadId}/review")]
         public async Task<IActionResult> GetAwaitingReview(string teamLeadId)
         {
@@ -56,6 +61,8 @@ namespace RM_CMS.Controllers.Nurture
 
         // ── Team Lead: close sequence as Permanent or Failed
         // POST /api/nurture/sequence/close
+        // Closing a sequence decides Permanent vs Failed — a team-lead judgement call.
+        [Authorize(Policy = Policies.TeamLeadOrAbove)]
         [HttpPost("sequence/close")]
         public async Task<IActionResult> CloseSequence([FromBody] CloseSequenceDto dto)
         {
@@ -80,6 +87,7 @@ namespace RM_CMS.Controllers.Nurture
 
         // ── Get all sequences globally (list view)
         // GET /api/nurture/teamlead/all
+        [Authorize(Policy = Policies.TeamLeadOrAbove)]
         [HttpGet("teamlead/all")]
         public async Task<IActionResult> GetAllSequences()
         {

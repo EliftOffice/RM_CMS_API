@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Security;
+using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Users;
 using RM_CMS.Data.DTO.Users;
 using RM_CMS.Utilities;
@@ -7,6 +9,7 @@ namespace RM_CMS.Controllers.Users
 {
     [ApiController]
     [Route("api/user")]
+    [Authorize(Policy = Policies.AdminOnly)]
     public class UserController : ControllerBase
     {
         private readonly IUsersBLL _usersBLL;

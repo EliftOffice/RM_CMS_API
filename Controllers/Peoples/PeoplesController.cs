@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Security;
+using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Peoples;
 using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Peoples;
@@ -10,6 +12,7 @@ namespace RM_CMS.Controllers.Peoples
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Policy = Policies.VolunteerOrAbove)]
     public class PeoplesController : ControllerBase
     {
         private readonly IPeoplesBLL _peoplesBLL;

@@ -1,299 +1,113 @@
-﻿
+/*
+ * Login screen.
+ *
+ * Replaces the previous flow, which looked a mobile number up via
+ * /api/volunteers/GetVolunteersByMobileAsyncV1/{mobile} and redirected on success —
+ * anyone who knew a mobile number was "logged in", and the API itself was wide open.
+ *
+ * Now: username + password -> POST /api/auth/login. The access token is held in memory
+ * by auth.js and the refresh token lands in an HttpOnly cookie. The volunteer/team-lead
+ * id comes from the token's claims, not from a query string, so it cannot be tampered with.
+ */
 $(document).ready(function () {
-    sessionStorage.setItem("login_otp", "");
 
-    setLoginSession(false);
+    var $form = $('#loginForm');
+    var $overlay = $('#loadingOverlay');
+    var $button = $('#loginBtn');
 
-    let currentVolunteerId = "";
-    let currentMobile = "";
+    // If a valid refresh cookie is still present, skip the form entirely.
+    RmAuth.refresh().then(function (ok) {
+        if (ok) navigateForUser(RmAuth.getUser());
+    });
 
-    // ================= LOGIN =================
-    $('#loginForm').submit(function (e) {
-       // $('#loadingOverlay').show();
-
-        if (!sessionStorage.getItem("login_otp") == "") {
-            $('#loadingOverlay').hide();
-            return false;
-        }
-
-
+    $form.on('submit', function (e) {
         e.preventDefault();
 
-        $('#errorMessage').hide();
-        $('#successMessage').hide();
-
-        let mobile = $('#mobile').val().trim();
+        var mobile = $('#mobile').val().trim();
+        var password = $('#password').val();
 
         if (!/^\d{10}$/.test(mobile)) {
-
-            showToast('Invalid mobile number', 'warning');
-            $('#loadingOverlay').hide();
+            showToast('Enter a valid 10-digit mobile number', 'warning');
             return;
         }
 
-        $.get(API_BASE_URL + `/volunteers/GetVolunteersByMobileAsyncV1/${mobile}`, function (res) {
-            $('#loadingOverlay').hide();
-
-            if (res.data && res.data.length > 0) {
-
-                const volunteer = res.data[0];
-
-                currentVolunteerId =
-                    volunteer.id;
-                var role = volunteer.role;
-                if (currentMobile = mobile) {
-
-                    Navigation(currentVolunteerId, role);
-
-
-                  
-                }
-                else {
-                    showToast('Mobile number mismatch. Contact admin.', 'error');
-                }
-
-                // Demo OTP
-                // const otp = volunteer.otp;
-
-                // sessionStorage.setItem("login_otp", otp);
-                // sessionStorage.setItem("login_role", volunteer.role);
-
-                // showToast('📩 OTP sent to Telegram successfully', 'success');
-
-                // Hide mobile section
-                //  $('#mobileSection').hide();
-
-                // Show OTP section
-                //  $('#otpSection').fadeIn();
-
-                // Focus first OTP
-                // $('.otp-input').first().focus();
-                // autoFillFromClipboard();
-
-
-
-
-
-
-
-            } else {
-                $('#loadingOverlay').hide();
-                showToast('Volunteer not found', 'error');
-            }
-
-        }).fail(function () {
-
-            showToast('Login failed. Please try again.', 'error');
-        });
-
-    });
-
-    // ================= OTP AUTO MOVE + AUTO VERIFY =================
-    $(document).on('input', '.otp-input', function () {
-
-        // Move to next input
-        if ($(this).val().length === 1) {
-            $(this).next('.otp-input').focus();
-        }
-
-        // Get complete OTP
-        let enteredOtp = "";
-
-        $('.otp-input').each(function () {
-            enteredOtp += $(this).val();
-        });
-
-        // Auto verify when 4 digits entered
-        if (enteredOtp.length === 4) {
-            $('#loadingOverlay').css('display', 'flex');
-            const savedOtp = sessionStorage.getItem("login_otp");
-            const role = sessionStorage.getItem("login_role");
-
-            if (enteredOtp === savedOtp) {
-
-                if (role) {
-
-                    setLoginSession(true);
-
-                    let redirectUrl = "";
-
-                    if (role === "volunteer") {
-
-                        redirectUrl = `../../templates/Volunteers/Assignments.html?volunteerid=${currentVolunteerId}`;
-
-                    }
-                    else if (role === "TeamLead") {
-
-                        redirectUrl = `../../templates/TeamLeads/TeamLeadDashboard.html?teamleadid=${currentVolunteerId}`;
-
-                    }
-                    else if (role === "Pastor") {
-
-                        redirectUrl = `../../templates/Pastor/Dashboard.html`;
-
-                    }
-                    else if (role === "Admin") {
-
-                        redirectUrl = `../../templates/Admin/siteadmin.html`;
-
-                    }
-                    else {
-                        $('#loadingOverlay').hide();
-                        showToast('Unknown role. Contact admin', 'error');
-                        return;
-                    }
-
-                    showToast('✅ Login successful', 'success');
-
-                    setTimeout(() => {
-
-                        window.location.href = redirectUrl;
-
-                    }, 800);
-                }
-
-            } else {
-                showToast('Invalid OTP', 'error');
-                $('#loadingOverlay').hide();
-            }
-        }
-    });
-
-    // ================= OPEN MODAL =================
-    $('#forgotLink').click(function () {
-
-        window.location.href = `UpdateMobile.html`;
-
-    });
-
-    $('#signUp').click(function () {
-
-        window.location.href = `Volunteers.html`;
-
-    });
-
-    function Navigation(currentVolunteerId, role) {
-
-        setLoginSession(true);
-        let redirectUrl = "";
-
-        if (role === "volunteer") {
-
-            redirectUrl = `../../templates/Volunteers/Assignments.html?volunteerid=${currentVolunteerId}`;
-
-        }
-        else if (role === "TeamLead") {
-
-            redirectUrl = `../../templates/TeamLeads/TeamLeadDashboard.html?teamleadid=${currentVolunteerId}`;
-
-        }
-        else if (role === "Pastor") {
-
-            redirectUrl = `../../templates/Pastor/Dashboard.html`;
-
-        }
-        else if (role === "Admin") {
-
-            redirectUrl = `../../templates/Admin/siteadmin.html`;
-
-        }
-        else {
-            $('#loadingOverlay').hide();
-            showToast('Unknown role. Contact admin', 'error');
+        if (!password) {
+            showToast('Enter your password', 'warning');
             return;
         }
 
-        showToast('✅ Login successful', 'success');
+        setBusy(true);
 
-        setTimeout(() => {
+        RmAuth.login(mobile, password)
+            .then(function (result) {
+                setBusy(false);
 
-            window.location.href = redirectUrl;
-            return false;
+                if (!result.success) {
+                    // One generic message for every failure mode — the server does not
+                    // reveal whether the account exists, so neither does the UI.
+                    showToast(result.message || 'Invalid mobile number or password', 'error');
+                    $('#password').val('').focus();
+                    return;
+                }
 
-        }, 800);
-    }
-    // ================= LOAD VOLUNTEERS =================
-    function loadVolunteers() {
+                if (result.mustChangePassword) {
+                    showToast('Please set a new password to continue', 'warning');
+                    setTimeout(function () {
+                        window.location.href = '../../templates/Volunteers/ChangePassword.html';
+                    }, 600);
+                    return;
+                }
 
-        $.get(API_BASE_URL + "/volunteers/GetVolunteersAsync", function (res) {
-
-            let ddl = $('#volunteerDropdown');
-
-            ddl.empty();
-
-            ddl.append(`
-                <option value="">
-                    -- Select Volunteer --
-                </option>
-            `);
-
-            if (res.data) {
-
-                res.data.forEach(v => {
-
-                    ddl.append(`
-                        <option value="${v.volunteer_id}">
-                            ${v.first_name} ${v.last_name}
-                            (${v.volunteer_id})
-                        </option>
-                    `);
-
-                });
-
-            }
-
-        });
-
-    }
-
-    function setLoginSession(isLogin) {
-
-        sessionStorage.setItem("isLoggedIn", isLogin);
-    }
-
-    // ================= CLIPBOARD OTP AUTO-FILL =================
-    async function autoFillFromClipboard() {
-        try {
-            const text = await navigator.clipboard.readText();
-            const match = text.match(/\b(\d{4})\b/); // 4 digit extract
-
-            if (match) {
-                const digits = match[1].split('');
-
-                $('.otp-input').each(function (i) {
-                    $(this).val(digits[i] || '');
-                });
-
-                // మీ existing auto-verify trigger
-                $('.otp-input').last().trigger('input');
-            }
-
-        } catch (err) {
-            console.warn('Clipboard access denied:', err);
-        }
-    }
-
-    // ================= KEY NAVIGATION =================
-    $(document).on('keydown', '.otp-input', function (e) {
-
-        // Backspace -> previous input
-        if (e.key === "Backspace" && $(this).val() === '') {
-
-            $(this).prev('.otp-input').focus();
-        }
-
-        // Left Arrow -> previous input
-        if (e.key === "ArrowLeft") {
-
-            $(this).prev('.otp-input').focus();
-        }
-
-        // Right Arrow -> next input
-        if (e.key === "ArrowRight") {
-
-            $(this).next('.otp-input').focus();
-        }
-
+                showToast('Signed in successfully', 'success');
+                setTimeout(function () { navigateForUser(result.user); }, 500);
+            })
+            .catch(function () {
+                setBusy(false);
+                showToast('Sign-in failed. Please try again.', 'error');
+            });
     });
 
+    /**
+     * Routes to the landing page for the account's highest-privilege role.
+     * Ids come from the authenticated profile, never from user input.
+     */
+    function navigateForUser(user) {
+        if (!user) { showToast('Unable to load your profile', 'error'); return; }
+
+        var roles = RmAuth.pick(user, 'roles') || [];
+        var teamLeadId = RmAuth.pick(user, 'teamLeadId');
+        var volunteerId = RmAuth.pick(user, 'volunteerId');
+        var target;
+
+        if (roles.indexOf('Admin') !== -1) {
+            target = '../../templates/Admin/siteadmin.html';
+        } else if (roles.indexOf('Pastor') !== -1) {
+            target = '../../templates/Pastor/Dashboard.html';
+        } else if (roles.indexOf('TeamLead') !== -1) {
+            target = '../../templates/TeamLeads/TeamLeadDashboard.html'
+                   + (teamLeadId ? '?teamleadid=' + encodeURIComponent(teamLeadId) : '');
+        } else if (roles.indexOf('Volunteer') !== -1) {
+            target = '../../templates/Volunteers/Assignments.html'
+                   + (volunteerId ? '?volunteerid=' + encodeURIComponent(volunteerId) : '');
+        } else {
+            showToast('Your account has no assigned role. Contact an administrator.', 'error');
+            return;
+        }
+
+        window.location.href = target;
+    }
+
+    function setBusy(busy) {
+        if (busy) {
+            $overlay.css('display', 'flex');
+            $button.prop('disabled', true);
+        } else {
+            $overlay.hide();
+            $button.prop('disabled', false);
+        }
+    }
+
+    $('#forgotLink').on('click', function () {
+        showToast('Contact an administrator to reset your password.', 'info');
+    });
 });

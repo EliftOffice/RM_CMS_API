@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Security;
+using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Attendance;
 using RM_CMS.Data.DTO.Attendance;
 using RM_CMS.Utilities;
@@ -7,6 +9,7 @@ namespace RM_CMS.Controllers.Attendance
 {
     [ApiController]
     [Route("api/attendance")]
+    [Authorize(Policy = Policies.MemberOrAbove)]
     public class AttendanceController : ControllerBase
     {
         private readonly IAttendanceBLL _attendanceBLL;

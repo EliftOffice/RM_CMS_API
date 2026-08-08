@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using RM_CMS.BLL.Admin;
 using RM_CMS.Data.DTO;
@@ -10,6 +12,7 @@ namespace RM_CMS.Controllers.Admin
 {
     [Route("api/systemconfig")]
     [ApiController]
+    [Authorize(Policy = Policies.AdminOnly)]
     public class SystemConfigController : ControllerBase
     {
         private readonly ISystemConfigService _service;

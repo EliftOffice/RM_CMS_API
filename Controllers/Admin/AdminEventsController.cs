@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Security;
+using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Events;
 using RM_CMS.Data.DTO.Events;
 using RM_CMS.Utilities;
@@ -8,6 +10,7 @@ namespace RM_CMS.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/events")]
+    [Authorize(Policy = Policies.AdminOnly)]
     public class AdminEventsController : ControllerBase
     {
         private readonly IEventsBLL _eventsBLL;
