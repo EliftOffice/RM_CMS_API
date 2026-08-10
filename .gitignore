@@ -362,3 +362,12 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Database dumps — these contain real personal data (names, phone numbers,
+# prayer requests, crisis escalations). The only .sql that belongs in git is
+# the canonical structure file Database/SQL_Scripts/schema.sql.
+*_dump.sql
+*_backup.sql
+backup_*.sql
+latest_schema.sql
+db_schema.sql
+nurture_sequence_schema.sql

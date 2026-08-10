@@ -29,8 +29,14 @@
     <Folder Include="wwwroot\templates\assets\Images\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Include="..\..\..\Downloads\latest_schema.sql" Link="Database\SQL_Scripts\latest_schema.sql" />
-  </ItemGroup>
+  <!--
+    The canonical schema lives at Database\SQL_Scripts\schema.sql and is picked up
+    automatically as project content.
+
+    Do NOT link production dumps in here. A previous entry pointed at
+    ..\..\..\Downloads\latest_schema.sql, which (a) does not exist on any other
+    machine or on the Coolify build agent, and (b) is a full production export
+    containing real names, phone numbers and pastoral-care notes.
+  -->
 
 </Project>
