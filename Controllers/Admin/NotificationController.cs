@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Modules.Identity.Domain;
 using RM_CMS.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,7 @@ namespace RM_CMS.Controllers.Admin
 {
     [Route("api/notifications")]
     [ApiController]
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = PolicyNames.AdminOnly)]
     public class NotificationController : ControllerBase
     {
         private readonly INotificationService _notificationService;

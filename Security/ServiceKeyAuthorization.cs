@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Options;
+using RM_CMS.Modules.Identity.Domain;
 
 namespace RM_CMS.Security
 {
@@ -59,7 +60,7 @@ namespace RM_CMS.Security
             AuthorizationHandlerContext context, ServiceKeyOrAdminRequirement requirement)
         {
             // Path 1 — a signed-in administrator.
-            if (context.User.HasClaim(AppClaimTypes.Role, Roles.Admin))
+            if (context.User.HasClaim(ClaimNames.Role, RoleCodes.Admin))
             {
                 context.Succeed(requirement);
                 return Task.CompletedTask;

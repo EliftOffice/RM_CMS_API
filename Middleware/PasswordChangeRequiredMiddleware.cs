@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using RM_CMS.Security;
+using RM_CMS.Modules.Identity.Domain;
 
 namespace RM_CMS.Middleware
 {
@@ -42,7 +42,7 @@ namespace RM_CMS.Middleware
             // actually load the change-password screen.
             if (!context.Request.Path.StartsWithSegments("/api") ||
                 context.User?.Identity?.IsAuthenticated != true ||
-                !context.User.HasClaim(AppClaimTypes.MustChangePassword, "1") ||
+                !context.User.HasClaim(ClaimNames.MustChangePassword, "1") ||
                 IsAllowed(context.Request.Path))
             {
                 await _next(context);
@@ -52,7 +52,7 @@ namespace RM_CMS.Middleware
             _logger.LogInformation(
                 "Blocked {Method} {Path} for {UserId}: password change required",
                 context.Request.Method, context.Request.Path,
-                context.User.FindFirst(AppClaimTypes.UserId)?.Value);
+                context.User.FindFirst(ClaimNames.Subject)?.Value);
 
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             context.Response.ContentType = "application/problem+json";

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Modules.Identity.Domain;
 using RM_CMS.Security;
 using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Peoples;
@@ -14,7 +15,7 @@ namespace RM_CMS.Controllers.Volunteers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Policy = Policies.VolunteerOrAbove)]
+    [Authorize(Policy = PolicyNames.VolunteerOrAbove)]
     public class VolunteersController : ControllerBase
     {
         private readonly IVolunteersBLL _VolunteersBLL;
@@ -109,7 +110,7 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
-        [Authorize(Policy = Policies.TeamLeadOrAbove)]
+        [Authorize(Policy = PolicyNames.TeamLeadOrAbove)]
         [HttpPost("/api/volunteers")]
         public async Task<ActionResult<ApiResponse<VolunteerResponseDto>>> CreateVolunteerAsync([FromBody] CreateVolunteerDto dto)
         {
@@ -131,7 +132,7 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
-        [Authorize(Policy = Policies.AdminOnly)]
+        [Authorize(Policy = PolicyNames.AdminOnly)]
         [HttpGet("/api/volunteers/mobile/{mobile}")]
         public async Task<ActionResult<ApiResponse<List<VolunteerLookupDto>>>> GetVolunteersByMobileAsync(string mobile)
         {
@@ -153,7 +154,7 @@ namespace RM_CMS.Controllers.Volunteers
         }
 
         // Lookup by mobile number enumerates staff PII — administrators only.
-        [Authorize(Policy = Policies.AdminOnly)]
+        [Authorize(Policy = PolicyNames.AdminOnly)]
         [HttpGet("/api/volunteers/GetVolunteersByMobileAsyncV1/{mobile}")]
         public async Task<ActionResult<ApiResponse<List<UserLookupDto>>>> GetVolunteersByMobileAsyncV1(string mobile)
         {
@@ -203,7 +204,7 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
-        [Authorize(Policy = Policies.TeamLeadOrAbove)]
+        [Authorize(Policy = PolicyNames.TeamLeadOrAbove)]
         [HttpGet("get-latest-chat")]
         public async Task<ActionResult<ApiResponse<TelegramChatDto>>> GetLatestTelegramChat()
         {
@@ -234,7 +235,7 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
-        [Authorize(Policy = Policies.TeamLeadOrAbove)]
+        [Authorize(Policy = PolicyNames.TeamLeadOrAbove)]
         [HttpPut("update-telegram")]
         public async Task<ActionResult<ApiResponse<bool>>> UpdateVolunteerTelegram([FromBody] UpdateVolunteerTelegramDto dto)
         {
@@ -250,7 +251,7 @@ namespace RM_CMS.Controllers.Volunteers
             }
         }
 
-        [Authorize(Policy = Policies.TeamLeadOrAbove)]
+        [Authorize(Policy = PolicyNames.TeamLeadOrAbove)]
         [HttpPost("manual-assign")]
         public async Task<ActionResult<ApiResponse<AssignedVolunteerDTO>>> ManualAssign([FromBody] ManualAssignDto dto)
         {

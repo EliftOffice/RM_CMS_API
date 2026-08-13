@@ -9,8 +9,9 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
-using RM_CMS.BLL.Auth;
 using RM_CMS.Middleware;
+using RM_CMS.Modules.Identity.Services;
+using RM_CMS.Modules.Identity.Domain;
 using RM_CMS.Security;
 
 namespace RM_CMS
@@ -102,8 +103,8 @@ namespace RM_CMS
 
             builder.Services.AddSingleton<IValidateOptions<AuthOptions>, AuthOptionsValidator>();
 
-            builder.Services.Configure<SecurityStampCacheOptions>(
-                builder.Configuration.GetSection(SecurityStampCacheOptions.SectionName));
+            builder.Services.Configure<AccountStateCacheOptions>(
+                builder.Configuration.GetSection(AccountStateCacheOptions.SectionName));
 
             // ASP.NET Identity's PBKDF2 hasher. V3 = HMAC-SHA512; the iteration count is
             // raised above the framework default in line with current OWASP guidance.
@@ -161,7 +162,7 @@ namespace RM_CMS
                 // drift apart.
                 var serviceProvider = builder.Services.BuildServiceProvider();
                 options.TokenValidationParameters = serviceProvider
-                    .GetRequiredService<ITokenService>()
+                    .GetRequiredService<ITokenIssuer>()
                     .BuildValidationParameters();
 
                 options.Events = new JwtBearerEvents
@@ -172,7 +173,7 @@ namespace RM_CMS
                     OnTokenValidated = async context =>
                     {
                         var validator = context.HttpContext.RequestServices
-                            .GetRequiredService<AccessTokenStampValidator>();
+                            .GetRequiredService<AccessTokenValidator>();
 
                         await validator.ValidateAsync(context);
                     },
@@ -210,7 +211,7 @@ namespace RM_CMS
 
                         logger.LogWarning(
                             "Authorization denied for {UserId} on {Method} {Path}",
-                            context.Principal?.FindFirst(AppClaimTypes.UserId)?.Value ?? "unknown",
+                            context.Principal?.FindFirst(ClaimNames.Subject)?.Value ?? "unknown",
                             context.Request.Method,
                             context.Request.Path);
 
@@ -261,33 +262,36 @@ namespace RM_CMS
                     .RequireAuthenticatedUser()
                     .Build();
 
-                options.AddPolicy(Policies.Authenticated, policy =>
+                options.AddPolicy(PolicyNames.Authenticated, policy =>
                     policy.RequireAuthenticatedUser());
 
-                options.AddPolicy(Policies.AdminOnly, policy =>
+                options.AddPolicy(PolicyNames.AdminOnly, policy =>
                     policy.RequireAuthenticatedUser()
-                          .RequireClaim(AppClaimTypes.Role, Roles.Admin));
+                          .RequireClaim(ClaimNames.Role, RoleCodes.Admin));
 
-                options.AddPolicy(Policies.PastorOrAdmin, policy =>
+                options.AddPolicy(PolicyNames.PastorOrAdmin, policy =>
                     policy.RequireAuthenticatedUser()
-                          .RequireClaim(AppClaimTypes.Role, Roles.Admin, Roles.Pastor));
+                          .RequireClaim(ClaimNames.Role, RoleCodes.Admin, RoleCodes.Pastor));
 
-                options.AddPolicy(Policies.TeamLeadOrAbove, policy =>
+                options.AddPolicy(PolicyNames.TeamLeadOrAbove, policy =>
                     policy.RequireAuthenticatedUser()
-                          .RequireClaim(AppClaimTypes.Role, Roles.Admin, Roles.Pastor, Roles.TeamLead));
+                          .RequireClaim(ClaimNames.Role, RoleCodes.Admin, RoleCodes.Pastor, RoleCodes.TeamLead));
 
-                options.AddPolicy(Policies.VolunteerOrAbove, policy =>
+                options.AddPolicy(PolicyNames.VolunteerOrAbove, policy =>
                     policy.RequireAuthenticatedUser()
-                          .RequireClaim(AppClaimTypes.Role, Roles.Admin, Roles.Pastor, Roles.TeamLead, Roles.Volunteer));
+                          .RequireClaim(ClaimNames.Role,
+                              RoleCodes.Admin, RoleCodes.Pastor, RoleCodes.TeamLead, RoleCodes.Volunteer));
 
-                options.AddPolicy(Policies.MemberOrAbove, policy =>
+                // Intake. Data-entry operators record visitors but see nothing else.
+                options.AddPolicy(PolicyNames.CanRecordVisitors, policy =>
                     policy.RequireAuthenticatedUser()
-                          .RequireClaim(AppClaimTypes.Role,
-                              Roles.Admin, Roles.Pastor, Roles.TeamLead, Roles.Volunteer, Roles.Member));
+                          .RequireClaim(ClaimNames.Role,
+                              RoleCodes.Admin, RoleCodes.Pastor, RoleCodes.TeamLead,
+                              RoleCodes.Volunteer, RoleCodes.DataEntry));
 
                 // Scheduled jobs: an Admin token OR the scheduler's service key. Note the
                 // absence of RequireAuthenticatedUser — the machine caller has no identity.
-                options.AddPolicy(Policies.JobRunner, policy =>
+                options.AddPolicy(PolicyNames.JobRunner, policy =>
                     policy.AddRequirements(new ServiceKeyOrAdminRequirement()));
             });
 
@@ -427,7 +431,7 @@ namespace RM_CMS
         /// <summary>Partition key for authenticated-or-anonymous callers.</summary>
         private static string ClientPartitionKey(HttpContext context)
         {
-            var userId = context.User.FindFirst(AppClaimTypes.UserId)?.Value;
+            var userId = context.User.FindFirst(ClaimNames.Subject)?.Value;
 
             return !string.IsNullOrWhiteSpace(userId)
                 ? $"user:{userId}"
@@ -440,7 +444,7 @@ namespace RM_CMS
             var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
             // The username is only available after model binding, so fall back to IP alone
-            // for the pre-binding partition. The per-account exponential backoff in AuthBLL
+            // for the pre-binding partition. The per-account exponential backoff in IdentityService
             // covers the username dimension.
             return $"login:{ip}";
         }
@@ -523,22 +527,24 @@ namespace RM_CMS
         // ==========================================================
         private static void RegisterApplicationServices(WebApplicationBuilder builder)
         {
-            // ---- Security ----
-            builder.Services.AddSingleton<ITokenService, TokenService>();
-            builder.Services.AddSingleton<IPasswordPolicy, PasswordPolicy>();
-            builder.Services.AddSingleton<IPasswordHashingService, PasswordHashingService>();
-            builder.Services.AddSingleton<IMemoryStampCache, MemoryStampCache>();
-            builder.Services.AddScoped<AccessTokenStampValidator>();
-            builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+            // ---- Identity module ----
+            builder.Services.AddSingleton<ITokenIssuer, TokenIssuer>();
+            builder.Services.AddSingleton<IPasswordService, PasswordService>();
+            builder.Services.AddSingleton<IAccountStateCache, AccountStateCache>();
+            builder.Services.AddScoped<AccessTokenValidator>();
+            builder.Services.AddScoped<ICurrentIdentity, CurrentIdentity>();
 
             // ---- Data access ----
             builder.Services.AddScoped<RM_CMS.Data.IDbConnectionFactory, RM_CMS.Data.DbConnectionFactory>();
 
-            // ---- Auth module ----
-            builder.Services.AddScoped<RM_CMS.DAL.Auth.IAuthUsersDAL, RM_CMS.DAL.Auth.AuthUsersDAL>();
-            builder.Services.AddScoped<RM_CMS.DAL.Auth.IRefreshTokenDAL, RM_CMS.DAL.Auth.RefreshTokenDAL>();
-            builder.Services.AddScoped<RM_CMS.DAL.Auth.IAuthAuditDAL, RM_CMS.DAL.Auth.AuthAuditDAL>();
-            builder.Services.AddScoped<IAuthBLL, AuthBLL>();
+            builder.Services.AddScoped<RM_CMS.Modules.Identity.Data.IUserAccountRepository,
+                                       RM_CMS.Modules.Identity.Data.UserAccountRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Identity.Data.IRefreshTokenRepository,
+                                       RM_CMS.Modules.Identity.Data.RefreshTokenRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Identity.Data.ISecurityEventRepository,
+                                       RM_CMS.Modules.Identity.Data.SecurityEventRepository>();
+            builder.Services.AddScoped<IIdentityService, IdentityService>();
+            builder.Services.AddScoped<IIdentityBootstrapper, IdentityBootstrapper>();
 
             // ---- Common DAL ----
             builder.Services.AddScoped<RM_CMS.DAL.CommonDAL.ITelegram, RM_CMS.DAL.CommonDAL.Telegram>();
@@ -575,13 +581,7 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.DAL.Users.IUsersDAL, RM_CMS.DAL.Users.UsersDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.Users.IUsersBLL, RM_CMS.BLL.Users.UsersBLL>();
 
-            // ---- Events ----
-            builder.Services.AddScoped<RM_CMS.DAL.Events.IEventsDAL, RM_CMS.DAL.Events.EventsDAL>();
-            builder.Services.AddScoped<RM_CMS.BLL.Events.IEventsBLL, RM_CMS.BLL.Events.EventsBLL>();
 
-            // ---- Attendance ----
-            builder.Services.AddScoped<RM_CMS.DAL.Attendance.IAttendanceDAL, RM_CMS.DAL.Attendance.AttendanceDAL>();
-            builder.Services.AddScoped<RM_CMS.BLL.Attendance.IAttendanceBLL, RM_CMS.BLL.Attendance.AttendanceBLL>();
 
             // ---- Nurture ----
             builder.Services.AddScoped<RM_CMS.DAL.Nurture.INurtureDAL, RM_CMS.DAL.Nurture.NurtureDAL>();
@@ -688,9 +688,9 @@ namespace RM_CMS
         {
             using var scope = app.Services.CreateScope();
 
-            var auth = scope.ServiceProvider.GetRequiredService<IAuthBLL>();
+            var bootstrapper = scope.ServiceProvider.GetRequiredService<IIdentityBootstrapper>();
 
-            await auth.EnsureBootstrapAdminAsync();
+            await bootstrapper.EnsureAdministratorAsync();
         }
     }
 }

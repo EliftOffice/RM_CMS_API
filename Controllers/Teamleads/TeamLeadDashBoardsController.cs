@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using RM_CMS.Modules.Identity.Domain;
 using RM_CMS.Security;
 using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.TeamLeads;
@@ -11,7 +12,7 @@ namespace RM_CMS.Controllers.TeamLeads
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Policy = Policies.TeamLeadOrAbove)]
+    [Authorize(Policy = PolicyNames.TeamLeadOrAbove)]
     public class TeamLeadDashBoardsController : ControllerBase
     {
 
@@ -85,7 +86,7 @@ namespace RM_CMS.Controllers.TeamLeads
 
 
         // Creating/updating team leads is an administrative act, not a team-lead one.
-        [Authorize(Policy = Policies.AdminOnly)]
+        [Authorize(Policy = PolicyNames.AdminOnly)]
         [HttpPost("save-team-lead")]
         public async Task<ActionResult<ApiResponse<bool>>> SaveTeamLead([FromBody] TeamLeadDTO teamLead)
         {

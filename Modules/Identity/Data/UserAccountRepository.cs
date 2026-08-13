@@ -18,6 +18,12 @@ namespace RM_CMS.Modules.Identity.Data
     {
         Task<UserAccount?> GetByUsernameAsync(string normalizedUsername);
         Task<UserAccount?> GetByPublicIdAsync(string publicId);
+
+        /// <summary>
+        /// Lookup by internal key. Used only by the refresh path, which holds an id
+        /// from the token row rather than a public id.
+        /// </summary>
+        Task<UserAccount?> GetByIdAsync(long id);
         Task<IReadOnlyList<UserAccount>> ListAsync(int skip, int take, string? search, string? roleCode);
         Task<int> CountAsync(string? search, string? roleCode);
 
@@ -49,6 +55,12 @@ namespace RM_CMS.Modules.Identity.Data
 
         /// <summary>Resolves a campus public id to its internal key. Null when unknown.</summary>
         Task<long?> ResolveCampusIdAsync(string? campusPublicId);
+
+        /// <summary>
+        /// Resolves a person's public id to its internal key, excluding soft-deleted
+        /// rows. Null when unknown — accounts attach to existing people only.
+        /// </summary>
+        Task<long?> ResolvePersonIdAsync(string personPublicId);
     }
 
     public sealed class UserAccountRepository : IUserAccountRepository
@@ -121,6 +133,21 @@ namespace RM_CMS.Modules.Identity.Data
 
             using var connection = _dbFactory.GetConnection();
             var account = await connection.QueryFirstOrDefaultAsync<UserAccount>(sql, new { PublicId = publicId });
+
+            if (account is not null)
+                account.Roles = await LoadRolesAsync(connection, account.Id);
+
+            return account;
+        }
+
+        public async Task<UserAccount?> GetByIdAsync(long id)
+        {
+            const string sql = SelectAccount + @"
+            WHERE ua.id = @Id
+            LIMIT 1;";
+
+            using var connection = _dbFactory.GetConnection();
+            var account = await connection.QueryFirstOrDefaultAsync<UserAccount>(sql, new { Id = id });
 
             if (account is not null)
                 account.Roles = await LoadRolesAsync(connection, account.Id);
@@ -503,6 +530,19 @@ namespace RM_CMS.Modules.Identity.Data
 
             using var connection = _dbFactory.GetConnection();
             return await connection.ExecuteScalarAsync<long?>(sql, new { PublicId = campusPublicId });
+        }
+
+        public async Task<long?> ResolvePersonIdAsync(string personPublicId)
+        {
+            if (string.IsNullOrWhiteSpace(personPublicId)) return null;
+
+            const string sql = @"
+                SELECT id FROM person
+                WHERE public_id = @PublicId AND deleted_at IS NULL
+                LIMIT 1;";
+
+            using var connection = _dbFactory.GetConnection();
+            return await connection.ExecuteScalarAsync<long?>(sql, new { PublicId = personPublicId });
         }
 
         private static async Task<List<UserRoleAssignment>> LoadRolesAsync(IDbConnection connection, long accountId)
