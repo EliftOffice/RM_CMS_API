@@ -1,0 +1,189 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounts - RM_CMS Admin</title>
+
+    <link rel="icon" href="../assets/Images/favicon.ico">
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/toast.js"></script>
+    <script src="../assets/js/admin-shell.js"></script>
+</head>
+<body>
+
+<div id="adminShell"></div>
+
+<main class="page">
+
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Accounts</h1>
+            <p class="page-sub">
+                Staff sign-in accounts. A visitor is never an account — accounts belong to
+                people who already exist in the system.
+            </p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btnNew">Grant access</button>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <div class="toolbar">
+                <input type="search" id="search" class="input" placeholder="Search name or username" autocomplete="off">
+                <select id="roleFilter" class="select">
+                    <option value="">All roles</option>
+                </select>
+            </div>
+            <span class="pager-info" id="countInfo"></span>
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Roles</th>
+                    <th>Status</th>
+                    <th>Last sign-in</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="rows">
+                <tr><td colspan="6" class="empty">Loading…</td></tr>
+            </tbody>
+        </table>
+
+        <div class="pager">
+            <span class="pager-info" id="pageInfo"></span>
+            <span>
+                <button type="button" class="btn btn-sm" id="prevPage">Previous</button>
+                <button type="button" class="btn btn-sm" id="nextPage">Next</button>
+            </span>
+        </div>
+    </div>
+</main>
+
+<!-- ------------------------------------------------------------------ -->
+<!-- Grant access                                                        -->
+<!-- ------------------------------------------------------------------ -->
+<div class="modal-backdrop" id="createModal">
+    <div class="modal">
+        <div class="modal-head">Grant access</div>
+        <div class="modal-body">
+
+            <div class="notice notice-warn" style="margin-bottom:16px;">
+                An account attaches to a person who already exists. Enter their person ID —
+                creating the person record itself is done from the people screens.
+            </div>
+
+            <div class="field">
+                <label class="label" for="newPersonId">Person ID</label>
+                <input type="text" id="newPersonId" class="input" maxlength="26" placeholder="26-character ID" autocomplete="off">
+                <div class="hint">Shown on the person's record.</div>
+            </div>
+
+            <div class="field">
+                <label class="label" for="newUsername">Username</label>
+                <input type="text" id="newUsername" class="input" maxlength="100" placeholder="Mobile number" autocomplete="off">
+            </div>
+
+            <div class="field">
+                <label class="label">Roles</label>
+                <div class="role-list" id="newRoles"></div>
+            </div>
+
+            <div class="field">
+                <label class="label" for="newPassword">Initial password</label>
+                <input type="text" id="newPassword" class="input" maxlength="128" placeholder="Leave blank to generate one" autocomplete="off">
+                <div class="hint">A generated password is shown once and cannot be retrieved again.</div>
+            </div>
+
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn" data-close>Cancel</button>
+            <button type="button" class="btn btn-primary" id="btnCreate">Create account</button>
+        </div>
+    </div>
+</div>
+
+<!-- ------------------------------------------------------------------ -->
+<!-- Roles                                                               -->
+<!-- ------------------------------------------------------------------ -->
+<div class="modal-backdrop" id="rolesModal">
+    <div class="modal">
+        <div class="modal-head">Change roles</div>
+        <div class="modal-body">
+            <p class="page-sub" id="rolesFor" style="margin-bottom:14px;"></p>
+            <div class="role-list" id="editRoles"></div>
+            <div class="notice notice-warn" style="margin-top:16px;">
+                Changing roles signs this account out of every device, so the new permissions
+                take effect immediately rather than whenever their token expires.
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn" data-close>Cancel</button>
+            <button type="button" class="btn btn-primary" id="btnSaveRoles">Save roles</button>
+        </div>
+    </div>
+</div>
+
+<!-- ------------------------------------------------------------------ -->
+<!-- Password reset                                                      -->
+<!-- ------------------------------------------------------------------ -->
+<div class="modal-backdrop" id="passwordModal">
+    <div class="modal">
+        <div class="modal-head">Set password</div>
+        <div class="modal-body">
+            <p class="page-sub" id="passwordFor" style="margin-bottom:14px;"></p>
+
+            <div class="field">
+                <label class="label" for="resetPassword">New password</label>
+                <input type="text" id="resetPassword" class="input" maxlength="128" placeholder="Leave blank to generate one" autocomplete="off">
+            </div>
+
+            <div class="role-option">
+                <input type="checkbox" id="forceChange" checked>
+                <label for="forceChange">Require a password change at next sign-in</label>
+            </div>
+
+            <div class="notice notice-warn" style="margin-top:16px;">
+                This signs the account out everywhere.
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn" data-close>Cancel</button>
+            <button type="button" class="btn btn-primary" id="btnSavePassword">Set password</button>
+        </div>
+    </div>
+</div>
+
+<!-- ------------------------------------------------------------------ -->
+<!-- One-time credential reveal                                          -->
+<!-- ------------------------------------------------------------------ -->
+<div class="modal-backdrop" id="credentialModal">
+    <div class="modal">
+        <div class="modal-head">Password created</div>
+        <div class="modal-body">
+            <p class="page-sub">Copy this now. It is not stored anywhere and cannot be shown again.</p>
+            <div class="credential" id="credentialValue"></div>
+            <p class="page-sub" id="credentialFor"></p>
+            <div class="notice notice-warn" style="margin-top:14px;">
+                Share it over a channel the person controls. Anyone who reads it can sign in
+                as them until they change it.
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn" id="btnCopyCredential">Copy</button>
+            <button type="button" class="btn btn-primary" data-close>Done</button>
+        </div>
+    </div>
+</div>
+
+<script src="../assets/js/accounts.js"></script>
+</body>
+</html>

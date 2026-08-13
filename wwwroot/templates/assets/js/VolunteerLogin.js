@@ -71,24 +71,30 @@ $(document).ready(function () {
      * Routes to the landing page for the account's highest-privilege role.
      * Ids come from the authenticated profile, never from user input.
      */
-    function navigateForUser(user) {
-        if (!user) { showToast('Unable to load your profile', 'error'); return; }
+    function navigateForUser(account) {
+        if (!account) { showToast('Unable to load your profile', 'error'); return; }
 
-        var roles = RmAuth.pick(user, 'roles') || [];
-        var teamLeadId = RmAuth.pick(user, 'teamLeadId');
-        var volunteerId = RmAuth.pick(user, 'volunteerId');
+        // Role codes are ADMIN / PASTOR / TEAM_LEAD / VOLUNTEER / DATA_ENTRY, and
+        // arrive as grants ({ roleCode, campusId }) because a role can be scoped
+        // to a campus. RmAuth.roleCodes() flattens that.
+        var roles = RmAuth.roleCodes();
+        var volunteerId = RmAuth.pick(account, 'volunteerId');
+        var teamId = RmAuth.pick(account, 'teamId');
         var target;
 
-        if (roles.indexOf('Admin') !== -1) {
-            target = '../../templates/Admin/siteadmin.html';
-        } else if (roles.indexOf('Pastor') !== -1) {
+        // Highest privilege wins.
+        if (roles.indexOf('ADMIN') !== -1) {
+            target = '../../templates/Admin/accounts.html';
+        } else if (roles.indexOf('PASTOR') !== -1) {
             target = '../../templates/Pastor/Dashboard.html';
-        } else if (roles.indexOf('TeamLead') !== -1) {
+        } else if (roles.indexOf('TEAM_LEAD') !== -1) {
             target = '../../templates/TeamLeads/TeamLeadDashboard.html'
-                   + (teamLeadId ? '?teamleadid=' + encodeURIComponent(teamLeadId) : '');
-        } else if (roles.indexOf('Volunteer') !== -1) {
+                   + (teamId ? '?teamid=' + encodeURIComponent(teamId) : '');
+        } else if (roles.indexOf('VOLUNTEER') !== -1) {
             target = '../../templates/Volunteers/Assignments.html'
                    + (volunteerId ? '?volunteerid=' + encodeURIComponent(volunteerId) : '');
+        } else if (roles.indexOf('DATA_ENTRY') !== -1) {
+            target = '../../templates/Peoples/PeopleEntry.html';
         } else {
             showToast('Your account has no assigned role. Contact an administrator.', 'error');
             return;

@@ -95,7 +95,8 @@
         if (!payload || !accessToken) return false;
 
         ACCESS_TOKEN = accessToken;
-        CURRENT_USER = pick(payload, 'user') || null;
+        // The identity module returns `account`; older builds returned `user`.
+        CURRENT_USER = pick(payload, 'account') || pick(payload, 'user') || null;
 
         // Refresh slightly early so a request is never sent with a token that
         // expires mid-flight.
@@ -237,9 +238,23 @@
         });
     }
 
+    /**
+     * Role codes held by the signed-in account.
+     *
+     * The API returns role GRANTS ({ roleCode, campusId }) rather than bare
+     * strings, because a role can be scoped to one campus. Callers only ever
+     * need the codes, so flatten here and keep that shape in one place.
+     */
+    function roleCodes() {
+        var granted = pick(CURRENT_USER, 'roles') || [];
+
+        return granted.map(function (r) {
+            return (typeof r === 'string') ? r : pick(r, 'roleCode');
+        }).filter(Boolean);
+    }
+
     function hasAnyRole(roles) {
-        var mine = pick(CURRENT_USER, 'roles');
-        if (!mine) return false;
+        var mine = roleCodes();
 
         for (var i = 0; i < roles.length; i++) {
             if (mine.indexOf(roles[i]) !== -1) return true;
@@ -383,6 +398,7 @@
         ensureToken: ensureToken,
         redirectToLogin: redirectToLogin,
         hasAnyRole: hasAnyRole,
+        roleCodes: roleCodes,
         getUser: function () { return CURRENT_USER; },
         pick: pick,
         isAuthenticated: function () { return !!ACCESS_TOKEN; },
