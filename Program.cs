@@ -570,6 +570,20 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.BLL.Followups.IEscalationsBLL, RM_CMS.BLL.Followups.EscalationsBLL>();
             builder.Services.AddScoped<RM_CMS.DAL.Followups.IEscalationsDAL, RM_CMS.DAL.Followups.EscalationsDAL>();
 
+            // ---- Care module (new architecture) ----
+            builder.Services.AddScoped<RM_CMS.Modules.Care.Data.ICareCaseRepository,
+                                       RM_CMS.Modules.Care.Data.CareCaseRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Care.Data.ICareInteractionRepository,
+                                       RM_CMS.Modules.Care.Data.CareInteractionRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Care.Data.IEscalationRepository,
+                                       RM_CMS.Modules.Care.Data.EscalationRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Care.Data.ICareLookupRepository,
+                                       RM_CMS.Modules.Care.Data.CareLookupRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Care.Services.IProgressionEngine,
+                                       RM_CMS.Modules.Care.Services.ProgressionEngine>();
+            builder.Services.AddScoped<RM_CMS.Modules.Care.Services.ICareService,
+                                       RM_CMS.Modules.Care.Services.CareService>();
+
             // ---- Volunteers module (new architecture) ----
             builder.Services.AddScoped<RM_CMS.Modules.Volunteers.Data.IVolunteerRepository,
                                        RM_CMS.Modules.Volunteers.Data.VolunteerRepository>();
