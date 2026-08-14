@@ -549,7 +549,16 @@ namespace RM_CMS
             // ---- Common DAL ----
             builder.Services.AddScoped<RM_CMS.DAL.CommonDAL.ITelegram, RM_CMS.DAL.CommonDAL.Telegram>();
 
-            // ---- Peoples ----
+            // ---- People module (new architecture) ----
+            builder.Services.AddScoped<RM_CMS.Modules.People.Data.IPersonRepository,
+                                       RM_CMS.Modules.People.Data.PersonRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.People.Services.IPeopleService,
+                                       RM_CMS.Modules.People.Services.PeopleService>();
+
+            // ---- Legacy Peoples BLL/DAL ----
+            // Still registered because Volunteers and CornJobs depend on it. Both
+            // query tables that no longer exist, so they are broken at runtime until
+            // they are rewritten; this only keeps the build green in the meantime.
             builder.Services.AddScoped<RM_CMS.BLL.Peoples.IPeoplesBLL, RM_CMS.BLL.Peoples.PeoplesBLL>();
             builder.Services.AddScoped<RM_CMS.DAL.Peoples.IPeoplesDAL, RM_CMS.DAL.Peoples.PeoplesDAL>();
 
