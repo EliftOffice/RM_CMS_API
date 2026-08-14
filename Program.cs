@@ -570,7 +570,18 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.BLL.Followups.IEscalationsBLL, RM_CMS.BLL.Followups.EscalationsBLL>();
             builder.Services.AddScoped<RM_CMS.DAL.Followups.IEscalationsDAL, RM_CMS.DAL.Followups.EscalationsDAL>();
 
-            // ---- Volunteers ----
+            // ---- Volunteers module (new architecture) ----
+            builder.Services.AddScoped<RM_CMS.Modules.Volunteers.Data.IVolunteerRepository,
+                                       RM_CMS.Modules.Volunteers.Data.VolunteerRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Volunteers.Data.ITeamRepository,
+                                       RM_CMS.Modules.Volunteers.Data.TeamRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Volunteers.Services.IVolunteerService,
+                                       RM_CMS.Modules.Volunteers.Services.VolunteerService>();
+
+            // ---- Legacy Volunteers BLL/DAL ----
+            // Still referenced by Followups, Nurture, CornJobs, Peoples and
+            // NotificationService. All query tables that no longer exist, so they are
+            // broken at runtime until rewritten; this only keeps the build green.
             builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteersBLL, RM_CMS.BLL.Volunteers.VolunteersBLL>();
             builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteersDAL, RM_CMS.DAL.Volunteers.VolunteersDAL>();
 

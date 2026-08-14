@@ -4,7 +4,6 @@ using RM_CMS.Security;
 using Microsoft.AspNetCore.Authorization;
 using RM_CMS.BLL.Followups;
 using RM_CMS.BLL.Volunteers;
-using RM_CMS.Controllers.Volunteers;
 using RM_CMS.Data.DTO.Followups;
 using RM_CMS.Data.Models;
 using RM_CMS.Utilities;
