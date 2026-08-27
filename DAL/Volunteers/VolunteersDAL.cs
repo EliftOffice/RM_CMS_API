@@ -1,5 +1,4 @@
-﻿using Dapper;
-using RM_CMS.DAL.CommonDAL;
+using Dapper;
 using RM_CMS.DAL.Peoples;
 using RM_CMS.Data;
 using RM_CMS.Data.DTO;
@@ -25,7 +24,6 @@ namespace RM_CMS.DAL.Volunteers
         Task<ApiResponse<List<VolunteerChatInfoDto>>> GetActiveVolunteersWithChatIdAsync();
 
         // New DAL methods
-        Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync();
         Task<ApiResponse<bool>> UpdateVolunteerTelegramAsync(UpdateVolunteerTelegramDto dto);
 
         // Manual assign to specific volunteer
@@ -42,13 +40,11 @@ namespace RM_CMS.DAL.Volunteers
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
         private readonly IConfiguration _configuration;
-        private readonly ITelegram _telegram;
 
-        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory,IConfiguration config,ITelegram tel)
+        public VolunteersDAL(IDbConnectionFactory dbConnectionFactory, IConfiguration config)
         {
             _dbConnectionFactory = dbConnectionFactory;
             _configuration = config;
-            _telegram = tel;
         }
         public async Task<ApiResponse<AssignedVolunteerDTO>> AssignToVolunteerAsync(string personId)
         {
@@ -813,97 +809,23 @@ WHERE LOWER(email) = @Email;";
             }
         }      
         
-        private async Task SendTelegramMessageAsyncv1(string chatId, string message)
+        /// <summary>
+        /// SUPERSEDED — does nothing. Telegram delivery now belongs to the Notifications
+        /// module: alerts are queued to <c>notification_delivery</c> and sent by the
+        /// <c>send-notifications</c> job, which retries, records an outcome per recipient,
+        /// and never puts the bot token in a URL it might log.
+        ///
+        /// This method used to read the token from <c>system_config</c>, a table the new
+        /// schema dropped, so it has silently sent nothing since the migration. It is kept
+        /// only because the legacy callers (Followups, Nurture, Peoples) still compile
+        /// against it; they are broken at runtime for other reasons and go when they are
+        /// rewritten.
+        /// </summary>
+        public Task SendTelegramMessageAsync(string chatId, string message)
         {
-            try
-            {
-                using var client = new HttpClient();
-
-                //var token = _configuration["Telegram:BotToken"];
-                var token = _telegram.GetTelegramBotToken().Result.Data;
-
-                if (string.IsNullOrEmpty(token)) return;
-
-                var url = $"https://api.telegram.org/bot{token}/sendMessage" +
-                          $"?chat_id={chatId}&text={Uri.EscapeDataString(message)}";
-
-                await client.GetAsync(url);
-            }
-            catch
-            {
-                // Optional: log error (don't break main flow)
-            }
-        }
-
-        public async Task SendTelegramMessageAsync(string chatId, string message)
-        {
-            try
-            {
-                using var client = new HttpClient();
-
-                var token = _telegram.GetTelegramBotToken().Result.Data;
-
-                if (string.IsNullOrEmpty(token)) return;
-
-                var url = $"https://api.telegram.org/bot{token}/sendMessage" +
-                          $"?chat_id={chatId}" +
-                          $"&text={Uri.EscapeDataString(message)}" +
-                          $"&parse_mode=HTML";
-
-                await client.GetAsync(url);
-            }
-            catch(Exception ex)
-            {
-                // Optional: log error
-              
-            }
-        }
-
-        public async Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync()
-        {
-            try
-            {
-               // var token = _configuration["Telegram:BotToken"];
-                var token = _telegram.GetTelegramBotToken().Result.Data;
-                if (string.IsNullOrEmpty(token))
-                    return new ApiResponse<TelegramChatDto>(ResponseType.Error, "Bot token not configured", null);
-
-                using var client = new HttpClient();
-                var url = $"https://api.telegram.org/bot{token}/getUpdates?limit=5";
-                var resp = await client.GetAsync(url);
-                if (!resp.IsSuccessStatusCode)
-                    return new ApiResponse<TelegramChatDto>(ResponseType.Error, "Failed to fetch updates", null);
-
-                var json = await resp.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-                if (root.TryGetProperty("result", out var results) && results.GetArrayLength() > 0)
-                {
-                    // find latest message with chat
-                    for (int i = results.GetArrayLength() - 1; i >= 0; i--)
-                    {
-                        var item = results[i];
-                        if (item.TryGetProperty("message", out var message))
-                        {
-                            if (message.TryGetProperty("chat", out var chat))
-                            {
-                                var chatId = chat.GetProperty("id").GetRawText().Trim('"');
-                                string name = "";
-                                if (chat.TryGetProperty("first_name", out var first)) name = first.GetString();
-                                if (string.IsNullOrEmpty(name) && chat.TryGetProperty("username", out var un)) name = un.GetString();
-
-                                return new ApiResponse<TelegramChatDto>(ResponseType.Success, "Chat found", new TelegramChatDto { ChatId = chatId, Name = name });
-                            }
-                        }
-                    }
-                }
-
-                return new ApiResponse<TelegramChatDto>(ResponseType.Warning, "No chat updates found", null);
-            }
-            catch (Exception ex)
-            {
-                return new ApiResponse<TelegramChatDto>(ResponseType.Error, $"Error fetching updates: {ex.Message}", null);
-            }
+            // Deliberately not an exception: those callers are mid-rewrite, and throwing
+            // here would turn a known-dead notification path into a new crash.
+            return Task.CompletedTask;
         }
 
         public async Task<ApiResponse<bool>> UpdateVolunteerTelegramAsync(UpdateVolunteerTelegramDto dto)

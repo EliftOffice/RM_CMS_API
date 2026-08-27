@@ -1,0 +1,185 @@
+using System.Text;
+using System.Text.Json;
+using Microsoft.Extensions.Options;
+using RM_CMS.Modules.Telegram.Domain;
+
+namespace RM_CMS.Modules.Telegram.Services
+{
+    /// <summary>
+    /// The only thing in the application that talks to the Telegram Bot API.
+    ///
+    /// Controllers and business logic call this; nothing else builds a Telegram URL.
+    /// That matters because the bot token is in every one of those URLs — keeping the
+    /// construction in one place is what stops it reaching a log, an error message or
+    /// an exception trace somewhere else.
+    /// </summary>
+    public interface ITelegramClient
+    {
+        bool IsConfigured { get; }
+
+        /// <summary>The t.me link that opens the bot, with a start payload.</summary>
+        string BuildDeepLink(string startPayload);
+
+        /// <summary>
+        /// Sends a message. Returns false rather than throwing: a failed alert must be
+        /// recorded and moved past, never allowed to roll back the domain transaction
+        /// that raised it.
+        /// </summary>
+        Task<bool> SendMessageAsync(long chatId, string text, CancellationToken cancellationToken = default);
+
+        /// <summary>Registers the webhook with Telegram. Used by the admin setup action.</summary>
+        Task<(bool Ok, string Detail)> SetWebhookAsync(string url, string secretToken, CancellationToken cancellationToken = default);
+
+        /// <summary>What Telegram believes about the current webhook, for diagnostics.</summary>
+        Task<(bool Ok, string Detail)> GetWebhookInfoAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Asks Telegram to identify the bot. This is the only way to prove a token is
+        /// actually valid without waiting for a real user to press Start.
+        /// </summary>
+        Task<(bool Ok, string Detail)> GetMeAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>The configured bot username, for display. Never the token.</summary>
+        string? BotUsername { get; }
+
+        /// <summary>
+        /// Whether a token is present — reported separately from the username so the
+        /// setup screen can say which half is missing. Only ever a boolean.
+        /// </summary>
+        bool HasToken { get; }
+    }
+
+    public sealed class TelegramClient : ITelegramClient
+    {
+        private readonly IHttpClientFactory _httpFactory;
+        private readonly TelegramOptions _options;
+        private readonly ILogger<TelegramClient> _logger;
+
+        public TelegramClient(
+            IHttpClientFactory httpFactory,
+            IOptions<TelegramOptions> options,
+            ILogger<TelegramClient> logger)
+        {
+            _httpFactory = httpFactory;
+            _options = options.Value;
+            _logger = logger;
+        }
+
+        public bool IsConfigured => _options.IsConfigured;
+
+        public string? BotUsername => _options.BotUsername;
+
+        /// <summary>True when a token is present. Never exposes the token itself.</summary>
+        public bool HasToken => !string.IsNullOrWhiteSpace(_options.BotToken);
+
+        public async Task<(bool Ok, string Detail)> GetMeAsync(CancellationToken cancellationToken = default)
+        {
+            if (!HasToken) return (false, "No bot token is configured.");
+
+            return await PostAsync("getMe", "{}", cancellationToken);
+        }
+
+        public string BuildDeepLink(string startPayload) =>
+            $"https://t.me/{_options.BotUsername}?start={Uri.EscapeDataString(startPayload)}";
+
+        public async Task<bool> SendMessageAsync(long chatId, string text, CancellationToken cancellationToken = default)
+        {
+            if (!IsConfigured)
+            {
+                _logger.LogWarning("Telegram message not sent: the bot is not configured.");
+                return false;
+            }
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                chat_id = chatId,
+                text,
+                parse_mode = "HTML",
+                disable_web_page_preview = true
+            });
+
+            return await PostAsync("sendMessage", payload, cancellationToken) is { Ok: true };
+        }
+
+        public async Task<(bool Ok, string Detail)> SetWebhookAsync(
+            string url, string secretToken, CancellationToken cancellationToken = default)
+        {
+            if (!IsConfigured) return (false, "The Telegram bot is not configured.");
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                url,
+                secret_token = secretToken,
+                // Only messages are processed, so asking for anything else would just
+                // be traffic this application discards.
+                allowed_updates = new[] { "message" },
+                drop_pending_updates = true
+            });
+
+            return await PostAsync("setWebhook", payload, cancellationToken);
+        }
+
+        public async Task<(bool Ok, string Detail)> GetWebhookInfoAsync(CancellationToken cancellationToken = default)
+        {
+            if (!IsConfigured) return (false, "The Telegram bot is not configured.");
+
+            return await PostAsync("getWebhookInfo", "{}", cancellationToken);
+        }
+
+        /// <summary>
+        /// One place where the token meets a URL. Failures are logged with the METHOD
+        /// only — never the request URI, which contains the token.
+        /// </summary>
+        private async Task<(bool Ok, string Detail)> PostAsync(
+            string method, string jsonPayload, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var client = _httpFactory.CreateClient(nameof(TelegramClient));
+
+                var uri = $"{_options.ApiBaseUrl.TrimEnd('/')}/bot{_options.BotToken}/{method}";
+
+                using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                using var response = await client.PostAsync(uri, content, cancellationToken);
+
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning(
+                        "Telegram {Method} failed with {StatusCode}: {Body}",
+                        method, (int)response.StatusCode, Sanitise(body));
+
+                    return (false, Sanitise(body));
+                }
+
+                return (true, Sanitise(body));
+            }
+            catch (Exception ex)
+            {
+                // Deliberately does not log the exception's full detail: an
+                // HttpRequestException can carry the request URI, and the URI carries
+                // the token.
+                _logger.LogError("Telegram {Method} threw {Type}: {Message}",
+                    method, ex.GetType().Name, Sanitise(ex.Message));
+
+                return (false, "Could not reach Telegram.");
+            }
+        }
+
+        /// <summary>
+        /// Last-resort guard: strips the token if it ever appears in a response or
+        /// message that is about to be logged or returned.
+        /// </summary>
+        private string Sanitise(string? value)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+
+            var token = _options.BotToken;
+
+            return string.IsNullOrWhiteSpace(token)
+                ? value
+                : value.Replace(token, "***", StringComparison.Ordinal);
+        }
+    }
+}

@@ -191,7 +191,15 @@ namespace RM_CMS.Modules.Care.Api
 
             return Ok(new ApiResponse<object>(ResponseType.Success, "Reference data", new
             {
-                outcomes = outcomes.Select(o => new { code = o.Code, label = o.Label }),
+                // contactMade / opensEscalation let the contact form decide which
+                // follow-on questions to ask without hardcoding outcome codes.
+                outcomes = outcomes.Select(o => new
+                {
+                    code = o.Code,
+                    label = o.Label,
+                    contactMade = o.ContactMade,
+                    opensEscalation = o.OpensEscalation
+                }),
                 intents = intents.Select(i => new { code = i.Code, label = i.Label }),
                 methods = methods.Select(m => new { code = m.Code, label = m.Label }),
                 escalationReasons = reasons.Select(r => new { code = r.Code, label = r.Label, requiresProtocol = r.RequiresProtocol }),
@@ -222,6 +230,20 @@ namespace RM_CMS.Modules.Care.Api
             [FromQuery] bool mine = false)
         {
             return Ok(await _care.SearchEscalationsAsync(page, pageSize, status, mine));
+        }
+
+        /// <summary>
+        /// One escalation in full — what the team lead reads before acting on it.
+        /// Carries the row version that <see cref="Resolve"/> requires.
+        /// </summary>
+        [HttpGet("{id}")]
+        [ProducesResponseType(typeof(ApiResponse<EscalationDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<EscalationDto>>> Get(string id)
+        {
+            if (!Ulid.IsValid(id))
+                return BadRequest(new ApiResponse<EscalationDto>(ResponseType.Warning, "Invalid escalation id.", null!));
+
+            return HttpResponseHelper.CreateHttpResponse(await _care.GetEscalationAsync(id));
         }
 
         /// <summary>Takes ownership. The case stays paused until it is resolved.</summary>

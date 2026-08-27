@@ -39,10 +39,24 @@ namespace RM_CMS.Modules.Care.Data
         Task<(bool OpensEscalation, bool SchedulesRetry, bool ContactMade, string? DefaultTier)?>
             GetOutcomeBehaviourAsync(string code);
 
-        Task<IReadOnlyList<(string Code, string Label)>> GetOutcomesAsync();
+        /// <summary>
+        /// Outcomes with the two flags a contact form needs to drive itself:
+        /// whether the visitor was actually spoken to (so the intent question is
+        /// relevant) and whether the outcome opens an escalation (so the reason is
+        /// asked for). Serving these keeps the screen from hardcoding which codes
+        /// mean what.
+        /// </summary>
+        Task<IReadOnlyList<(string Code, string Label, bool ContactMade, bool OpensEscalation)>> GetOutcomesAsync();
         Task<IReadOnlyList<(string Code, string Label)>> GetIntentsAsync();
         Task<IReadOnlyList<(string Code, string Label)>> GetContactMethodsAsync();
         Task<IReadOnlyList<(string Code, string Label, bool RequiresProtocol)>> GetEscalationReasonsAsync();
+
+        /// <summary>
+        /// The tier and protocol flag for one reason. Used when raising an escalation
+        /// so a disclosure of abuse or self-harm is filed at the severity its reason
+        /// demands, not the severity the outcome happened to suggest.
+        /// </summary>
+        Task<(string Tier, bool RequiresProtocol)?> GetEscalationReasonAsync(string code);
         Task<IReadOnlyList<(string Code, string Label)>> GetEscalationOutcomesAsync();
 
         Task<int> GetIntSettingAsync(string key, int fallback);
@@ -204,8 +218,16 @@ namespace RM_CMS.Modules.Care.Data
             return row;
         }
 
-        public async Task<IReadOnlyList<(string Code, string Label)>> GetOutcomesAsync() =>
-            await CodeLabelAsync("SELECT code AS Code, label AS Label FROM care_outcome WHERE is_active = 1 ORDER BY sort_order;");
+        public async Task<IReadOnlyList<(string Code, string Label, bool ContactMade, bool OpensEscalation)>> GetOutcomesAsync()
+        {
+            const string sql = @"
+                SELECT code AS Code, label AS Label,
+                       contact_made AS ContactMade, opens_escalation AS OpensEscalation
+                FROM care_outcome WHERE is_active = 1 ORDER BY sort_order;";
+
+            using var connection = _dbFactory.GetConnection();
+            return (await connection.QueryAsync<(string, string, bool, bool)>(sql)).ToList();
+        }
 
         public async Task<IReadOnlyList<(string Code, string Label)>> GetIntentsAsync() =>
             await CodeLabelAsync("SELECT code AS Code, label AS Label FROM visitor_intent WHERE is_active = 1 ORDER BY sort_order;");
@@ -224,6 +246,21 @@ namespace RM_CMS.Modules.Care.Data
 
             using var connection = _dbFactory.GetConnection();
             return (await connection.QueryAsync<(string, string, bool)>(sql)).ToList();
+        }
+
+        public async Task<(string Tier, bool RequiresProtocol)?> GetEscalationReasonAsync(string code)
+        {
+            const string sql = @"
+                SELECT default_tier AS Tier, requires_protocol AS RequiresProtocol
+                FROM escalation_reason
+                WHERE code = @Code AND is_active = 1
+                LIMIT 1;";
+
+            using var connection = _dbFactory.GetConnection();
+
+            var row = await connection.QueryFirstOrDefaultAsync<(string, bool)?>(sql, new { Code = code });
+
+            return row is null ? null : (row.Value.Item1, row.Value.Item2);
         }
 
         private async Task<IReadOnlyList<(string Code, string Label)>> CodeLabelAsync(string sql)

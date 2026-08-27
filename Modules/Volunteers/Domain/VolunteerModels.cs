@@ -68,9 +68,58 @@ namespace RM_CMS.Modules.Volunteers.Domain
         public DateTime UpdatedAt { get; set; }
         public int RowVersion { get; set; }
 
-        /// <summary>True when this volunteer can currently be given work.</summary>
+        // ---- reachability ----
+        //
+        // Not stored on `volunteer`: both are facts about the PERSON that can change
+        // without anyone touching the volunteer row. A stored flag would be stale the
+        // moment somebody disconnects Telegram, and the staleness would be invisible.
+
+        /// <summary>They have an active login, so they can see the work.</summary>
+        public bool HasLogin { get; set; }
+
+        /// <summary>They have a verified Telegram contact, so they can be told about it.</summary>
+        public bool HasTelegram { get; set; }
+
+        /// <summary>
+        /// Whether this volunteer can actually be worked with.
+        ///
+        /// A case handed to someone who cannot sign in and cannot be messaged is not
+        /// assigned, it is lost: nobody sees it, no reminder reaches anyone, and the
+        /// case sits looking healthy because it has a name against it. That is worse
+        /// than leaving it unassigned, where the queue at least shows it waiting.
+        /// </summary>
+        public bool IsReachable => HasLogin && HasTelegram;
+
+        /// <summary>
+        /// True when this volunteer can currently be given work.
+        ///
+        /// ACTIVE alone is not enough — a volunteer must also be reachable. The status
+        /// column records an intention; reachability records whether that intention can
+        /// be acted on, and only the pair means "assignable".
+        /// </summary>
         public bool IsAvailable =>
-            string.Equals(Status, VolunteerStatus.Active, StringComparison.Ordinal);
+            string.Equals(Status, VolunteerStatus.Active, StringComparison.Ordinal) &&
+            IsReachable;
+
+        /// <summary>
+        /// Why this volunteer cannot be given work, for a refusal a team lead can act
+        /// on. Empty when they are assignable.
+        /// </summary>
+        public IReadOnlyList<string> BlockingReasons()
+        {
+            var reasons = new List<string>();
+
+            if (!string.Equals(Status, VolunteerStatus.Active, StringComparison.Ordinal))
+                reasons.Add($"Status is {Status}, not ACTIVE.");
+
+            if (!HasLogin)
+                reasons.Add("No active login — they cannot sign in to see assigned cases.");
+
+            if (!HasTelegram)
+                reasons.Add("No verified Telegram contact — reminders cannot reach them.");
+
+            return reasons;
+        }
 
         /// <summary>Spare capacity before the band's weekly ceiling is reached.</summary>
         public int RemainingCapacity => Math.Max(0, CapacityMaxPerWeek - CurrentCaseLoad);

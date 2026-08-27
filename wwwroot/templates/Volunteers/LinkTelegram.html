@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Connect Telegram - RM CMS</title>
+
+    <link rel="icon" href="../assets/Images/favicon.ico">
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../../templates/assets/js/api-config.js"></script>
+    <script src="../../templates/assets/js/toast.js"></script>
+    <script src="../../templates/assets/js/auth.js"></script>
+
+    <style>
+        /* Mirrors ChangePassword.html: this is its sibling in the post-sign-in flow,
+           so the two screens should feel like one sequence. */
+        body {
+            background: #f4f6f9;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .tg-card {
+            background: #fff;
+            width: 100%;
+            max-width: 430px;
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0,0,0,.08);
+            padding: 32px 28px;
+        }
+
+        .tg-title { font-size: 21px; font-weight: 600; margin-bottom: 6px; color: #1f2937; }
+        .tg-sub { font-size: 14px; color: #6b7280; margin-bottom: 20px; line-height: 1.55; }
+
+        .tg-btn {
+            display: block;
+            width: 100%;
+            margin-top: 18px;
+            padding: 12px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            box-sizing: border-box;
+        }
+
+        .tg-btn:hover { background: #1d4ed8; }
+        .tg-btn:disabled { background: #9ca3af; cursor: default; }
+
+        .tg-btn-secondary {
+            background: none;
+            color: #6b7280;
+            font-weight: 500;
+            border: 1px solid #d1d5db;
+        }
+
+        .tg-btn-secondary:hover { background: #f9fafb; color: #374151; }
+
+        .tg-steps {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 14px 16px 14px 30px;
+            margin: 18px 0 0;
+        }
+
+        .tg-steps li { font-size: 13px; color: #4b5563; line-height: 1.9; }
+
+        .tg-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            margin-top: 18px;
+        }
+
+        .tg-waiting { background: #eff6ff; color: #1e40af; }
+        .tg-ok      { background: #ecfdf5; color: #047857; }
+        .tg-warn    { background: #fffbeb; color: #b45309; }
+
+        .tg-hint { font-size: 12px; color: #9ca3af; margin-top: 14px; text-align: center; }
+
+        .spinner {
+            width: 14px; height: 14px;
+            border: 2px solid rgba(30,64,175,.25);
+            border-top-color: #1e40af;
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+            flex: none;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="tg-card">
+
+        <div class="tg-title">Connect Telegram</div>
+        <div class="tg-sub" id="intro">
+            RM CMS sends follow-up reminders and urgent alerts through Telegram.
+            Connecting takes a few seconds and only needs doing once.
+        </div>
+
+        <!-- before starting -->
+        <div id="startBlock">
+            <button type="button" class="tg-btn" id="connectBtn">Connect Telegram</button>
+        </div>
+
+        <!-- after a link has been issued -->
+        <div id="linkBlock" style="display:none">
+            <a class="tg-btn" id="openTelegramBtn" href="#" target="_blank" rel="noopener">Open Telegram</a>
+
+            <ol class="tg-steps">
+                <li>Telegram opens on the RM CMS bot.</li>
+                <li>Press <strong>Start</strong>.</li>
+                <li>Come back here — this page updates on its own.</li>
+            </ol>
+
+            <div class="tg-status tg-waiting" id="waiting">
+                <span class="spinner"></span>
+                <span>Waiting for you to press Start…</span>
+            </div>
+
+            <div class="tg-hint" id="expiryHint"></div>
+        </div>
+
+        <!-- connected -->
+        <div id="doneBlock" style="display:none">
+            <div class="tg-status tg-ok">
+                <span>&#10003;</span>
+                <span id="doneText">Connected.</span>
+            </div>
+            <button type="button" class="tg-btn" id="continueBtn">Continue</button>
+        </div>
+
+        <!-- telegram not configured on the server -->
+        <div id="unavailableBlock" style="display:none">
+            <div class="tg-status tg-warn">
+                <span>Telegram is not set up yet. An administrator needs to configure the bot.</span>
+            </div>
+        </div>
+
+        <button type="button" class="tg-btn tg-btn-secondary" id="skipBtn" style="display:none">
+            Skip for now
+        </button>
+
+    </div>
+
+    <script src="../assets/js/link-telegram.js"></script>
+
+</body>
+</html>

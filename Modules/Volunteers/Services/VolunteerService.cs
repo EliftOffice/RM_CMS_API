@@ -275,6 +275,24 @@ namespace RM_CMS.Modules.Volunteers.Services
             if (!BurnoutRisk.IsKnown(request.BurnoutRisk))
                 return Warn<VolunteerDto>($"Unknown burnout risk '{request.BurnoutRisk}'.");
 
+            // A volunteer may only be made ACTIVE once they can actually be worked
+            // with: a login to see the case, and a verified Telegram to be told about
+            // it. Marking somebody active without those produces a volunteer the
+            // assignment picker will never return — active on the screen, invisible to
+            // the system — and the team lead has no way to see why.
+            //
+            // The eligibility query enforces the same rule independently, because
+            // reachability can lapse after activation (somebody disconnects Telegram).
+            // This check is what makes the refusal explainable at the moment of the
+            // decision rather than silent later.
+            if (string.Equals(request.Status, VolunteerStatus.Active, StringComparison.Ordinal) &&
+                !volunteer.IsReachable)
+            {
+                return Warn<VolunteerDto>(
+                    $"{volunteer.FullName} cannot be set active yet. " +
+                    string.Join(" ", volunteer.BlockingReasons()));
+            }
+
             // Standing a volunteer down while they still hold open cases would orphan
             // those people silently. Refuse and say what has to happen first — the
             // team lead reassigns, then stands them down.

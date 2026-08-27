@@ -1,245 +1,260 @@
-// siteadmin.js
+/*
+ * Settings and scheduled work.
+ *
+ * Rewritten onto the new API. The previous version called:
+ *   /api/systemconfig                      -> system_config table, dropped
+ *   /api/cornjobs/*                        -> legacy jobs, replaced by /api/jobs/*
+ *   /api/notifications/broadcast/volunteers -> never rebuilt
+ * All three returned errors against the current schema, which is why the screen
+ * appeared broken rather than merely empty.
+ *
+ * The broadcast panel is deliberately NOT reinstated. Notifications are queued but
+ * nothing sends them yet, so a "Send to all volunteers" button would report success
+ * while reaching nobody — worse than not offering it.
+ *
+ *   GET /api/admin/settings   grouped rules with type and bounds
+ *   PUT /api/admin/settings   batch save, all-or-nothing validation
+ *   POST /api/jobs/{name}     run a sweep now
+ */
+$(function () {
+    'use strict';
 
-$(document).ready(function () {
-    loadSystemConfig();
+    var JOBS = [
+        { route: 'assign-unassigned',  title: 'Assign new people',
+          blurb: 'Gives unassigned cases to the least-loaded volunteer with capacity.' },
+        { route: 'advance-nurture',    title: 'Advance nurture',
+          blurb: 'Creates the next contact for anyone whose step has fallen due.' },
+        { route: 'mark-overdue',       title: 'Mark overdue contacts',
+          blurb: 'Marks planned contacts that are past their date as missed.' },
+        { route: 'chase-escalations',  title: 'Chase escalations',
+          blurb: 'Reminds the team lead about unacknowledged concerns, then the pastor.' }
+    ];
 
-    // Handle "Save All" button click
-    $('#saveAllBtn').on('click', function () {
-        saveAllConfigs();
+    var esc = AdminShell.escapeHtml;
+    var original = {};   // key -> value as loaded
+    var meta = {};       // key -> setting definition
+
+    AdminShell.boot({
+        roles: ['ADMIN'],
+        active: { href: '/templates/Admin/siteadmin.html', area: 'Admin' }
+    }).then(function (ok) {
+        if (!ok) return;
+        $('#pageBody').prop('hidden', false);
+        renderJobs();
+        loadSettings();
+        $('#saveBtn').on('click', save);
+        $('#resetBtn').on('click', function () { loadSettings(); });
     });
 
-    // Handle individual "Save" button clicks (delegated event)
-    $('#configTableBody').on('click', '.save-btn', function () {
-        const key = $(this).data('key');
-        const value = $(`#config-value-${key}`).val();
-        const config = {
-            configKey: key,
-            configValue: value
-        };
-        saveSingleConfig(config);
-    });
+    // ---------------------------------------------------------------- jobs
 
-    // Handle broadcast button click
-    $('#sendBroadcastBtn').on('click', function () {
-        sendBroadcastMessage();
-    });
+    function renderJobs() {
+        $('#jobGrid').html(JOBS.map(function (j) {
+            return '<div class="job-card">' +
+                     '<h3>' + esc(j.title) + '</h3>' +
+                     '<p>' + esc(j.blurb) + '</p>' +
+                     '<button type="button" class="btn btn-sm" data-job="' + esc(j.route) + '">Run now</button>' +
+                     '<div class="job-result" data-result="' + esc(j.route) + '"></div>' +
+                   '</div>';
+        }).join(''));
 
-    // Maintenance job buttons
-    $('#sendRemindersBtn').on('click', function () {
-        if (!confirm('Execute reminders job now?')) return;
-        const btn = $(this);
-        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...');
+        $('#jobGrid').on('click', 'button[data-job]', function () {
+            var route = $(this).data('job');
+            var $btn = $(this);
+            var $out = $('[data-result="' + route + '"]');
 
-        $.ajax({
-            url: `${API_BASE_URL}/cornjobs/send-reminders`,
-            type: 'POST',
-            contentType: 'application/json',
-            success: function (response) {
-                // if API uses ApiResponse wrapper
-                if (response && (response.responseType === 0 || response.success)) {
-                    showToast(response.message || 'Reminders executed', 'success');
-                } else {
-                    const msg = response?.message || 'Reminders executed';
-                    showToast(msg, 'success');
-                }
-            },
-            error: function (xhr) {
-                const errorMsg = xhr.responseJSON?.message || xhr.responseText || 'Server error';
-                showToast(`Error executing reminders: ${errorMsg}`, 'error');
-            },
-            complete: function () {
-                btn.prop('disabled', false).text('Send Reminders');
-            }
+            $btn.prop('disabled', true);
+            $out.text('Running…');
+
+            $.ajax({ url: API_BASE_URL + '/jobs/' + route, method: 'POST' })
+                .done(function (res) {
+                    $btn.prop('disabled', false);
+
+                    var report = res && res.data;
+
+                    if (!report) {
+                        $out.text((res && res.message) || 'No result.');
+                        showToast((res && res.message) || 'The job did not run.', 'warning');
+                        return;
+                    }
+
+                    // Notes carry the explanation — "nothing waiting", "no volunteer
+                    // with spare capacity at campus X" — which is usually the answer
+                    // the administrator actually wanted.
+                    var summary = report.processed + ' processed, ' +
+                                  report.skipped + ' skipped, ' +
+                                  report.failed + ' failed';
+
+                    $out.html(esc(summary) +
+                        (report.notes && report.notes.length
+                            ? '<div>' + esc(report.notes.join(' · ')) + '</div>'
+                            : ''));
+
+                    showToast(summary, report.failed > 0 ? 'warning' : 'success');
+                })
+                .fail(function (xhr) {
+                    $btn.prop('disabled', false);
+                    $out.text('Could not run.');
+                    showToast(xhr.status === 403
+                        ? 'You do not have permission to run jobs.'
+                        : 'Could not run that job.', 'error');
+                });
         });
-    });
+    }
 
-    $('#assignNewPeopleBtn').on('click', function () {
-        if (!confirm('Assign new people now?')) return;
-        const btn = $(this);
-        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...');
+    // ---------------------------------------------------------------- settings
 
-        $.ajax({
-            url: `${API_BASE_URL}/cornjobs/assign-new-people`,
-            type: 'POST',
-            contentType: 'application/json',
-            success: function (response) {
-                if (response && (response.responseType === 0 || response.success)) {
-                    showToast(response.message || 'Assign job executed', 'success');
-                } else {
-                    const msg = response?.message || 'Assign job executed';
-                    showToast(msg, 'success');
+    function loadSettings() {
+        $('#settingsError').prop('hidden', true);
+
+        $.ajax({ url: API_BASE_URL + '/admin/settings', method: 'GET' })
+            .done(function (res) {
+                var groups = (res && res.data) || [];
+
+                if (!groups.length) {
+                    $('#settingsBody').html('<p class="empty">No settings are configured.</p>');
+                    return;
                 }
-            },
-            error: function (xhr) {
-                const errorMsg = xhr.responseJSON?.message || xhr.responseText || 'Server error';
-                showToast(`Error assigning new people: ${errorMsg}`, 'error');
-            },
-            complete: function () {
-                btn.prop('disabled', false).text('Assign New People');
-            }
-        });
-    });
-});
 
-function loadSystemConfig() {
-    const tableBody = $('#configTableBody');
-    tableBody.html(`
-        <tr>
-            <td colspan="4" class="text-center">
-                <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-            </td>
-        </tr>
-    `);
+                original = {};
+                meta = {};
 
-    $.ajax({
-        url: `${API_BASE_URL}/systemconfig`,
-        type: 'GET',
-        contentType: 'application/json',
-        success: function (response) {
-            if (response.responseType === 0 && response.data) { // Success
-                populateConfigTable(response.data);
-            } else {
-                showToast(`Failed to load config: ${response.message || 'Unknown error'}`, 'error');
-                tableBody.html('<tr><td colspan="4" class="text-center text-danger">Error loading data.</td></tr>');
-            }
-        },
-        error: function (xhr) {
-            showToast(`Error fetching config: ${xhr.statusText || 'Server error'}`, 'error');
-            tableBody.html('<tr><td colspan="4" class="text-center text-danger">Error loading data.</td></tr>');
-        }
-    });
-}
+                $('#settingsBody').html(groups.map(function (g) {
+                    return '<h3 class="card-title" style="margin:18px 0 4px;">' + esc(g.label) + '</h3>' +
+                           g.settings.map(renderSetting).join('');
+                }).join(''));
 
-function sendBroadcastMessage() {
-    const message = $('#broadcastMessage').val();
-    if (!message.trim()) {
-        showToast('Message cannot be empty.', 'warning');
-        return;
-    }
+                groups.forEach(function (g) {
+                    g.settings.forEach(function (s) {
+                        original[s.key] = s.value;
+                        meta[s.key] = s;
+                    });
+                });
 
-    if (!confirm('Are you sure you want to send this message to all volunteers?')) {
-        return;
-    }
-
-    const button = $('#sendBroadcastBtn');
-    button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...');
-
-    $.ajax({
-        url: `${API_BASE_URL}/notifications/broadcast/volunteers`,
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ message: message }),
-        success: function (response) {
-            if (response.responseType === 0) { // Success
-                showToast(response.message, 'success');
-                $('#broadcastMessage').val(''); // Clear textarea on success
-            } else {
-                showToast(`Failed to send broadcast: ${response.message}`, 'error');
-            }
-        },
-        error: function (xhr) {
-            const errorMsg = xhr.responseJSON ? xhr.responseJSON.message : 'Server error';
-            showToast(`An error occurred: ${errorMsg}`, 'error');
-        },
-        complete: function () {
-            button.prop('disabled', false).html('Send to All Volunteers');
-        }
-    });
-}
-
-function populateConfigTable(configs) {
-    const tableBody = $('#configTableBody');
-    tableBody.empty(); // Clear spinner
-
-    if (configs.length === 0) {
-        tableBody.html('<tr><td colspan="4" class="text-center">No configuration settings found.</td></tr>');
-        return;
-    }
-
-    configs.forEach(config => {
-        const row = `
-            <tr data-key="${config.configKey}">
-                <td><code>${config.configKey}</code></td>
-                <td class="table-description">${config.description || 'N/A'}</td>
-                <td>
-                    <input type="text" class="form-control" id="config-value-${config.configKey}" value="${config.configValue}">
-                </td>
-                <td class="text-center">
-                    <button class="btn btn-sm btn-outline-secondary save-btn" data-key="${config.configKey}">Save</button>
-                </td>
-            </tr>
-        `;
-        tableBody.append(row);
-    });
-}
-
-function saveSingleConfig(config) {
-    // Show saving indicator
-    const button = $(`.save-btn[data-key="${config.configKey}"]`);
-    button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
-
-    $.ajax({
-        url: `${API_BASE_URL}/systemconfig`,
-        type: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify([config]), // Send as an array
-        success: function (response) {
-            if (response.responseType === 0) { // Success
-                showToast(`Setting '${config.configKey}' saved successfully.`, 'success');
-            } else {
-                showToast(`Failed to save '${config.configKey}': ${response.message}`, 'error');
-            }
-        },
-        error: function (xhr) {
-            showToast(`Error saving '${config.configKey}': ${xhr.statusText || 'Server error'}`, 'error');
-        },
-        complete: function () {
-            // Restore button
-            button.prop('disabled', false).html('Save');
-        }
-    });
-}
-
-function saveAllConfigs() {
-    const configsToSave = [];
-    $('#configTableBody tr').each(function () {
-        const key = $(this).data('key');
-        if (key) {
-            const value = $(`#config-value-${key}`).val();
-            configsToSave.push({
-                configKey: key,
-                configValue: value
+                wireInputs();
+                refreshDirty();
+            })
+            .fail(function (xhr) {
+                $('#settingsBody').html('<p class="empty">Could not load settings.</p>');
+                fail(xhr.status === 403
+                    ? 'You do not have permission to view settings.'
+                    : 'Could not load settings.');
             });
-        }
-    });
-
-    if (configsToSave.length === 0) {
-        showToast('No settings to save.', 'warning');
-        return;
     }
 
-    const saveAllButton = $('#saveAllBtn');
-    saveAllButton.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+    function renderSetting(s) {
+        var bounds = '';
 
-    $.ajax({
-        url: `${API_BASE_URL}/systemconfig`,
-        type: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify(configsToSave),
-        success: function (response) {
-            if (response.responseType === 0) { // Success
-                showToast('All configuration settings saved successfully.', 'success');
-            } else {
-                showToast(`Failed to save settings: ${response.message}`, 'error');
-            }
-        },
-        error: function (xhr) {
-            showToast(`An error occurred while saving: ${xhr.statusText || 'Server error'}`, 'error');
-        },
-        complete: function () {
-            saveAllButton.prop('disabled', false).html('Save All Changes');
+        if (s.minValue !== null && s.minValue !== undefined &&
+            s.maxValue !== null && s.maxValue !== undefined) {
+            bounds = 'between ' + s.minValue + ' and ' + s.maxValue;
         }
-    });
-}
+
+        var control;
+
+        if (s.valueType === 'BOOLEAN') {
+            control = '<select class="input setting-input" data-key="' + esc(s.key) + '"' +
+                        (s.isEditable ? '' : ' disabled') + '>' +
+                        '<option value="true"' + (s.value === 'true' ? ' selected' : '') + '>Yes</option>' +
+                        '<option value="false"' + (s.value === 'false' ? ' selected' : '') + '>No</option>' +
+                      '</select>';
+        } else {
+            control = '<input class="input setting-input" data-key="' + esc(s.key) + '"' +
+                        ' type="' + (s.valueType === 'INTEGER' || s.valueType === 'DECIMAL' ? 'number' : 'text') + '"' +
+                        (s.minValue !== null && s.minValue !== undefined ? ' min="' + s.minValue + '"' : '') +
+                        (s.maxValue !== null && s.maxValue !== undefined ? ' max="' + s.maxValue + '"' : '') +
+                        ' value="' + esc(s.value) + '"' +
+                        (s.isEditable ? '' : ' disabled') + '>';
+        }
+
+        return '<div class="setting-row">' +
+                 '<div>' +
+                   '<div class="setting-label">' + esc(s.label) + '</div>' +
+                   (s.description ? '<div class="setting-desc">' + esc(s.description) + '</div>' : '') +
+                   '<div class="setting-key">' + esc(s.key) + '</div>' +
+                   (bounds ? '<div class="setting-bounds">' + esc(bounds) + '</div>' : '') +
+                   '<div class="setting-error" data-error="' + esc(s.key) + '"></div>' +
+                 '</div>' +
+                 '<div>' + control + '</div>' +
+               '</div>';
+    }
+
+    function wireInputs() {
+        $('.setting-input').on('input change', function () {
+            var key = $(this).data('key');
+            $(this).toggleClass('changed', String($(this).val()) !== original[key]);
+            $(this).removeClass('invalid');
+            $('[data-error="' + key + '"]').text('');
+            refreshDirty();
+        });
+    }
+
+    function dirtyKeys() {
+        return $('.setting-input').filter(function () {
+            return String($(this).val()) !== original[$(this).data('key')];
+        }).map(function () { return $(this).data('key'); }).get();
+    }
+
+    function refreshDirty() {
+        var count = dirtyKeys().length;
+
+        $('#saveBtn').prop('disabled', count === 0);
+        $('#resetBtn').prop('disabled', count === 0);
+        $('#changeCount').text(count === 0 ? 'No changes' : count + ' unsaved change(s)');
+    }
+
+    function save() {
+        var keys = dirtyKeys();
+        if (!keys.length) return;
+
+        var payload = keys.map(function (key) {
+            return { Key: key, Value: String($('.setting-input[data-key="' + cssEscape(key) + '"]').val()) };
+        });
+
+        $('#saveBtn').prop('disabled', true).text('Saving…');
+        $('#settingsError').prop('hidden', true);
+
+        $.ajax({
+            url: API_BASE_URL + '/admin/settings',
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ Settings: payload })
+        })
+            .done(function (res) {
+                $('#saveBtn').text('Save changes');
+
+                var data = res && res.data;
+
+                // The server validates the batch as a whole, so a rejection means
+                // NOTHING was saved — say so, and point at the offending fields.
+                if (data && data.rejected && data.rejected.length) {
+                    data.rejected.forEach(function (r) {
+                        $('.setting-input[data-key="' + cssEscape(r.key) + '"]').addClass('invalid');
+                        $('[data-error="' + cssEscape(r.key) + '"]').text(r.reason);
+                    });
+
+                    fail(res.message || 'Nothing was saved — some values are not valid.');
+                    refreshDirty();
+                    return;
+                }
+
+                showToast(res.message || 'Saved', 'success');
+                loadSettings();
+            })
+            .fail(function (xhr) {
+                $('#saveBtn').prop('disabled', false).text('Save changes');
+                var body = xhr.responseJSON;
+                fail((body && (body.message || body.title)) || 'Could not save settings.');
+            });
+    }
+
+    function fail(message) {
+        $('#settingsError').text(message).prop('hidden', false);
+        showToast(message, 'warning');
+    }
+
+    /** Setting keys contain dots, which are class selectors inside an attribute filter. */
+    function cssEscape(value) {
+        return String(value).replace(/(["\\])/g, '\\$1');
+    }
+});

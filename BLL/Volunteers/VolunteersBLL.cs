@@ -1,4 +1,4 @@
-﻿using RM_CMS.DAL.Peoples;
+using RM_CMS.DAL.Peoples;
 using RM_CMS.DAL.Volunteers;
 using RM_CMS.Data.DTO;
 using RM_CMS.Data.DTO.Jobs;
@@ -22,7 +22,6 @@ namespace RM_CMS.BLL.Volunteers
         Task<ApiResponse<string>> UpdateVolunteerMobileAsync(UpdateVolunteerMobileDto dto);
 
         // New methods
-        Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync();
         Task<ApiResponse<bool>> UpdateVolunteerTelegramAsync(UpdateVolunteerTelegramDto dto);
 
         Task<ApiResponse<List<VolunteerPendingAssignmentDto>>> GetVolunteersWithPendingAssignmentsAsync();
@@ -352,18 +351,6 @@ namespace RM_CMS.BLL.Volunteers
                     $"Error updating mobile: {ex.Message}",
                     null
                 );
-            }
-        }
-
-        public async Task<ApiResponse<TelegramChatDto>> GetLatestTelegramChatAsync()
-        {
-            try
-            {
-                return await ((VolunteersDAL)_volunteersDAL).GetLatestTelegramChatAsync();
-            }
-            catch (Exception ex)
-            {
-                return new ApiResponse<TelegramChatDto>(ResponseType.Error, $"Error fetching latest telegram chat: {ex.Message}", null);
             }
         }
 

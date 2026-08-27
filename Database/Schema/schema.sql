@@ -1080,6 +1080,16 @@ CREATE TABLE care_interaction (
     -- What the visitor wants next. Captured alongside the outcome; together they
     -- decide the next stage via nurture_entry_rule.
     intent_code         VARCHAR(30)     NULL,
+
+    -- Team huddle: the lead's weekly verdict on the volunteer's escalation
+    -- judgement. NULL means not yet assessed, which is what the huddle queue
+    -- selects on. The note is kept because a verdict with no reasoning teaches
+    -- nobody and cannot be referred back to at the volunteer's check-in.
+    escalation_assessment VARCHAR(20)   NULL,
+    assessment_note     VARCHAR(500)    NULL,
+    assessed_by         BIGINT UNSIGNED NULL,
+    assessed_at         DATETIME(3)     NULL,
+
     duration_minutes    SMALLINT UNSIGNED NULL,
     notes               TEXT            NULL,
 
@@ -1090,6 +1100,12 @@ CREATE TABLE care_interaction (
     row_version         INT UNSIGNED    NOT NULL DEFAULT 1,
 
     PRIMARY KEY (id),
+    KEY ix_interaction_assessment (escalation_assessment, occurred_at),
+    CONSTRAINT fk_interaction_assessor FOREIGN KEY (assessed_by) REFERENCES user_account (id),
+    CONSTRAINT ck_interaction_assessment CHECK (
+        escalation_assessment IS NULL OR
+        escalation_assessment IN ('CORRECT','UNDER_ESCALATED','OVER_ESCALATED')
+    ),
     UNIQUE KEY ux_care_interaction_public_id (public_id),
     UNIQUE KEY ux_care_interaction_sequence  (care_case_id, stage, sequence_number),
     KEY ix_care_interaction_case      (care_case_id, occurred_at),
@@ -1292,6 +1308,40 @@ CREATE TABLE app_setting (
     CONSTRAINT ck_app_setting_type CHECK (
         value_type IN ('STRING','INTEGER','DECIMAL','BOOLEAN','JSON')
     )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- One-time tokens that connect a Telegram account to a person.
+--
+-- The MVP linked Telegram by calling getUpdates and taking whichever chat had
+-- messaged the bot most recently. With two people connecting at once that
+-- silently attached the wrong chat id, and from then on one person's crisis
+-- alerts went to a stranger. The token removes the race: it names exactly one
+-- person before Telegram is ever opened.
+--
+-- Only the SHA-256 of the token is stored, as with refresh_token: a database
+-- leak must not yield tokens that can still be redeemed. The token itself never
+-- contains the person id, so a link cannot be reversed into a database key.
+CREATE TABLE telegram_link_token (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    person_id       BIGINT UNSIGNED NOT NULL,
+    token_hash      CHAR(64)        NOT NULL,   -- SHA-256 hex of a 32-byte token
+    issued_at       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    expires_at      DATETIME(3)     NOT NULL,
+    used_at         DATETIME(3)     NULL,
+    issued_by       BIGINT UNSIGNED NULL,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY ux_telegram_link_token_hash (token_hash),
+    -- Covers "the live token for this person", so issuing a new one can retire
+    -- any earlier unused token rather than leaving several valid at once.
+    KEY ix_telegram_link_token_person (person_id, used_at, expires_at),
+
+    CONSTRAINT fk_telegram_link_token_person
+        FOREIGN KEY (person_id) REFERENCES person (id) ON DELETE CASCADE,
+    CONSTRAINT fk_telegram_link_token_issuer
+        FOREIGN KEY (issued_by) REFERENCES user_account (id),
+    CONSTRAINT ck_telegram_link_token_expiry CHECK (expires_at > issued_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
@@ -1519,7 +1569,15 @@ INSERT INTO app_setting (setting_key, setting_value, value_type, category, descr
     ('health.green_threshold',           '90',   'INTEGER', 'HEALTH',     'Completion rate %% for a green flag',                             0,  100),
     ('health.amber_threshold',           '75',   'INTEGER', 'HEALTH',     'Completion rate %% for an amber flag',                            0,  100),
     ('team.max_span_full_time',          '12',   'INTEGER', 'TEAM',       'Maximum volunteers for a full-time team lead',                    1,   50),
-    ('team.max_span_player_coach',       '8',    'INTEGER', 'TEAM',       'Maximum volunteers for a player-coach team lead',                 1,   50);
+    ('team.max_span_player_coach',       '8',    'INTEGER', 'TEAM',       'Maximum volunteers for a player-coach team lead',                 1,   50),
+    -- Off by default: turning this on before the bot is configured would lock
+    -- every unlinked user out of the application.
+    ('huddle.day_of_week',               '6',    'INTEGER', 'HUDDLE',     'Team huddle day (1=Mon ... 7=Sun)',                               1,    7),
+    ('huddle.lookback_days',             '7',    'INTEGER', 'HUDDLE',     'How many days of contacts the huddle reviews',                    1,   60),
+    ('huddle.reminder_hour',             '8',    'INTEGER', 'HUDDLE',     'Hour (UTC) the huddle reminder is sent on the day',               0,   23),
+    ('huddle.remind_volunteers',         'true', 'BOOLEAN', 'HUDDLE',     'Also remind the volunteers, not just the lead',                   NULL, NULL),
+    ('telegram.require_linking',         'false','BOOLEAN', 'TELEGRAM',   'Require users to connect Telegram before using the application',  NULL, NULL),
+    ('telegram.link_token_minutes',      '30',   'INTEGER', 'TELEGRAM',   'How long a Telegram linking link stays valid',                    5,  1440);
 
 -- NOTE: no telegram bot token, no signing key, no connection string. Those are
 -- supplied as environment variables and must never be inserted here.

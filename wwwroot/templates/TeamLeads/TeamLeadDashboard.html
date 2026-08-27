@@ -9,6 +9,9 @@
     <script src="../assets/js/api-config.js"></script>
     <script src="../assets/js/utils.js"></script>
     <script src="../assets/js/toast.js"></script>
+    <link href="../assets/css/teamlead-shell.css" rel="stylesheet">
+    <script>window.TL_PAGE = 'dashboard';</script>
+    <script src="../assets/js/teamlead-shell.js"></script>
     <script src="../assets/js/teamlead.js"></script>
     <script src="../assets/js/auth.js"></script>
 
@@ -576,6 +579,62 @@
         }
 
         /* Bootstrap overrides */
+        /* ── Header buttons ──────────────────────────────────────────────
+           Three weights, so the bar reads at a glance. They were all
+           btn-secondary with inline margins, which made Sign out look exactly
+           like Assign — a row of identical grey pills with no hierarchy.
+             .hbtn-primary   the action this screen exists for
+             .hbtn           a normal move to another screen
+             .hbtn-quiet     leaving — set apart, never the brightest thing
+           ---------------------------------------------------------------- */
+        .hbtn, .hbtn-primary, .hbtn-quiet {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 32px;
+            padding: 0 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: background var(--t), border-color var(--t), color var(--t);
+            white-space: nowrap;
+        }
+
+        .hbtn { background: var(--white); border-color: var(--border); color: var(--text); }
+
+            .hbtn:hover {
+                background: var(--primary-light);
+                border-color: var(--primary-light);
+                color: var(--primary-dark);
+            }
+
+        .hbtn-primary { background: var(--primary); color: var(--white); }
+
+            .hbtn-primary:hover { background: var(--primary-hover); color: var(--white); }
+
+        .hbtn-quiet {
+            background: transparent;
+            color: var(--muted);
+            /* Separated from the navigation buttons so Sign out is never clicked
+               by muscle memory aimed at the button beside it. */
+            margin-left: 6px;
+            border-left: 1px solid var(--border);
+            border-radius: 0 8px 8px 0;
+            padding-left: 14px;
+        }
+
+            .hbtn-quiet:hover { color: var(--danger); }
+
+        @media (max-width: 640px) {
+            .page-header { flex-wrap: wrap; }
+            .header-right { width: 100%; justify-content: flex-start; }
+            .hbtn-quiet { margin-left: auto; border-left: none; }
+        }
+
         .btn-primary {
             background: var(--primary) !important;
             border-color: var(--primary) !important;
@@ -638,33 +697,8 @@
 <body>
 
     <!-- ── Header ── -->
-    <div class="page-header">
-        <div class="header-left">
-            <div class="header-logo">
-                <img src="../assets/Images/logo.jpeg" alt="RM"
-                     onerror="this.style.display='none';this.parentElement.textContent='R'">
-            </div>
-            <div class="header-title-wrap">
-                <div class="page-title">Team Lead Dashboard</div>
-                <div class="page-subtitle" id="dashboardSubtitle">Week of --</div>
-            </div>
-        </div>
-        <div class="header-right">
-            <div class="load-group">
-                <!--<label>Team Lead ID:</label>
-                <input id="teamLeadId" placeholder="Enter ID" />
-                <button id="loadMetrics">Load</button>-->
-                <!-- Team Huddle button (visible on Fridays via JS) -->
-                <!--<button id="teamHuddleBtn" class="btn btn-outline-primary" style="display:none; margin-left:8px;">Team Huddle (Fri)</button>-->
-                <!-- Click to Assign link -->
-                <a id="lnk_manual" href="../Peoples/ManualAssignments.html" class="btn btn-sm btn-secondary" style="margin-left:8px;">Assign</a>
-                <span id="btn_add_volunteer" class="btn btn-sm btn-secondary" style="margin-left:8px;">Add New Volunteer</span>
-                <a href="../Volunteers/Login.html" class="btn btn-sm btn-secondary" style="margin-left:8px;">Logout</a>
-            </div>
-        </div>
-    </div>
+    <div id="tlShell"></div>
 
-    <!-- ── Page Body ── -->
     <div class="page-body">
 
         <!-- Dashboard Title -->
@@ -753,6 +787,7 @@
                             <span class="badge bg-warning text-dark" id="nurtureOverdueCount">Overdue Steps: 0</span>
                             <span class="badge bg-danger" id="nurtureReviewCount">Awaiting Decision: 0</span>
                         </div>
+                        <div id="nurtureList" style="margin-bottom:10px;"></div>
                         <button class="btn btn-sm btn-outline-secondary" id="viewNurtureBtn">View Details</button>
                     </div>
                 </div>
@@ -793,8 +828,10 @@
                                     <th>Response</th>
                                     <th>Attempt Date</th>
                                     <th>Notes</th>
+                                    <!-- The verdict. The per-row Update button that
+                                         used to sit beside it is gone: the whole
+                                         sitting saves at once from the footer. -->
                                     <th>Escalation</th>
-                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>

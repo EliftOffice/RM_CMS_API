@@ -16,46 +16,45 @@ $(document).ready(function () {
     //});
 
     // ── Load Team Leads ───────────────────────────────────────────────────────
+    /**
+     * The dropdown lists TEAMS, not team leads.
+     *
+     * In v2 a volunteer belongs to a team (volunteer.team_id) and the team names its
+     * lead (team.lead_user_id). The MVP pointed volunteers straight at a team_leads
+     * row, so when a lead left, every volunteer under them had to be rewritten. The
+     * label still shows the lead's name, because that is who people think of.
+     */
     function loadTeamLeads() {
         $.ajax({
-            url: API_BASE_URL + "/TeamLeadDashBoards/team-leads",
+            url: API_BASE_URL + "/teams",
             method: "GET",
             success: function (res) {
                 const dropdown = $("#teamLead");
                 dropdown.empty();
-                dropdown.append('<option value="">Select TeamLead</option>');
+                dropdown.append('<option value="">Select Team</option>');
 
-                if (res && res.data && res.data.length > 0) {
-                    res.data.forEach(function (tl) {
-                        const id =
-                            tl.team_lead_id || tl.teamLeadId || tl.TeamLeadId ||
-                            tl.team_lead || tl.teamLead || '';
+                const teams = (res && res.data) || [];
 
-                        let name =
-                            tl.name || tl.team_lead_name || tl.teamLeadName ||
-                            tl.TeamLeadName || '';
+                teams.forEach(function (t) {
+                    const label = t.leadName
+                        ? t.name + " (" + t.leadName + ")"
+                        : t.name;
 
-                        if (!name) {
-                            const first = tl.first_name || tl.FirstName || tl.firstName || '';
-                            const last = tl.last_name || tl.LastName || tl.lastName || '';
-                            name = (first + ' ' + last).trim();
-                        }
+                    // Full teams stay listed but are marked, so the reason a choice is
+                    // a bad one is visible rather than the option simply missing.
+                    dropdown.append(
+                        '<option value="' + t.id + '">' +
+                            label + " — " + t.memberCount + "/" + t.maxMembers +
+                            (t.hasRoom ? "" : " (full)") +
+                        "</option>");
+                });
 
-                        if (!name) name = tl.email || tl.Email || id || 'TeamLead';
-
-                        dropdown.append(`<option value="${id}">${name}</option>`);
-                    });
-                    if (TLID !== "" && TLID !== null) {
-
-                        $("#teamLead")
-                            .val(TLID)
-                            .attr("disabled", true);
-                    }
+                if (!teams.length) {
+                    dropdown.append('<option value="" disabled>No teams yet</option>');
                 }
             },
             error: function () {
-                if (window.showToast) showToast("Failed to load TeamLeads", "error");
-                else showMessage("Failed to load TeamLeads", "error");
+                $("#teamLead").html('<option value="">Teams unavailable</option>');
             }
         });
     }

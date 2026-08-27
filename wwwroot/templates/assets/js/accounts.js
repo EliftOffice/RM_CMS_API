@@ -114,7 +114,8 @@
 
             if (mustChange) status += '<span class="badge badge-warn">Must set password</span>';
 
-            return '<tr data-id="' + esc(id) + '">' +
+            return '<tr data-id="' + esc(id) + '" data-username="' +
+                       esc(RmAuth.pick(a, 'username') || '') + '">' +
                 '<td><div class="cell-name">' + esc(RmAuth.pick(a, 'fullName') || '—') + '</div></td>' +
                 '<td>' + esc(RmAuth.pick(a, 'username') || '') + '</td>' +
                 '<td>' + roleBadges + '</td>' +
@@ -169,6 +170,22 @@
 
     function openModal(id) { $('#' + id).addClass('open'); }
     function closeModal(id) { $('#' + id).removeClass('open'); }
+
+    /**
+     * The identifiers the server refuses to see inside a password: the username and
+     * each part of the person's name. Split on whitespace because the server checks
+     * GivenName and FamilyName separately, and only the parts of four characters or
+     * more matter — "Kumar" is what rejects "Prasanthkumar@1234".
+     */
+    function identifiersFor(editing) {
+        if (!editing) return [];
+
+        var parts = String(editing.name || '').split(/\s+/).filter(Boolean);
+
+        if (editing.username) parts.push(String(editing.username));
+
+        return parts;
+    }
 
     function showCredential(password, who) {
         $('#credentialValue').text(password);
@@ -279,7 +296,7 @@
                 var action = $(this).data('act');
                 var name = $row.find('.cell-name').text();
 
-                state.editing = { id: id, name: name };
+                state.editing = { id: id, name: name, username: $row.data('username') };
 
                 if (action === 'roles') {
                     var current = $row.find('.badge-role').map(function () {
@@ -298,6 +315,15 @@
                     $('#resetPassword').val('');
                     $('#forceChange').prop('checked', true);
                     $('#passwordFor').text(name);
+
+                    // Pass the account's identifiers so the rule people actually trip
+                    // over — "must not contain the username or name" — is checked as
+                    // the administrator types, not after the server refuses.
+                    PasswordPolicy.attach(
+                        document.getElementById('resetPassword'),
+                        document.getElementById('passwordRulesList'),
+                        identifiersFor(state.editing));
+
                     openModal('passwordModal');
                 }
 

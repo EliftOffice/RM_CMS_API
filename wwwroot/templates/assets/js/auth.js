@@ -31,7 +31,18 @@
     var CHANGE_PASSWORD_PAGE = '/templates/Volunteers/ChangePassword.html';
 
     // Endpoints that must never trigger the refresh-and-retry loop.
-    var AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/refresh', '/api/auth/logout'];
+    //
+    // These are the anonymous ones. The interceptor demands a token for anything
+    // NOT listed here and rejects with "Not authenticated" when there is none — so
+    // an anonymous endpoint missing from this list fails on exactly the pages that
+    // have no session yet (sign-in, change-password), which is where it is needed.
+    // Keep it in step with the [AllowAnonymous] actions on AuthController.
+    var AUTH_ENDPOINTS = [
+        '/api/auth/login',
+        '/api/auth/refresh',
+        '/api/auth/logout',
+        '/api/auth/password-policy'
+    ];
 
     function apiBase() {
         return (typeof API_BASE_URL !== 'undefined')
@@ -162,6 +173,69 @@
         window.location.href = origin() + LOGIN_PAGE;
     }
 
+    function retryAfter(response) {
+        var header = response.headers && response.headers.get('Retry-After');
+        var seconds = parseInt(header, 10);
+
+        return isNaN(seconds) ? null : seconds;
+    }
+
+    /**
+     * Turns a failed sign-in into something the person can act on.
+     *
+     * The old behaviour reported "Sign-in failed." for anything without a `message`
+     * field. A rate-limit response is RFC 7807 ProblemDetails, which has `title` and
+     * `detail` but no `message` — so being locked out for five minutes looked exactly
+     * like a wrong password, and the natural response (try again immediately) was the
+     * one thing guaranteed not to work.
+     *
+     * Note the deliberate asymmetry: a genuine credential failure still gets the
+     * server's single generic message, because distinguishing "no such user" from
+     * "wrong password" would let someone enumerate accounts. Only the failures that
+     * are NOT about credentials are explained.
+     */
+    function describeLoginFailure(response, body) {
+        var serverMessage = pick(body, 'message');
+
+        if (response.status === 429) {
+            var seconds = retryAfter(response);
+
+            if (seconds && seconds > 0) {
+                var minutes = Math.ceil(seconds / 60);
+                return 'Too many sign-in attempts. Please wait ' +
+                       (minutes > 1 ? minutes + ' minutes' : 'a minute') + ' and try again.';
+            }
+
+            return 'Too many sign-in attempts. Please wait a few minutes and try again.';
+        }
+
+        if (response.status === 400) {
+            // Model-binding failure: the field rules, not the credentials.
+            var problems = body && body.errors;
+
+            if (problems) {
+                for (var key in problems) {
+                    if (Object.prototype.hasOwnProperty.call(problems, key) && problems[key].length) {
+                        return problems[key][0];
+                    }
+                }
+            }
+
+            return serverMessage || 'Check the mobile number and password and try again.';
+        }
+
+        if (response.status === 403) {
+            return 'This account is not allowed to sign in. Contact an administrator.';
+        }
+
+        if (response.status >= 500) {
+            return 'The server had a problem signing you in. Try again shortly.';
+        }
+
+        // Credential failures land here and keep the server's generic wording.
+        return serverMessage || pick(body, 'detail') || 'Sign-in failed.';
+    }
+
     function login(username, password, deviceLabel) {
         return window.fetch(apiBase() + '/auth/login', {
             method: 'POST',
@@ -173,15 +247,14 @@
                 DeviceLabel: deviceLabel || navigator.userAgent.substring(0, 100)
             })
         }).then(function (response) {
-            return response.json().then(function (body) {
+            return response.json().catch(function () { return null; }).then(function (body) {
                 var payload = unwrap(body);
 
                 if (!response.ok || !payload) {
                     return {
                         success: false,
-                        // The server deliberately returns one generic message for every
-                        // failure mode; surface it verbatim rather than guessing.
-                        message: pick(body, 'message') || 'Sign-in failed.'
+                        message: describeLoginFailure(response, body),
+                        retryAfterSeconds: retryAfter(response)
                     };
                 }
 

@@ -91,6 +91,18 @@ namespace RM_CMS.Modules.Volunteers.Data
                   WHERE pc.person_id = p.id AND pc.contact_type = 'EMAIL'
                   ORDER BY pc.is_primary DESC, pc.id LIMIT 1)  AS PrimaryEmail,
 
+                -- Reachability, derived rather than stored. Both can change without
+                -- the volunteer row being touched, so a stored copy would go stale
+                -- silently — and silently is exactly how a case gets handed to
+                -- somebody who will never see it.
+                EXISTS (SELECT 1 FROM user_account ua
+                         WHERE ua.person_id = p.id AND ua.is_active = 1)   AS HasLogin,
+                EXISTS (SELECT 1 FROM person_contact tg
+                         WHERE tg.person_id = p.id
+                           AND tg.contact_type = 'TELEGRAM'
+                           AND tg.is_verified = 1
+                           AND tg.opted_out_at IS NULL)                    AS HasTelegram,
+
                 v.campus_id                AS CampusId,
                 c.public_id                AS CampusPublicId,
                 c.name                     AS CampusName,
@@ -214,10 +226,24 @@ namespace RM_CMS.Modules.Volunteers.Data
             // RAND() as the tie-break, which made assignment non-reproducible and
             // impossible to explain to a volunteer asking why they got a case.
             // Ordering by last_assigned_at spreads work fairly AND deterministically.
+            //
+            // REACHABILITY IS PART OF ELIGIBILITY. A volunteer with no active login
+            // cannot see the case, and one with no verified Telegram cannot be told
+            // about it. Assigning to either produces a case that looks handled and is
+            // not — worse than leaving it in the unassigned queue, where it is at
+            // least visibly waiting. The status column alone does not catch this,
+            // because somebody can disconnect Telegram long after being marked ACTIVE.
             const string sql = SelectVolunteer + @"
             WHERE p.deleted_at IS NULL
               AND v.campus_id = @CampusId
               AND v.status = 'ACTIVE'
+              AND EXISTS (SELECT 1 FROM user_account ua
+                           WHERE ua.person_id = p.id AND ua.is_active = 1)
+              AND EXISTS (SELECT 1 FROM person_contact tg
+                           WHERE tg.person_id = p.id
+                             AND tg.contact_type = 'TELEGRAM'
+                             AND tg.is_verified = 1
+                             AND tg.opted_out_at IS NULL)
               AND v.current_case_load < cb.max_per_week
               AND (@CrisisCapable = 0 OR (
                        v.crisis_trained_on         IS NOT NULL
@@ -494,8 +520,18 @@ namespace RM_CMS.Modules.Volunteers.Data
         private static async Task<string> NextReferenceCodeAsync(IDbConnection connection, IDbTransaction transaction)
         {
             const string sql = @"
+                -- LPAD TRUNCATES when the value is longer than the width, so a
+                -- plain LPAD(n, 3) silently returns the first 3 characters once the
+                -- sequence outgrows it. The MVP's codes carried the year
+                -- (P2026149), which is seven digits, so every generated code came
+                -- back as 'V2026' and the second intake collided on the unique
+                -- key — no visitor could be recorded at all. GREATEST keeps the
+                -- padding for small numbers and gets out of the way for large ones.
                 SELECT CONCAT('V', LPAD(
-                    IFNULL(MAX(CAST(SUBSTRING(reference_code, 2) AS UNSIGNED)), 0) + 1, 3, '0'))
+                    IFNULL(MAX(CAST(SUBSTRING(reference_code, 2) AS UNSIGNED)), 0) + 1,
+                    GREATEST(3, CHAR_LENGTH(
+                        IFNULL(MAX(CAST(SUBSTRING(reference_code, 2) AS UNSIGNED)), 0) + 1)),
+                    '0'))
                 FROM volunteer
                 WHERE reference_code REGEXP '^V[0-9]+$'
                 FOR UPDATE;";

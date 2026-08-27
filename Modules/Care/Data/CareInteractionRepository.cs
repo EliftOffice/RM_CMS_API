@@ -64,6 +64,15 @@ namespace RM_CMS.Modules.Care.Data
                 vi.label            AS IntentLabel,
                 ci.duration_minutes AS DurationMinutes,
                 ci.notes            AS Notes,
+
+                -- How many steps this case's nurture plan has, so a screen can render
+                -- a step-of-total badge without assuming a fixed length. Plans are
+                -- per-campus and editable, so a hardcoded total goes wrong silently
+                -- the first time somebody adds a plan of a different size.
+                (SELECT MAX(nps.step_number) FROM nurture_plan_step nps
+                  WHERE nps.nurture_plan_id = cc.nurture_plan_id
+                    AND nps.is_active = 1)  AS NurtureTotalSteps,
+
                 ci.created_at       AS CreatedAt,
                 ci.row_version      AS RowVersion
             FROM care_interaction ci

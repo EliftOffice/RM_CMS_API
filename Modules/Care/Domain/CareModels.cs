@@ -110,6 +110,13 @@ namespace RM_CMS.Modules.Care.Domain
         public string? IntentCode { get; set; }
         public string? IntentLabel { get; set; }
 
+        /// <summary>
+        /// Steps in the plan this case is following, so a screen can render
+        /// "Step 2 of 5" rather than assuming a length. Null when the case is not on
+        /// a nurture plan.
+        /// </summary>
+        public int? NurtureTotalSteps { get; set; }
+
         public int? DurationMinutes { get; set; }
         public string? Notes { get; set; }
 

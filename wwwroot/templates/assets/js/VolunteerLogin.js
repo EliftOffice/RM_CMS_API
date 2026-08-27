@@ -14,25 +14,44 @@ $(document).ready(function () {
     var $form = $('#loginForm');
     var $overlay = $('#loadingOverlay');
     var $button = $('#loginBtn');
+    var $error = $('#loginError');
+    var $mobile = $('#mobile');
+    var $password = $('#password');
 
     // If a valid refresh cookie is still present, skip the form entirely.
     RmAuth.refresh().then(function (ok) {
         if (ok) navigateForUser(RmAuth.getUser());
     });
 
+    // Clear a stale failure as soon as the user starts correcting it — leaving the
+    // message up while they retype makes it look like the new attempt failed too.
+    $form.on('input', 'input', clearError);
+
+    $('#revealPassword').on('click', function () {
+        var reveal = $password.attr('type') === 'password';
+
+        $password.attr('type', reveal ? 'text' : 'password');
+        $(this).attr('aria-pressed', reveal ? 'true' : 'false')
+               .text(reveal ? 'Hide' : 'Show');
+
+        $password.focus();
+    });
+
     $form.on('submit', function (e) {
         e.preventDefault();
 
-        var mobile = $('#mobile').val().trim();
-        var password = $('#password').val();
+        var mobile = $mobile.val().trim();
+        var password = $password.val();
+
+        clearError();
 
         if (!/^\d{10}$/.test(mobile)) {
-            showToast('Enter a valid 10-digit mobile number', 'warning');
+            showError('Enter a valid 10-digit mobile number.', $mobile);
             return;
         }
 
         if (!password) {
-            showToast('Enter your password', 'warning');
+            showError('Enter your password.', $password);
             return;
         }
 
@@ -45,8 +64,8 @@ $(document).ready(function () {
                 if (!result.success) {
                     // One generic message for every failure mode — the server does not
                     // reveal whether the account exists, so neither does the UI.
-                    showToast(result.message || 'Invalid mobile number or password', 'error');
-                    $('#password').val('').focus();
+                    showError(result.message || 'Invalid mobile number or password.', $password);
+                    $password.val('');
                     return;
                 }
 
@@ -59,20 +78,82 @@ $(document).ready(function () {
                 }
 
                 showToast('Signed in successfully', 'success');
-                setTimeout(function () { navigateForUser(result.user); }, 500);
+                setTimeout(function () { continueAfterSignIn(result.user); }, 500);
             })
             .catch(function () {
                 setBusy(false);
-                showToast('Sign-in failed. Please try again.', 'error');
+                showError('Sign-in failed. Please check your connection and try again.');
             });
     });
 
     /**
-     * Routes to the landing page for the account's highest-privilege role.
+     * Sends the user on after a successful sign-in.
+     *
+     * Telegram linking sits in the same position as the password screen: a one-time
+     * step between signing in and reaching the application. Whether it can be skipped
+     * is an administrator setting, so this only decides whether to SHOW it — the page
+     * itself honours the setting.
+     *
+     * Any failure here falls through to the normal landing page. A status check that
+     * cannot answer must never be what stops somebody working.
+     */
+    function continueAfterSignIn(account) {
+        var target = landingPageFor(account);
+
+        if (!target) return;    // no role; landingPageFor has already explained
+
+        $.ajax({ url: API_BASE_URL + '/telegram/status', method: 'GET', timeout: 4000 })
+            .done(function (res) {
+                var status = (res && res.data) || {};
+
+                if (status.isLinked || !status.isConfigured) {
+                    window.location.href = target;
+                    return;
+                }
+
+                // Remembered so the linking page can hand control straight to the page
+                // this account would otherwise have landed on.
+                sessionStorage.setItem('rm_post_login_target', target);
+                window.location.href = '/templates/Volunteers/LinkTelegram.html';
+            })
+            .fail(function () { window.location.href = target; });
+    }
+
+    /**
+     * Shows a failure in the inline region AND as a toast. The inline region is the
+     * accessible one — it carries role="alert", stays on screen, and sits next to the
+     * field it concerns; the toast just catches the eye.
+     */
+    function showError(message, $focusField) {
+        $error.text(message).addClass('is-visible');
+        showToast(message, 'error');
+
+        if ($focusField && $focusField.length) {
+            $focusField.attr('aria-invalid', 'true').focus();
+        }
+    }
+
+    function clearError() {
+        $error.removeClass('is-visible').text('');
+        $mobile.removeAttr('aria-invalid');
+        $password.removeAttr('aria-invalid');
+    }
+
+    /** Routes to the landing page for the account's highest-privilege role. */
+    function navigateForUser(account) {
+        var target = landingPageFor(account);
+        if (target) window.location.href = target;
+    }
+
+    /**
+     * The landing page for the account's highest-privilege role, or null when there
+     * is none. Separated from the navigation itself so the sign-in flow can hold the
+     * destination while an intermediate step (password, Telegram) runs first.
+     *
      * Ids come from the authenticated profile, never from user input.
      */
-    function navigateForUser(account) {
-        if (!account) { showToast('Unable to load your profile', 'error'); return; }
+    function landingPageFor(account) {
+        if (!account) { showToast('Unable to load your profile', 'error'); return null; }
 
         // Role codes are ADMIN / PASTOR / TEAM_LEAD / VOLUNTEER / DATA_ENTRY, and
         // arrive as grants ({ roleCode, campusId }) because a role can be scoped
@@ -97,23 +178,29 @@ $(document).ready(function () {
             target = '../../templates/Peoples/PeopleEntry.html';
         } else {
             showToast('Your account has no assigned role. Contact an administrator.', 'error');
-            return;
+            return null;
         }
 
-        window.location.href = target;
+        return target;
     }
 
     function setBusy(busy) {
         if (busy) {
-            $overlay.css('display', 'flex');
-            $button.prop('disabled', true);
+            $overlay.css('display', 'flex').attr('aria-hidden', 'false');
+            $button.prop('disabled', true).text('Signing in…');
+            $mobile.prop('disabled', true);
+            $password.prop('disabled', true);
         } else {
-            $overlay.hide();
-            $button.prop('disabled', false);
+            $overlay.hide().attr('aria-hidden', 'true');
+            $button.prop('disabled', false).text('Sign in');
+            $mobile.prop('disabled', false);
+            $password.prop('disabled', false);
         }
     }
 
     $('#forgotLink').on('click', function () {
+        // Self-service reset does not exist: an administrator issues passwords through
+        // POST /api/admin/accounts/{id}/password. Saying so plainly beats a dead link.
         showToast('Contact an administrator to reset your password.', 'info');
     });
 });

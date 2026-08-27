@@ -250,3 +250,74 @@ body {
 
 .pager { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--line); }
 .pager-info { font-size: 12.5px; color: var(--ink-muted); }
+
+/* ---------------------------------------------------- password policy */
+/* Shown wherever a password is set, so the rules are stated up front rather
+   than discovered one rejection at a time. */
+.pw-rules {
+    background: var(--canvas);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-top: 14px;
+}
+
+.pw-rules-title {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-muted);
+}
+
+.pw-rules ul { margin: 0; padding-left: 18px; }
+
+.pw-rules li {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    line-height: 1.7;
+}
+
+/* Ticked live as the candidate password satisfies each rule. Rules that cannot
+   be checked in the browser (history, "not a common password") stay neutral
+   rather than claiming a pass the server has not agreed to. */
+.pw-rules li.ok     { color: var(--ok); }
+.pw-rules li.ok::marker { content: '✓ '; }
+.pw-rules li.server { color: var(--ink-muted); font-style: italic; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   NARROW VIEWPORTS
+
+   This file had no media queries at all — the admin chrome was written for
+   a desktop and assumed one. `.shell` is a fixed-height flex row that cannot
+   wrap, so on a phone the nav and the signed-in badge together ran past the
+   right edge and EVERY admin page scrolled sideways.
+
+   These rules apply only below the width where that already happens, so they
+   can only improve a layout that was broken. Team leads are the most likely
+   people to open this on a phone, which is what surfaced it.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+    .shell {
+        flex-wrap: wrap;
+        height: auto;
+        gap: 8px 16px;
+        padding: 10px 16px;
+    }
+
+    /* The nav takes its own line rather than competing with the user badge
+       for the same row. */
+    .shell-nav {
+        flex-basis: 100%;
+        flex-wrap: wrap;
+        order: 3;
+    }
+
+    .page { padding: 16px 12px; }
+
+    .page-head { flex-wrap: wrap; }
+
+    /* A table is the one thing here that genuinely cannot fit. It scrolls
+       inside its own container so the PAGE does not — see .table-wrap on the
+       pages that use one. */
+    .table th, .table td { padding-left: 12px; padding-right: 12px; }
+}

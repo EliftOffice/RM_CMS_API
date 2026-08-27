@@ -680,8 +680,18 @@ namespace RM_CMS.Modules.Care.Data
         private static async Task<string> NextReferenceCodeAsync(IDbConnection connection, IDbTransaction transaction)
         {
             const string sql = @"
+                -- LPAD TRUNCATES when the value is longer than the width, so a
+                -- plain LPAD(n, 5) silently returns the first 5 characters once the
+                -- sequence outgrows it. The MVP's codes carried the year
+                -- (P2026149), which is seven digits, so every generated code came
+                -- back as 'C2026' and the second intake collided on the unique
+                -- key — no visitor could be recorded at all. GREATEST keeps the
+                -- padding for small numbers and gets out of the way for large ones.
                 SELECT CONCAT('C', LPAD(
-                    IFNULL(MAX(CAST(SUBSTRING(reference_code, 2) AS UNSIGNED)), 0) + 1, 5, '0'))
+                    IFNULL(MAX(CAST(SUBSTRING(reference_code, 2) AS UNSIGNED)), 0) + 1,
+                    GREATEST(5, CHAR_LENGTH(
+                        IFNULL(MAX(CAST(SUBSTRING(reference_code, 2) AS UNSIGNED)), 0) + 1)),
+                    '0'))
                 FROM care_case
                 WHERE reference_code REGEXP '^C[0-9]+$'
                 FOR UPDATE;";

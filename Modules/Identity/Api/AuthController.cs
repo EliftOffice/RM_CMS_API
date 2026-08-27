@@ -175,6 +175,65 @@ namespace RM_CMS.Modules.Identity.Api
             return HttpResponseHelper.CreateHttpResponse(result);
         }
 
+        /// <summary>
+        /// The password rules, so a screen can state them up front instead of letting
+        /// the user discover them one rejection at a time.
+        ///
+        /// Served from the same <see cref="AuthOptions"/> the validator reads, so the
+        /// rules shown and the rules enforced cannot drift apart. Anonymous because the
+        /// change-password screen is reachable before a session is fully established,
+        /// and because password *requirements* are not secret — publishing them costs
+        /// nothing an attacker could not learn by trying.
+        /// </summary>
+        [HttpGet("password-policy")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<PasswordPolicyDto>), StatusCodes.Status200OK)]
+        public ActionResult<ApiResponse<PasswordPolicyDto>> PasswordPolicy()
+        {
+            var policy = new PasswordPolicyDto
+            {
+                MinLength = _options.PasswordMinLength,
+                MaxLength = _options.PasswordMaxLength,
+                RequireUppercase = _options.RequireUppercase,
+                RequireLowercase = _options.RequireLowercase,
+                RequireDigit = _options.RequireDigit,
+                RequireNonAlphanumeric = _options.RequireNonAlphanumeric,
+                HistoryCount = _options.PasswordHistoryCount
+            };
+
+            policy.Rules = BuildRuleList(policy);
+
+            return Ok(new ApiResponse<PasswordPolicyDto>(
+                ResponseType.Success, "Password policy", policy));
+        }
+
+        /// <summary>
+        /// Human-readable rules in the order a person would check them. Kept beside the
+        /// flags so a screen can render the list without restating the logic.
+        /// </summary>
+        private static List<string> BuildRuleList(PasswordPolicyDto p)
+        {
+            var rules = new List<string>
+            {
+                $"At least {p.MinLength} characters long"
+            };
+
+            if (p.RequireUppercase)       rules.Add("At least one uppercase letter (A-Z)");
+            if (p.RequireLowercase)       rules.Add("At least one lowercase letter (a-z)");
+            if (p.RequireDigit)           rules.Add("At least one number (0-9)");
+            if (p.RequireNonAlphanumeric) rules.Add("At least one special character (for example @ # ! $)");
+
+            // The two that surprise people, so they are stated explicitly rather than
+            // discovered by rejection.
+            rules.Add("Must not contain the account's username, first name or last name");
+            rules.Add("Must not be a common or predictable password");
+
+            if (p.HistoryCount > 0)
+                rules.Add($"Must not be one of the last {p.HistoryCount} passwords used");
+
+            return rules;
+        }
+
         // ------------------------------------------------------------------
         // Cookie handling
         // ------------------------------------------------------------------

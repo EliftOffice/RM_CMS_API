@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>People pipeline - RM CMS</title>
+    <link rel="icon" href="../assets/Images/favicon.ico">
+    <link href="../assets/css/teamlead-shell.css" rel="stylesheet">
+    <link href="../assets/css/toast.css" rel="stylesheet">
+    <script>window.TL_PAGE = 'pipeline';</script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <!-- auth.js: attaches the bearer token to every API call -->
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/toast.js"></script>
+    <script src="../assets/js/teamlead-shell.js"></script>
+    <script src="../assets/js/pipeline.js"></script>
+
+    <style>
+        /* ── The funnel ──────────────────────────────────────────────────────
+           Laid out in journey order so the drop-off is visible as a shape
+           rather than having to be read off five separate numbers. */
+        .funnel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .funnel-stage {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: border-color var(--t), background var(--t);
+            text-align: left;
+            font-family: var(--font);
+        }
+
+            .funnel-stage:hover { border-color: var(--primary); }
+
+            .funnel-stage.is-active {
+                border-color: var(--primary);
+                background: var(--primary-light);
+            }
+
+        .funnel-count { font-size: 22px; font-weight: 700; line-height: 1.1; }
+        .funnel-label { font-size: 11px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+
+        /* ── Filters ── */
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 16px;
+        }
+
+            .filters .tl-field { margin-bottom: 0; flex: 1 1 200px; min-width: 0; }
+
+        /* ── Row detail ── */
+        .stage-pill {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .stage-INTAKE { background: #eef2ff; color: #3730a3; }
+        .stage-INITIAL_FOLLOW_UP { background: #ecfeff; color: #155e75; }
+        .stage-NURTURE { background: var(--primary-light); color: var(--primary-dark); }
+        .stage-REVIEW { background: #fef9c3; color: #854d0e; }
+        .stage-CLOSED { background: var(--surface); color: var(--muted); }
+        .stage-none { background: var(--surface); color: var(--muted); }
+
+        .cell-ref { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; color: var(--muted); }
+        .cell-name { font-weight: 600; }
+        .cell-muted { color: var(--muted); font-size: 12.5px; }
+
+        /* A bar rather than a number: "3 of 7" is a fact, the bar is a glance. */
+        .progress-wrap { display: flex; align-items: center; gap: 8px; min-width: 92px; }
+
+        .progress-track {
+            flex: 1;
+            height: 5px;
+            background: var(--border);
+            border-radius: 999px;
+            overflow: hidden;
+            min-width: 44px;
+        }
+
+        .progress-fill { height: 100%; background: var(--primary); border-radius: 999px; }
+
+        .stale { color: #b91c1c; font-weight: 600; }
+
+        .pager { display: flex; gap: 10px; align-items: center; justify-content: center; padding: 14px; }
+
+        @media (max-width: 640px) {
+            .funnel { grid-template-columns: repeat(2, 1fr); }
+            .funnel-count { font-size: 18px; }
+            .filters .tl-field { flex: 1 1 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="tlShell"></div>
+
+    <div class="tl-body">
+
+        <h1 class="tl-page-title">People pipeline</h1>
+        <p class="tl-page-sub" id="scopeLine">Everyone on file and where their journey has reached.</p>
+
+        <!-- ── Funnel ── -->
+        <div class="funnel" id="funnel"></div>
+
+        <!-- ── Filters ── -->
+        <div class="filters">
+            <div class="tl-field">
+                <label class="tl-label" for="search">Search</label>
+                <input type="text" id="search" class="tl-input" placeholder="Name, phone or case reference" />
+            </div>
+            <div class="tl-field" style="flex:0 1 180px;">
+                <label class="tl-label" for="stageFilter">Stage</label>
+                <select id="stageFilter" class="tl-select">
+                    <option value="">All stages</option>
+                    <option value="INTAKE">Intake</option>
+                    <option value="INITIAL_FOLLOW_UP">Initial follow-up</option>
+                    <option value="NURTURE">Nurture</option>
+                    <option value="REVIEW">Review</option>
+                    <option value="CLOSED">Closed</option>
+                </select>
+            </div>
+            <button class="tl-secondary" id="clearBtn">Clear</button>
+        </div>
+
+        <!-- ── The list ── -->
+        <div class="tl-card">
+            <div class="tl-card-head">
+                <div class="tl-card-icon">&#128101;</div>
+                <h2 class="tl-card-title">People</h2>
+                <span class="tl-card-note" id="resultCount"></span>
+            </div>
+            <div class="tl-card-body is-flush">
+                <div class="tl-scroll">
+                    <table class="tl-table" id="pipelineTable">
+                        <thead>
+                            <tr>
+                                <th>Person</th>
+                                <th>Case</th>
+                                <th>Stage</th>
+                                <th>Volunteer</th>
+                                <th>Nurture</th>
+                                <th>Last contact</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="6" class="tl-empty">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pager" id="pager"></div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

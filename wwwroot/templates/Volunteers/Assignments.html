@@ -622,30 +622,52 @@
                     </div>-->
                 </div>
 
-                <!-- Response Type (hidden when Not Contacted) -->
+                <!-- How the contact was made. The system supports call, visit, SMS,
+                     WhatsApp, Telegram and email; the MVP recorded everything as a call. -->
+                <div class="form-section">
+                    <span class="form-section-label">How did you reach out?</span>
+                    <select id="method_code" class="followup-input"></select>
+                </div>
+
+                <!-- Outcome. Options come from care_outcome so adding one needs no
+                     screen change, and all seven are reachable (the MVP exposed four). -->
                 <div class="form-section" id="responseTypeSection">
-                    <span class="form-section-label">Response Type</span>
-                    <div class="radio-row">
-                        <input type="radio" name="response_type" id="rt_no" value="No Response">
-                        <label for="rt_no">No response — Try again in 3 days</label>
+                    <span class="form-section-label" id="outcomeLabel">What happened?</span>
+                    <div id="outcomeOptions"></div>
+                </div>
+
+                <!-- Intent: what the visitor wants next. Never captured before, yet the
+                     progression rules key on it — without it a case can never close as
+                     "not interested" or honour a do-not-contact request. -->
+                <div class="form-section" id="intentSection" style="display:none">
+                    <span class="form-section-label">What do they want next?</span>
+                    <div id="intentOptions"></div>
+                </div>
+
+                <!-- Shown only when the outcome sends this to a team lead. -->
+                <div class="form-section" id="escalationSection" style="display:none">
+                    <span class="form-section-label">Why does this need a team lead?</span>
+                    <select id="escalation_reason" class="followup-input"></select>
+
+                    <div id="protocolNote" class="alert alert-warning mt-2" style="display:none">
+                        This follows a safeguarding protocol. Tell your team lead directly
+                        as well as recording it here.
                     </div>
-                    <div class="radio-row">
-                        <input type="radio" name="response_type" id="rt_normal" value="Normal">
-                        <label for="rt_normal">Normal — Mark complete</label>
-                    </div>
-                    <div class="radio-row">
-                        <input type="radio" name="response_type" id="rt_followup" value="Needs Follow-Up">
-                        <label for="rt_followup">Needs follow-up — Assign to lead</label>
-                    </div>
-                    <div class="radio-row">
-                        <input type="radio" name="response_type" id="rt_crisis" value="Crisis">
-                        <label for="rt_crisis" class="crisis">Crisis — Immediate alert</label>
-                    </div>
+
+                    <span class="form-section-label" style="margin-top:10px">What happened?</span>
+                    <textarea id="escalation_description" class="followup-input"
+                              placeholder="Briefly describe the concern so the team lead can act."></textarea>
+                </div>
+
+                <!-- When it actually happened, so an evening round can be logged later. -->
+                <div class="form-section">
+                    <span class="form-section-label">When did this happen?</span>
+                    <input type="datetime-local" id="occurred_at" class="followup-input">
                 </div>
 
                 <!-- Call Duration -->
-                <div class="form-section">
-                    <span class="form-section-label">Call Duration (Minutes) — Optional</span>
+                <div class="form-section" id="durationSection">
+                    <span class="form-section-label">Duration (Minutes) — Optional</span>
                     <input type="number" id="call_duration_min"  placeholder="e.g. 5" min="0">
                 </div>
 
@@ -709,25 +731,46 @@
                     </div>
                 </div>
 
-                <!-- Response type -->
+                <!-- The step's own method is pre-selected from the plan, but a step
+                     planned as a visit may end up happening by phone. -->
+                <div class="form-section">
+                    <span class="form-section-label">How did you reach out?</span>
+                    <select id="n_method_code" class="followup-input"></select>
+                </div>
+
+                <!-- Outcome, from care_outcome — same vocabulary as the follow-up form. -->
                 <div class="form-section" id="nurtureResponseSection">
-                    <span class="form-section-label">How did it go?</span>
-                    <div class="radio-row">
-                        <input type="radio" name="nurture_response" id="nr_normal" value="Normal" checked>
-                        <label for="nr_normal">Normal — All good</label>
+                    <span class="form-section-label" id="nOutcomeLabel">How did it go?</span>
+                    <div id="nOutcomeOptions"></div>
+                </div>
+
+                <div class="form-section" id="nIntentSection" style="display:none">
+                    <span class="form-section-label">What do they want next?</span>
+                    <div id="nIntentOptions"></div>
+                </div>
+
+                <div class="form-section" id="nEscalationSection" style="display:none">
+                    <span class="form-section-label">Why does this need a team lead?</span>
+                    <select id="n_escalation_reason" class="followup-input"></select>
+
+                    <div id="nProtocolNote" class="alert alert-warning mt-2" style="display:none">
+                        This follows a safeguarding protocol. Tell your team lead directly
+                        as well as recording it here.
                     </div>
-                    <div class="radio-row">
-                        <input type="radio" name="nurture_response" id="nr_no" value="No Response">
-                        <label for="nr_no">No Response</label>
-                    </div>
-                    <div class="radio-row">
-                        <input type="radio" name="nurture_response" id="nr_followup" value="Needs Follow-Up">
-                        <label for="nr_followup">Needs Follow-Up — Escalate to lead</label>
-                    </div>
-                    <div class="radio-row">
-                        <input type="radio" name="nurture_response" id="nr_crisis" value="Crisis">
-                        <label for="nr_crisis" class="crisis">Crisis — Immediate alert</label>
-                    </div>
+
+                    <span class="form-section-label" style="margin-top:10px">What happened?</span>
+                    <textarea id="n_escalation_description" class="followup-input"
+                              placeholder="Briefly describe the concern so the team lead can act."></textarea>
+                </div>
+
+                <div class="form-section">
+                    <span class="form-section-label">When did this happen?</span>
+                    <input type="datetime-local" id="n_occurred_at" class="followup-input">
+                </div>
+
+                <div class="form-section" id="nDurationSection">
+                    <span class="form-section-label">Duration (Minutes) — Optional</span>
+                    <input type="number" id="n_duration_min" placeholder="e.g. 5" min="0">
                 </div>
 
                 <!-- Notes -->

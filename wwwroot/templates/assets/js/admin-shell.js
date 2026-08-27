@@ -10,9 +10,28 @@
 (function (window) {
     'use strict';
 
+    // Root-relative, not page-relative: these links are rendered into pages in
+    // different folders, and 'accounts.html' resolves against whichever folder the
+    // current page happens to live in.
     var NAV = [
-        { label: 'Accounts',   href: 'accounts.html',   roles: ['ADMIN'] },
-        { label: 'Settings',   href: 'siteadmin.html',  roles: ['ADMIN'] }
+        {
+            label: 'Record a visitor',
+            href: '/templates/Peoples/PeopleEntry.html',
+            roles: ['ADMIN', 'PASTOR', 'TEAM_LEAD', 'VOLUNTEER', 'DATA_ENTRY']
+        },
+        {
+            // NOT team leads. Enrolling a volunteer creates an account that can
+            // read other people's pastoral records; that is a pastor's or an
+            // administrator's decision, not one a team lead makes for their own
+            // team. The API enforces the same boundary.
+            label: 'Add volunteer',
+            href: '/templates/Volunteers/AddVolunteer.html',
+            roles: ['ADMIN', 'PASTOR']
+        },
+        { label: 'Users', href: '/templates/Admin/users.html', roles: ['ADMIN'] },
+        { label: 'Accounts', href: '/templates/Admin/accounts.html', roles: ['ADMIN'] },
+        { label: 'Settings', href: '/templates/Admin/siteadmin.html', roles: ['ADMIN'] },
+        { label: 'Telegram', href: '/templates/Admin/telegram.html', roles: ['ADMIN'] }
     ];
 
     function escapeHtml(value) {
@@ -23,11 +42,16 @@
 
     /**
      * Renders the header into #adminShell.
-     * `active` is the href of the current page so it can be marked.
+     *
+     * `active` is either the href of the current page, or { href, area } where
+     * `area` overrides the brand sub-label. The string form is kept because the
+     * existing admin pages pass it.
      */
     function render(active) {
         var host = document.getElementById('adminShell');
         if (!host) return;
+
+        var options = (active && typeof active === 'object') ? active : { href: active };
 
         var account = RmAuth.getUser() || {};
         var roles = RmAuth.roleCodes();
@@ -37,14 +61,19 @@
                 return !item.roles || item.roles.some(function (r) { return roles.indexOf(r) !== -1; });
             })
             .map(function (item) {
-                var cls = (item.href === active) ? 'shell-link shell-link-active' : 'shell-link';
+                var cls = (item.href === options.href) ? 'shell-link shell-link-active' : 'shell-link';
                 return '<a class="' + cls + '" href="' + escapeHtml(item.href) + '">' + escapeHtml(item.label) + '</a>';
             })
             .join('');
 
+        // The sub-label names the area, not the role. An intake operator is not in
+        // an "Admin" console and should not be told they are.
+        var area = options.area || 'Admin';
+
         host.innerHTML =
             '<header class="shell">' +
-              '<div class="shell-brand">RM_CMS <span class="shell-brand-sub">Admin</span></div>' +
+              '<div class="shell-brand">RM_CMS <span class="shell-brand-sub">' +
+                escapeHtml(area) + '</span></div>' +
               '<nav class="shell-nav">' + links + '</nav>' +
               '<div class="shell-user">' +
                 '<span class="shell-name">' + escapeHtml(RmAuth.pick(account, 'fullName') || '') + '</span>' +

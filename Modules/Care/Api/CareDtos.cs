@@ -62,6 +62,17 @@ namespace RM_CMS.Modules.Care.Api
 
         [StringLength(4000)] public string? Notes { get; set; }
 
+        /// <summary>
+        /// Why this needs a team lead, when the outcome escalates. The volunteer knows
+        /// the reason, and it decides both the tier and whether a safeguarding protocol
+        /// applies — so it is captured here rather than everything being filed as a
+        /// general concern. Ignored when the outcome does not escalate.
+        /// </summary>
+        [StringLength(40)] public string? EscalationReasonCode { get; set; }
+
+        /// <summary>What happened, in the volunteer's words. Falls back to the notes.</summary>
+        [StringLength(4000)] public string? EscalationDescription { get; set; }
+
         [Required] public int RowVersion { get; set; }
     }
 
@@ -205,6 +216,12 @@ namespace RM_CMS.Modules.Care.Api
         public string? OutcomeLabel { get; set; }
         public string? Intent { get; set; }
         public string? IntentLabel { get; set; }
+
+        /// <summary>
+        /// Steps in the plan this case follows, for a "Step 2 of 5" badge. Null when
+        /// the case is not on a nurture plan.
+        /// </summary>
+        public int? NurtureTotalSteps { get; set; }
         public int? DurationMinutes { get; set; }
         public string? Notes { get; set; }
         public string? VolunteerName { get; set; }

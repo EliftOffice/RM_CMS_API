@@ -106,6 +106,25 @@ namespace RM_CMS
             builder.Services.Configure<AccountStateCacheOptions>(
                 builder.Configuration.GetSection(AccountStateCacheOptions.SectionName));
 
+            builder.Services.Configure<RM_CMS.Modules.Telegram.Domain.TelegramOptions>(
+                builder.Configuration.GetSection(RM_CMS.Modules.Telegram.Domain.TelegramOptions.SectionName));
+
+            builder.Services.Configure<RM_CMS.Modules.Notifications.Domain.NotificationOptions>(
+                builder.Configuration.GetSection(RM_CMS.Modules.Notifications.Domain.NotificationOptions.SectionName));
+
+            // Named client so Telegram calls get their own timeout: an unreachable bot
+            // must not hold a request thread while a volunteer waits.
+            builder.Services.AddHttpClient(nameof(RM_CMS.Modules.Telegram.Services.TelegramClient), client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(10);
+            })
+            // CRITICAL: HttpClient's default logging writes the full request URI, and
+            // Telegram carries the bot token IN THE PATH
+            // (api.telegram.org/bot<TOKEN>/getMe). Left on, every call publishes the
+            // credential to the log pipeline. TelegramClient does its own logging,
+            // by method name only.
+            .RemoveAllLoggers();
+
             // ASP.NET Identity's PBKDF2 hasher. V3 = HMAC-SHA512; the iteration count is
             // raised above the framework default in line with current OWASP guidance.
             builder.Services.Configure<PasswordHasherOptions>(options =>
@@ -546,8 +565,14 @@ namespace RM_CMS
             builder.Services.AddScoped<IIdentityService, IdentityService>();
             builder.Services.AddScoped<IIdentityBootstrapper, IdentityBootstrapper>();
 
+            // User management. Spans person, account, roles and volunteer, so it is
+            // registered after the modules it orchestrates rather than owning copies
+            // of their rules.
+            builder.Services.AddScoped<RM_CMS.Modules.Identity.Data.IUserDirectoryRepository,
+                                       RM_CMS.Modules.Identity.Data.UserDirectoryRepository>();
+            builder.Services.AddScoped<IUserDirectoryService, UserDirectoryService>();
+
             // ---- Common DAL ----
-            builder.Services.AddScoped<RM_CMS.DAL.CommonDAL.ITelegram, RM_CMS.DAL.CommonDAL.Telegram>();
 
             // ---- People module (new architecture) ----
             builder.Services.AddScoped<RM_CMS.Modules.People.Data.IPersonRepository,
@@ -592,10 +617,91 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.Modules.Volunteers.Services.IVolunteerService,
                                        RM_CMS.Modules.Volunteers.Services.VolunteerService>();
 
+            // ---- Notifications module (new architecture) ----
+            // Queue and sender are separate on purpose. Raising an alert only writes a
+            // row, so a Telegram outage cannot roll back the domain transaction that
+            // raised it; the sender then drains that queue on its own sweep, where a
+            // failure costs a retry rather than the escalation itself.
+            builder.Services.AddScoped<RM_CMS.Modules.Notifications.Data.INotificationRepository,
+                                       RM_CMS.Modules.Notifications.Data.NotificationRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Notifications.Services.INotificationQueue,
+                                       RM_CMS.Modules.Notifications.Services.NotificationQueue>();
+            builder.Services.AddScoped<RM_CMS.Modules.Notifications.Services.INotificationComposer,
+                                       RM_CMS.Modules.Notifications.Services.NotificationComposer>();
+            builder.Services.AddScoped<RM_CMS.Modules.Notifications.Services.INotificationSender,
+                                       RM_CMS.Modules.Notifications.Services.NotificationSender>();
+
+            // ---- Telegram module (new architecture) ----
+            // The bot token comes from Telegram__BotToken in the environment, never the
+            // database — the MVP kept the live token in a settings row that a generic
+            // API served to anyone who could reach it.
+            builder.Services.AddScoped<RM_CMS.Modules.Telegram.Data.ITelegramRepository,
+                                       RM_CMS.Modules.Telegram.Data.TelegramRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Telegram.Services.ITelegramLinkService,
+                                       RM_CMS.Modules.Telegram.Services.TelegramLinkService>();
+            builder.Services.AddSingleton<RM_CMS.Modules.Telegram.Services.ITelegramClient,
+                                          RM_CMS.Modules.Telegram.Services.TelegramClient>();
+
+            // ---- Settings module (new architecture) ----
+            // Replaces the legacy SystemConfig slice. Owns the bounds checking the
+            // schema documents but cannot enforce on a VARCHAR value column.
+            builder.Services.AddScoped<RM_CMS.Modules.Settings.Data.ISettingRepository,
+                                       RM_CMS.Modules.Settings.Data.SettingRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Settings.Services.ISettingService,
+                                       RM_CMS.Modules.Settings.Services.SettingService>();
+
+            // ---- Jobs module (new architecture) ----
+            // Replaces the legacy CornJobs slice. Triggered by an external cron over
+            // the JobRunner policy — there is no in-process scheduler, so a second
+            // instance does not double every sweep.
+            builder.Services.AddScoped<RM_CMS.Modules.Jobs.Data.IJobRunRepository,
+                                       RM_CMS.Modules.Jobs.Data.JobRunRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Jobs.Services.IJobService,
+                                       RM_CMS.Modules.Jobs.Services.JobService>();
+
+            // ---- Dashboards module (new architecture) ----
+            // Read-only role landing pages. Purpose-built aggregate queries rather than
+            // calls into Care and Volunteers: a dashboard wants counts, not lists it
+            // then counts in memory. Scoped to the teams the CALLER leads, resolved from
+            // their token — the page this replaces trusted a query-string team lead id.
+            builder.Services.AddScoped<RM_CMS.Modules.Dashboards.Data.ITeamLeadDashboardRepository,
+                                       RM_CMS.Modules.Dashboards.Data.TeamLeadDashboardRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Dashboards.Services.ITeamLeadDashboardService,
+                                       RM_CMS.Modules.Dashboards.Services.TeamLeadDashboardService>();
+
+            // ---- Pipeline module (new architecture) ----
+            // Every visitor and where their journey has reached. Scoped by role in
+            // the service: team lead to their own teams, pastor to their campus,
+            // administrator to everything. There is no scope parameter.
+            builder.Services.AddScoped<RM_CMS.Modules.Pipeline.Data.IPipelineRepository,
+                                       RM_CMS.Modules.Pipeline.Data.PipelineRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Pipeline.Services.IPipelineService,
+                                       RM_CMS.Modules.Pipeline.Services.PipelineService>();
+
+            // ---- Huddle module (new architecture) ----
+            // The weekly team meeting where a lead assesses their volunteers'
+            // escalation judgement. The only mechanism that can catch an
+            // UNDER-escalation: the chase-up job can only chase escalations that
+            // were actually raised.
+            builder.Services.AddScoped<RM_CMS.Modules.Huddle.Data.IHuddleRepository,
+                                       RM_CMS.Modules.Huddle.Data.HuddleRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Huddle.Services.IHuddleService,
+                                       RM_CMS.Modules.Huddle.Services.HuddleService>();
+
+            // ---- Check-ins module (new architecture) ----
+            // The team lead's pastoral duty toward their own volunteers. Scoped to the
+            // teams the caller leads; the conductor comes from the token, never the
+            // payload, so the record of who held a conversation is trustworthy.
+            builder.Services.AddScoped<RM_CMS.Modules.CheckIns.Data.ICheckInRepository,
+                                       RM_CMS.Modules.CheckIns.Data.CheckInRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.CheckIns.Services.ICheckInService,
+                                       RM_CMS.Modules.CheckIns.Services.CheckInService>();
+
             // ---- Legacy Volunteers BLL/DAL ----
-            // Still referenced by Followups, Nurture, CornJobs, Peoples and
-            // NotificationService. All query tables that no longer exist, so they are
-            // broken at runtime until rewritten; this only keeps the build green.
+            // Still referenced by Followups, Nurture and Peoples. All query tables that
+            // no longer exist, so they are broken at runtime until rewritten; this only
+            // keeps the build green. Its Telegram sending is now a no-op — delivery
+            // belongs to the Notifications module.
             builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteersBLL, RM_CMS.BLL.Volunteers.VolunteersBLL>();
             builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteersDAL, RM_CMS.DAL.Volunteers.VolunteersDAL>();
 
@@ -603,31 +709,18 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.DAL.TeamLeads.ITeamLeadDashBoardDAL, RM_CMS.DAL.TeamLeads.TeamLeadDashBoardDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.TeamLeads.ITeamLeadDashBoardBLL, RM_CMS.BLL.TeamLeads.TeamLeadDashBoardBLL>();
 
-            // ---- Check-in ----
-            builder.Services.AddScoped<RM_CMS.DAL.TeamLeads.ICheckInDAL, RM_CMS.DAL.TeamLeads.CheckInDAL>();
-            builder.Services.AddScoped<RM_CMS.BLL.TeamLeads.ICheckInBLL, RM_CMS.BLL.TeamLeads.CheckInBLL>();
-
             // ---- Pastors ----
             builder.Services.AddScoped<RM_CMS.DAL.Pastors.IPastorDashboardDAL, RM_CMS.DAL.Pastors.PastorDashboardDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.Pastors.IPastorDashboardBLL, RM_CMS.BLL.Pastors.PastorDashBoardBLL>();
-
-            // ---- Users (legacy lookup module) ----
-            builder.Services.AddScoped<RM_CMS.DAL.Users.IUsersDAL, RM_CMS.DAL.Users.UsersDAL>();
-            builder.Services.AddScoped<RM_CMS.BLL.Users.IUsersBLL, RM_CMS.BLL.Users.UsersBLL>();
-
 
 
             // ---- Nurture ----
             builder.Services.AddScoped<RM_CMS.DAL.Nurture.INurtureDAL, RM_CMS.DAL.Nurture.NurtureDAL>();
             builder.Services.AddScoped<RM_CMS.BLL.Nurture.INurtureBLL, RM_CMS.BLL.Nurture.NurtureBLL>();
 
-            // ---- Scheduled jobs ----
-            builder.Services.AddScoped<RM_CMS.BLL.Jobs.ICornJobsBLL, RM_CMS.BLL.Jobs.CornJobsBLL>();
-
             // ---- Admin / system config ----
             builder.Services.AddScoped<RM_CMS.DAL.Admin.ISystemConfigRepository, RM_CMS.DAL.Admin.SystemConfigRepository>();
             builder.Services.AddScoped<RM_CMS.BLL.Admin.ISystemConfigService, RM_CMS.BLL.Admin.SystemConfigService>();
-            builder.Services.AddScoped<RM_CMS.BLL.Admin.INotificationService, RM_CMS.BLL.Admin.NotificationService>();
 
             Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
         }
@@ -672,12 +765,29 @@ namespace RM_CMS
                 ServeUnknownFileTypes = false,
                 OnPrepareResponse = context =>
                 {
+                    var name = context.File.Name;
+
                     // HTML shells must not be cached, or a signed-out user can be shown a
                     // stale authenticated page from the browser cache.
-                    if (context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+                    if (name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
                     {
                         context.Context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
                         context.Context.Response.Headers.Pragma = "no-cache";
+                        return;
+                    }
+
+                    // Scripts and styles carry no version in their filenames, so a browser
+                    // that caches them keeps running the previous deployment's code against
+                    // the new API — which fails in ways that look like application bugs
+                    // rather than staleness.
+                    //
+                    // "no-cache" means revalidate, not "do not store": the ETag still gives
+                    // a 304 when nothing changed, so the cost is one conditional request per
+                    // file rather than a re-download.
+                    if (name.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||
+                        name.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+                    {
+                        context.Context.Response.Headers.CacheControl = "no-cache, must-revalidate";
                     }
                 }
             });

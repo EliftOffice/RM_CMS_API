@@ -13,6 +13,7 @@
     <script src="../assets/js/auth.js"></script>
     <script src="../assets/js/toast.js"></script>
     <script src="../assets/js/admin-shell.js"></script>
+    <script src="../assets/js/password-policy.js"></script>
 </head>
 <body>
 
@@ -144,6 +145,13 @@
             <div class="field">
                 <label class="label" for="resetPassword">New password</label>
                 <input type="text" id="resetPassword" class="input" maxlength="128" placeholder="Leave blank to generate one" autocomplete="off">
+            </div>
+
+            <!-- Rules are fetched from /api/auth/password-policy so this list and the
+                 server's validator cannot drift apart. -->
+            <div class="pw-rules" id="passwordRules">
+                <p class="pw-rules-title">The password must have:</p>
+                <ul id="passwordRulesList"></ul>
             </div>
 
             <div class="role-option">

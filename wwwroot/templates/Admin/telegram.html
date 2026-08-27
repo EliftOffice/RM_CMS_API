@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Telegram — RM_CMS Admin</title>
+
+    <link rel="icon" href="../assets/Images/favicon.ico">
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/toast.js"></script>
+    <script src="../assets/js/admin-shell.js"></script>
+
+    <style>
+        .check-row {
+            display: grid;
+            grid-template-columns: 26px minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: start;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .check-row:last-child { border-bottom: none; }
+
+        .check-mark { font-size: 15px; line-height: 1.4; }
+        .check-ok   { color: var(--ok); }
+        .check-bad  { color: var(--danger); }
+        .check-warn { color: var(--warn); }
+
+        .check-title { font-weight: 600; font-size: 13.5px; }
+        .check-sub   { color: var(--ink-muted); font-size: 12.5px; margin-top: 2px; }
+
+        .env {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            font-family: ui-monospace, Consolas, monospace;
+            font-size: 12.5px;
+            line-height: 1.9;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .env-key { color: #7dd3fc; }
+
+        .steps { padding-left: 18px; margin: 0; }
+        .steps li { font-size: 13.5px; line-height: 1.9; color: var(--ink); }
+        .steps .sub { color: var(--ink-muted); font-size: 12.5px; }
+
+        .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+        .stat {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            padding: 10px 0;
+        }
+
+        .stat-value { font-size: 22px; font-weight: 600; }
+        .stat-label { color: var(--ink-muted); font-size: 13px; }
+
+        .muted-note { color: var(--ink-muted); font-size: 12.5px; margin-top: 10px; }
+    </style>
+</head>
+
+<body>
+
+<div id="adminShell"></div>
+
+<main class="page" id="pageBody" hidden>
+
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Telegram</h1>
+            <p class="page-sub">
+                How RM_CMS reaches people with follow-up reminders and escalation alerts.
+            </p>
+        </div>
+        <button type="button" class="btn" id="refreshBtn">Refresh</button>
+    </div>
+
+    <!-- ---------------------------------------------------- status -->
+    <section class="card" style="margin-bottom:20px;">
+        <div class="card-head">
+            <h2 class="card-title">Status</h2>
+        </div>
+        <div class="card-body">
+            <div id="checks"><p class="empty">Checking…</p></div>
+
+            <div class="actions">
+                <button type="button" class="btn btn-primary" id="registerBtn" disabled>
+                    Register webhook
+                </button>
+                <button type="button" class="btn" id="testBtn" disabled>Test connection</button>
+            </div>
+
+            <p class="muted-note" id="webhookNote"></p>
+        </div>
+    </section>
+
+    <!-- ---------------------------------------------------- configuration -->
+    <section class="card" style="margin-bottom:20px;">
+        <div class="card-head">
+            <h2 class="card-title">Configuration</h2>
+        </div>
+        <div class="card-body">
+            <p class="page-sub" style="margin-top:0;">
+                These are environment variables, not settings. The bot token lets anyone
+                holding it send messages as the church, so it is never stored in the
+                database and never shown on this page — only whether it is present.
+            </p>
+
+            <div class="env" id="envBlock"><span class="env-key">TELEGRAM__BOTTOKEN</span>=&lt;from BotFather&gt;
+<span class="env-key">TELEGRAM__BOTUSERNAME</span>=RMChurchBot
+<span class="env-key">AUTH__TELEGRAMWEBHOOKSECRET</span>=&lt;a long random string&gt;</div>
+
+            <div class="actions">
+                <button type="button" class="btn btn-sm" id="copyEnvBtn">Copy</button>
+            </div>
+
+            <p class="muted-note">
+                Set these where the application is deployed — in Coolify, under the
+                application's Environment Variables — then restart it. Changing them
+                needs a restart because they are read at startup.
+            </p>
+        </div>
+    </section>
+
+    <!-- ---------------------------------------------------- how to set up -->
+    <section class="card" style="margin-bottom:20px;">
+        <div class="card-head">
+            <h2 class="card-title">First-time setup</h2>
+        </div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>In Telegram, message <strong>@BotFather</strong> and send <code>/newbot</code>.
+                    <div class="sub">It replies with a token and your bot's @username.</div></li>
+                <li>Put the token, the username and a random webhook secret into the
+                    environment variables above, then restart the application.</li>
+                <li>Come back here and press <strong>Register webhook</strong>.
+                    <div class="sub">This tells Telegram where to deliver messages, and the
+                        secret it must send with them.</div></li>
+                <li>Ask someone to sign in and press <strong>Connect Telegram</strong>.</li>
+            </ol>
+
+            <p class="muted-note">
+                Telegram only delivers to a public HTTPS address. A local development
+                machine cannot receive updates without a tunnel.
+            </p>
+        </div>
+    </section>
+
+    <!-- ---------------------------------------------------- adoption -->
+    <section class="card">
+        <div class="card-head">
+            <h2 class="card-title">Who is connected</h2>
+        </div>
+        <div class="card-body">
+            <div class="stat">
+                <span class="stat-value" id="linkedCount">—</span>
+                <span class="stat-label">people can receive Telegram messages</span>
+            </div>
+            <p class="muted-note">
+                Escalation alerts only reach people who have connected. Anyone unconnected
+                is skipped, and the chase-up records that it could not reach them.
+            </p>
+        </div>
+    </section>
+</main>
+
+<script src="../assets/js/telegram-setup.js"></script>
+
+</body>
+</html>

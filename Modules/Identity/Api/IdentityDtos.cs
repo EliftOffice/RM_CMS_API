@@ -175,6 +175,28 @@ namespace RM_CMS.Modules.Identity.Api
         public bool IsCurrent { get; set; }
     }
 
+    /// <summary>
+    /// The password rules, for screens that set or change a password.
+    ///
+    /// Carries both the raw flags (for client-side checking as the user types) and a
+    /// ready-made <see cref="Rules"/> list (for display), so a screen does not have to
+    /// re-derive the wording and get it subtly different from the server's.
+    /// </summary>
+    public sealed class PasswordPolicyDto
+    {
+        public int MinLength { get; set; }
+        public int MaxLength { get; set; }
+        public bool RequireUppercase { get; set; }
+        public bool RequireLowercase { get; set; }
+        public bool RequireDigit { get; set; }
+        public bool RequireNonAlphanumeric { get; set; }
+
+        /// <summary>How many previous passwords are blocked. 0 means no history check.</summary>
+        public int HistoryCount { get; set; }
+
+        public List<string> Rules { get; set; } = new();
+    }
+
     public sealed class PagedResult<T>
     {
         public IReadOnlyList<T> Items { get; set; } = Array.Empty<T>();

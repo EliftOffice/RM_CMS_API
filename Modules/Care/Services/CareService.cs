@@ -27,6 +27,15 @@ namespace RM_CMS.Modules.Care.Services
 
         // ---- escalations ----
         Task<ApiResponse<PagedResult<EscalationDto>>> SearchEscalationsAsync(int page, int pageSize, string? status, bool mineOnly);
+
+        /// <summary>
+        /// One escalation, for the detail screen a team lead acts on.
+        ///
+        /// The DTO carries <c>RowVersion</c>, which resolving requires: two leads with
+        /// the screen open must not silently overwrite each other's outcome on a
+        /// pastoral record.
+        /// </summary>
+        Task<ApiResponse<EscalationDto>> GetEscalationAsync(string publicId);
         Task<ApiResponse<EscalationDto>> RaiseEscalationAsync(string casePublicId, RaiseEscalationRequest request);
         Task<ApiResponse<EscalationDto>> AcknowledgeAsync(string escalationId);
         Task<ApiResponse<EscalationDto>> ResolveAsync(string escalationId, ResolveEscalationRequest request);
@@ -458,7 +467,9 @@ namespace RM_CMS.Modules.Care.Services
             // ---- side effects ----
             if (decision.RaiseEscalation)
             {
-                var escalationId = await RaiseAutomaticEscalationAsync(careCase, logged!, behaviour?.DefaultTier, actingUserId);
+                var escalationId = await RaiseAutomaticEscalationAsync(
+                    careCase, logged!, behaviour?.DefaultTier, actingUserId,
+                    request.EscalationReasonCode, request.EscalationDescription);
                 result.EscalationId = escalationId;
             }
             else if (decision.CloseCase)
@@ -553,8 +564,31 @@ namespace RM_CMS.Modules.Care.Services
         }
 
         private async Task<string?> RaiseAutomaticEscalationAsync(
-            CareCase careCase, CareInteraction interaction, string? defaultTier, long? actingUserId)
+            CareCase careCase, CareInteraction interaction, string? defaultTier, long? actingUserId,
+            string? reasonCode = null, string? description = null)
         {
+            // The volunteer's reason wins over the generic default when they gave one,
+            // and is validated so a bad code cannot break the foreign key.
+            var reason = "GENERAL_CONCERN";
+            string? reasonTier = null;
+
+            if (!string.IsNullOrWhiteSpace(reasonCode))
+            {
+                var known = await _lookups.GetEscalationReasonAsync(reasonCode!);
+
+                if (known is not null)
+                {
+                    reason = reasonCode!;
+                    reasonTier = known.Value.Tier;
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Unknown escalation reason {Reason} on case {Case}; filed as GENERAL_CONCERN",
+                        reasonCode, careCase.PublicId);
+                }
+            }
+
             var escalation = new Escalation
             {
                 PublicId = Ulid.NewUlid(),
@@ -562,11 +596,19 @@ namespace RM_CMS.Modules.Care.Services
                 CareInteractionId = interaction.Id,
                 RaisedByVolunteerId = interaction.VolunteerId,
                 CampusId = careCase.CampusId,
-                ReasonCode = "GENERAL_CONCERN",
-                Tier = defaultTier ?? EscalationTier.Standard,
-                Description =
-                    $"Raised automatically from a {interaction.OutcomeLabel ?? interaction.OutcomeCode} outcome. " +
-                    (string.IsNullOrWhiteSpace(interaction.Notes) ? "No notes recorded." : interaction.Notes),
+                ReasonCode = reason,
+
+                // The MORE severe of the two wins. A reason like SELF_HARM_RISK carries
+                // EMERGENCY and must not be quietly downgraded because the outcome only
+                // suggested STANDARD; equally, a severe outcome is not softened by a mild
+                // reason. Under-stating either is the failure that costs someone.
+                Tier = HigherTier(reasonTier, defaultTier),
+
+                Description = !string.IsNullOrWhiteSpace(description)
+                    ? description!
+                    : $"Raised automatically from a {interaction.OutcomeLabel ?? interaction.OutcomeCode} outcome. " +
+                      (string.IsNullOrWhiteSpace(interaction.Notes) ? "No notes recorded." : interaction.Notes),
+
                 RaisedAt = _clock.GetUtcNow().UtcDateTime
             };
 
@@ -579,10 +621,26 @@ namespace RM_CMS.Modules.Care.Services
             }
 
             _logger.LogWarning(
-                "Escalation raised on case {Case} at tier {Tier}; case paused",
-                careCase.PublicId, escalation.Tier);
+                "Escalation raised on case {Case} at tier {Tier} for {Reason}; case paused",
+                careCase.PublicId, escalation.Tier, escalation.ReasonCode);
 
             return escalation.PublicId;
+        }
+
+        /// <summary>The more severe of two tiers, treating null as least severe.</summary>
+        private static string HigherTier(string? a, string? b)
+        {
+            static int Rank(string? tier) => tier switch
+            {
+                EscalationTier.Emergency => 3,
+                EscalationTier.Urgent    => 2,
+                EscalationTier.Standard  => 1,
+                _ => 0
+            };
+
+            if (Rank(a) == 0 && Rank(b) == 0) return EscalationTier.Standard;
+
+            return Rank(a) >= Rank(b) ? a! : b!;
         }
 
         // ==================================================================
@@ -660,6 +718,23 @@ namespace RM_CMS.Modules.Care.Services
                 PageSize = pageSize,
                 TotalCount = total
             }, "Escalations retrieved");
+        }
+
+        public async Task<ApiResponse<EscalationDto>> GetEscalationAsync(string publicId)
+        {
+            var escalation = await _escalations.GetByPublicIdAsync(publicId);
+
+            if (escalation is null) return Warn<EscalationDto>("That escalation was not found.");
+
+            // Campus scoping, the same object-level check the search applies. Without
+            // it, knowing an id would be enough to read another campus's safeguarding
+            // detail — the exact hole ULIDs alone do not close.
+            var campusKey = await _cases.ResolveCampusIdAsync(_current.CampusId);
+
+            if (campusKey is not null && escalation.CampusId != campusKey.Value)
+                return Warn<EscalationDto>("That escalation was not found.");
+
+            return Ok(ToDto(escalation, _clock.GetUtcNow().UtcDateTime), "Escalation retrieved");
         }
 
         public async Task<ApiResponse<EscalationDto>> RaiseEscalationAsync(string casePublicId, RaiseEscalationRequest request)
@@ -994,6 +1069,7 @@ namespace RM_CMS.Modules.Care.Services
             OutcomeLabel = i.OutcomeLabel,
             Intent = i.IntentCode,
             IntentLabel = i.IntentLabel,
+            NurtureTotalSteps = i.NurtureTotalSteps,
             DurationMinutes = i.DurationMinutes,
             Notes = i.Notes,
             VolunteerName = i.VolunteerName,

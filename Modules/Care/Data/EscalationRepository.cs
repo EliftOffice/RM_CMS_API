@@ -15,6 +15,14 @@ namespace RM_CMS.Modules.Care.Data
     public interface IEscalationRepository
     {
         Task<Escalation?> GetByPublicIdAsync(string publicId);
+
+        /// <summary>
+        /// By internal id. Used by the notification sender, which holds
+        /// <c>notification_delivery.related_entity_id</c> — an internal id, because a
+        /// queue row is server-side and never leaves through the API.
+        /// </summary>
+        Task<Escalation?> GetByIdAsync(long id);
+
         Task<IReadOnlyList<Escalation>> GetForCaseAsync(long caseId);
 
         Task<IReadOnlyList<Escalation>> SearchAsync(long? campusId, long? assignedToUserId,
@@ -37,6 +45,13 @@ namespace RM_CMS.Modules.Care.Data
         Task<IReadOnlyList<Escalation>> FindUnacknowledgedAsync(DateTime raisedBefore, int limit);
 
         Task<bool> RecordReminderAsync(long id, DateTime nowUtc, bool alertedPastor);
+
+        /// <summary>
+        /// Stamps <c>notified_at</c> the first time an alert about this escalation is
+        /// actually delivered. Only the first delivery counts — the column answers
+        /// "when was anybody told?", and a later reminder does not change that answer.
+        /// </summary>
+        Task<bool> MarkNotifiedAsync(long id, DateTime nowUtc);
 
         Task<bool> ReasonExistsAsync(string reasonCode);
         Task<bool> OutcomeExistsAsync(string outcomeCode);
@@ -101,6 +116,28 @@ namespace RM_CMS.Modules.Care.Data
 
             using var connection = _dbFactory.GetConnection();
             return await connection.QueryFirstOrDefaultAsync<Escalation>(sql, new { PublicId = publicId });
+        }
+
+        public async Task<Escalation?> GetByIdAsync(long id)
+        {
+            const string sql = SelectEscalation + @" WHERE e.id = @Id LIMIT 1;";
+
+            using var connection = _dbFactory.GetConnection();
+            return await connection.QueryFirstOrDefaultAsync<Escalation>(sql, new { Id = id });
+        }
+
+        public async Task<bool> MarkNotifiedAsync(long id, DateTime nowUtc)
+        {
+            // Deliberately does NOT touch row_version or updated_at: a delivery
+            // landing is not a domain edit, and bumping the version would make the
+            // team lead's open acknowledge form fail with a phantom conflict.
+            const string sql = @"
+                UPDATE escalation
+                SET notified_at = @NowUtc
+                WHERE id = @Id AND notified_at IS NULL;";
+
+            using var connection = _dbFactory.GetConnection();
+            return await connection.ExecuteAsync(sql, new { Id = id, NowUtc = nowUtc }) > 0;
         }
 
         public async Task<IReadOnlyList<Escalation>> GetForCaseAsync(long caseId)
@@ -180,8 +217,18 @@ namespace RM_CMS.Modules.Care.Data
             try
             {
                 e.ReferenceCode = await connection.ExecuteScalarAsync<string>(@"
+                -- LPAD TRUNCATES when the value is longer than the width, so a
+                -- plain LPAD(n, 5) silently returns the first 5 characters once the
+                -- sequence outgrows it. The MVP's codes carried the year
+                -- (P2026149), which is seven digits, so every generated code came
+                -- back as 'E2026' and the second intake collided on the unique
+                -- key — no visitor could be recorded at all. GREATEST keeps the
+                -- padding for small numbers and gets out of the way for large ones.
                     SELECT CONCAT('E', LPAD(
-                        IFNULL(MAX(CAST(SUBSTRING(reference_code, 2) AS UNSIGNED)), 0) + 1, 5, '0'))
+                        IFNULL(MAX(CAST(SUBSTRING(reference_code, 2) AS UNSIGNED)), 0) + 1,
+                    GREATEST(5, CHAR_LENGTH(
+                        IFNULL(MAX(CAST(SUBSTRING(reference_code, 2) AS UNSIGNED)), 0) + 1)),
+                    '0'))
                     FROM escalation WHERE reference_code REGEXP '^E[0-9]+$' FOR UPDATE;",
                     transaction: transaction) ?? "E00001";
 

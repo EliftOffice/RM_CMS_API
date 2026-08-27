@@ -3,593 +3,316 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RM CMS Visitor Portal </title>
+    <meta name="robots" content="noindex, nofollow">
+    <title>Record a visitor — RM_CMS</title>
+
     <link rel="icon" href="../assets/Images/favicon.ico">
-    <link rel="icon" type="image/png" href="../assets/Images/logo.png">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- API Configuration -->
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
     <script src="../assets/js/api-config.js"></script>
-    <!-- auth.js: attaches the bearer token to every API call -->
+    <script src="../assets/js/toast.js"></script>
     <script src="../assets/js/auth.js"></script>
-    <script src="../assets/js/utils.js"></script>
+    <script src="../assets/js/admin-shell.js"></script>
+    <script src="../assets/js/people-entry.js" defer></script>
+
     <style>
-        /* ── CSS Variables ── */
-        :root {
-            --primary: #085c40;
-            --primary-hover: #064d35;
-            --primary-light: #e6f4ef;
-            --primary-dark: #053d2b;
-            --white: #ffffff;
-            --bg: #ffffff;
-            --surface: #f9fafb;
-            --border: #e5e7eb;
-            --text: #111827;
-            --muted: #6b7280;
-            --danger: #ef4444;
-            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            --t: 0.18s ease;
-            --radius: 12px;
+        /* Intake-specific layout. Everything else comes from admin.css. */
+
+        .intake-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 300px;
+            gap: 20px;
+            align-items: start;
         }
 
-        *, *::before, *::after {
-            box-sizing: border-box;
+        @media (max-width: 900px) {
+            .intake-grid { grid-template-columns: minmax(0, 1fr); }
         }
 
-        body {
-            font-family: var(--font);
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            margin: 0;
-            padding: 0;
-            -webkit-font-smoothing: antialiased;
-        }
-
-            body::before {
-                content: '';
-                display: block;
-                height: 3px;
-                background: var(--primary);
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                z-index: 999;
-            }
-
-        .site-navbar {
-            background: var(--white);
-            border-bottom: 1px solid var(--border);
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 28px;
-            position: sticky;
-            top: 3px;
-            z-index: 100;
-        }
-
-        .navbar-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-        }
-
-        .navbar-logo {
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
-            object-fit: cover;
-            border: 2px solid var(--primary-light);
-        }
-
-        .navbar-logo-placeholder {
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
-            background: var(--primary-light);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            border: 2px solid var(--primary-light);
-        }
-
-        .navbar-name {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--text);
-            letter-spacing: -0.02em;
-        }
-
-            .navbar-name span {
-                color: var(--primary);
-            }
-
-        .navbar-right {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .navbar-badge {
-            font-size: 0.72rem;
-            font-weight: 700;
-            padding: 3px 10px;
-            background: var(--primary-light);
-            color: var(--primary-dark);
-            border-radius: 999px;
-            letter-spacing: 0.04em;
-        }
-
-        .page-wrap {
-            max-width: 480px; /* narrower since single column */
-            margin: 0 auto;
-            padding: 40px 20px 60px;
-        }
-
-        .page-eyebrow {
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 0.09em;
-            text-transform: uppercase;
-            color: var(--primary);
-            margin-bottom: 6px;
-        }
-
-        .page-title {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--text);
-            letter-spacing: -0.04em;
-            margin-bottom: 4px;
-        }
-
-        .page-sub {
-            font-size: 0.9rem;
-            color: var(--muted);
-            margin-bottom: 28px;
-            line-height: 1.5;
-        }
-
-        .page-divider {
-            height: 1px;
-            background: var(--border);
-            margin-bottom: 28px;
-        }
-
-        .form-card {
-            background: var(--white);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            overflow: hidden;
-            margin-bottom: 16px;
-        }
-
-        .form-card-header {
-            padding: 16px 22px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .form-card-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: var(--primary-light);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.9rem;
-            flex-shrink: 0;
-        }
-
-        .form-card-title {
-            font-size: 0.9rem;
-            font-weight: 700;
-            color: var(--text);
-            margin: 0;
-            letter-spacing: -0.01em;
-        }
-
-        .form-card-body {
-            padding: 22px;
-        }
-
-        /* ── CHANGE 1: Single column — no form-row-2 grid ── */
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-            .form-group:last-child {
-                margin-bottom: 0;
-            }
-
-        .form-label {
-            display: block;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 7px;
-            letter-spacing: 0.01em;
-        }
-
-        .required-star {
-            color: var(--danger);
-            margin-left: 2px;
-        }
-
-        /* Textbox width same as before — full width of card */
-        .form-control,
-        .form-select {
-            width: 100%;
-            padding: 11px 14px;
-            border: 1.5px solid var(--border);
-            border-radius: var(--radius);
-            font-size: 0.925rem;
-            font-family: var(--font);
-            color: var(--text);
-            background: var(--surface);
-            outline: none;
-            transition: border-color var(--t), box-shadow var(--t), background var(--t);
-            appearance: none;
-        }
-
-            .form-control::placeholder {
-                color: #9ca3af;
-            }
-
-            .form-control:focus,
-            .form-select:focus {
-                border-color: var(--primary);
-                background: var(--white);
-                box-shadow: 0 0 0 3px rgba(8, 92, 64, 0.12);
-            }
-
-        textarea.form-control {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        /* ── CHANGE 3: Only Submit button, centered ── */
-        .btn-row-actions {
-            display: flex;
-            justify-content: center;
-            margin-top: 4px;
-        }
-
-        .btn-submit {
-            padding: 12px 40px;
-            background: var(--primary);
-            color: #fff;
-            border: none;
-            border-radius: var(--radius);
-            font-size: 0.95rem;
-            font-weight: 700;
-            font-family: var(--font);
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: background var(--t), box-shadow var(--t), transform var(--t);
-            letter-spacing: -0.01em;
-        }
-
-            .btn-submit:hover {
-                background: var(--primary-hover);
-                box-shadow: 0 6px 20px rgba(8, 92, 64, 0.28);
-            }
-
-            .btn-submit:active {
-                transform: scale(0.98);
-            }
-
-            .btn-submit:disabled {
-                background: #d1d5db;
-                color: #9ca3af;
-                cursor: not-allowed;
-                box-shadow: none;
-                transform: none;
-            }
-
-        #responseMessage {
-            margin-top: 16px;
-            padding: 13px 16px;
-            border-radius: var(--radius);
-            font-size: 0.9rem;
-            font-weight: 500;
-            border: 1px solid transparent;
-            text-align: center;
-        }
-
-            #responseMessage.text-success {
-                background: #f0fdf4;
-                border-color: #86efac;
-                color: #166534;
-            }
-
-            #responseMessage.text-danger {
-                background: #fef2f2;
-                border-color: #fca5a5;
-                color: #991b1b;
-            }
-
-        .no_display {
-            display: none !important;
+        .field-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0 16px;
         }
 
         @media (max-width: 560px) {
-            .page-title {
-                font-size: 1.5rem;
-            }
+            .field-row { grid-template-columns: minmax(0, 1fr); }
+        }
 
-            .page-wrap {
-                padding: 24px 16px 48px;
-            }
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--ink-muted);
+            margin: 22px 0 12px;
+            padding-top: 16px;
+            border-top: 1px solid var(--line);
+        }
 
-            .form-card-body {
-                padding: 16px;
-            }
+        .section-title:first-of-type {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
 
-            .site-navbar {
-                padding: 0 16px;
-            }
+        .check {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--canvas);
+        }
+
+        .check input { margin-top: 3px; }
+        .check-text { font-size: 13px; }
+        .check-text strong { display: block; margin-bottom: 2px; }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid var(--line);
+        }
+
+        .form-actions .spacer { flex: 1; }
+
+        /* session list */
+        .session-item {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--line);
+            font-size: 13px;
+        }
+
+        .session-item:last-child { border-bottom: none; }
+        .session-name { font-weight: 600; }
+
+        .session-meta {
+            color: var(--ink-muted);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .required-mark { color: var(--danger); }
+
+        .dup-list {
+            margin: 8px 0 12px;
+            padding-left: 18px;
+            font-size: 13px;
+        }
+
+        [aria-invalid="true"] { border-color: var(--danger) !important; }
+
+        .field-error {
+            color: var(--danger);
+            font-size: 12px;
+            margin-top: 4px;
         }
     </style>
 </head>
+
 <body>
 
-    <!-- Navbar -->
-    <nav class="site-navbar">
-        <a class="navbar-brand" href="#">
-            <img src="../assets/Images/logo.jpeg" alt="Logo" class="navbar-logo"
-                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-            <div class="navbar-logo-placeholder" style="display:none;">✝</div>
-            <span class="navbar-name">RM <span>CMS</span></span>
-        </a>
-        <div class="navbar-right">
-            <span class="navbar-badge">Visitor Portal</span>
+    <div id="adminShell"></div>
+
+    <main class="page" id="pageBody" hidden>
+
+        <div class="page-head">
+            <div>
+                <h1 class="page-title">Record a visitor</h1>
+                <p class="page-sub">
+                    Capture someone who visited so a volunteer can follow up with them.
+                    Only a name and one contact number are required.
+                </p>
+            </div>
         </div>
-    </nav>
 
-    <div class="page-wrap">
+        <div class="intake-grid">
 
-        <p class="page-eyebrow">Connection Card</p>
-        <h1 class="page-title">Welcome!</h1>
-
-        <div class="page-divider"></div>
-
-        <form id="visitorForm">
-
-            <!-- Personal Information -->
-            <div class="form-card">
-                <div class="form-card-header">
-                    <div class="form-card-icon">👤</div>
-                    <h2 class="form-card-title">Personal Information</h2>
+            <!-- ---------------------------------------------- form -->
+            <section class="card">
+                <div class="card-head">
+                    <h2 class="card-title">Visitor details</h2>
                 </div>
-                <div class="form-card-body">
 
-                    <div class="form-group">
-                        <label class="form-label">First Name <span class="required-star">*</span></label>
-                        <input type="text" class="form-control" id="first_name" placeholder="First name" required>
-                    </div>
+                <div class="card-body">
 
-                    <div class="form-group">
-                        <label class="form-label">Last Name <span class="required-star">*</span></label>
-                        <input type="text" class="form-control" id="last_name" placeholder="Last name" required>
-                    </div>
+                    <!-- duplicate / error notices -->
+                    <div id="dupNotice" class="notice notice-warn" role="alert" hidden></div>
+                    <div id="formError" class="notice" role="alert" hidden></div>
 
-                    <div class="form-group">
-                        <label class="form-label">Phone <span class="required-star">*</span></label>
-                        <input type="tel" class="form-control mobile-input" id="phone" placeholder="Your phone number" maxlength="10">
-                    </div>
+                    <form id="intakeForm" novalidate>
 
-                    <div class="form-group">
-                        <label class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" placeholder="Your email address">
-                    </div>
+                        <p class="section-title">Who they are</p>
 
-                    <div class="form-group">
-                        <label class="form-label">Age</label>
-                        <select class="form-select" id="age_range">
-                            <option value="">Select...</option>
-                            <option value="18-25">18-25</option>
-                            <option value="26-35">26-35</option>
-                            <option value="36-45">36-45</option>
-                            <option value="46-55">46-55</option>
-                            <option value="56+">56+</option>
-                        </select>
-                    </div>
+                        <div class="field-row">
+                            <div class="field">
+                                <label class="label" for="givenName">
+                                    First name <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <input class="input" id="givenName" name="givenName"
+                                       maxlength="80" autocomplete="off" required autofocus>
+                            </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Household Type</label>
-                        <select class="form-select" id="household_type">
-                            <option value="">Select...</option>
-                            <option value="Single">Single</option>
-                            <option value="Married">Married</option>
-                            <option value="Family_with_Kids">Family with Kids</option>
-                            <option value="Empty_Nest">Empty Nest</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="ddlLocationType" class="form-label">Location Type</label>
-
-                        <select class="form-select" id="ddlLocationType" name="ddlLocationType">
-                            <option value="Local" selected="selected">Local</option>
-                            <option value="Non-Local">Non-Local</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Address</label>
-                        <textarea class="form-control" id="address" rows="2" placeholder="Enter Address..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Connection Source</label>
-                        <select class="form-select" id="connection_source">
-                            <option value="">Select...</option>
-                            <option selected="selected" value="Friend_Family_Invite">Friend/Family Invite</option>
-                            <option value="Event">Event</option>
-                            <option value="Social_Media">Social Media</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-
-                    <!-- Ref Section -->
-                    <div class="ref_div">
-                        <div class="form-group">
-                            <label class="form-label">Ref: Name</label>
-                            <input type="text" class="form-control" id="ref_name" placeholder="Ref: Name">
+                            <div class="field">
+                                <label class="label" for="familyName">Last name</label>
+                                <input class="input" id="familyName" name="familyName"
+                                       maxlength="80" autocomplete="off">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Ref: Phone</label>
-                            <input type="tel" class="form-control mobile-input" id="ref_phone" placeholder="Ref: phone number" maxlength="10">
+
+                        <div class="field-row">
+                            <div class="field">
+                                <label class="label" for="ageBand">Age group</label>
+                                <select class="input" id="ageBand" name="ageBand">
+                                    <option value="">Not recorded</option>
+                                </select>
+                            </div>
+
+                            <div class="field">
+                                <label class="label" for="gender">Gender</label>
+                                <select class="input" id="gender" name="gender">
+                                    <option value="">Not recorded</option>
+                                    <option value="MALE">Male</option>
+                                    <option value="FEMALE">Female</option>
+                                    <option value="OTHER">Other</option>
+                                    <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                                </select>
+                            </div>
                         </div>
-                    </div>
 
+                        <p class="section-title">How to reach them</p>
+
+                        <div class="field">
+                            <label class="label" for="mobile">
+                                Mobile number <span class="required-mark" aria-hidden="true">*</span>
+                            </label>
+                            <input class="input" id="mobile" name="mobile" type="tel"
+                                   inputmode="numeric" maxlength="15" autocomplete="off"
+                                   aria-describedby="mobileHint" required>
+                            <p class="hint" id="mobileHint">
+                                Checked against existing records as you leave the field.
+                            </p>
+                        </div>
+
+                        <div class="field">
+                            <label class="label" for="email">Email</label>
+                            <input class="input" id="email" name="email" type="email"
+                                   maxlength="255" autocomplete="off">
+                        </div>
+
+                        <p class="section-title">Where they live</p>
+
+                        <div class="field">
+                            <label class="label" for="addressLine">Address</label>
+                            <input class="input" id="addressLine" name="addressLine" maxlength="200">
+                        </div>
+
+                        <div class="field-row">
+                            <div class="field">
+                                <label class="label" for="locality">Area / locality</label>
+                                <input class="input" id="locality" name="locality" maxlength="100">
+                            </div>
+
+                            <div class="field">
+                                <label class="label" for="postalCode">Postal code</label>
+                                <input class="input" id="postalCode" name="postalCode" maxlength="20">
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="check">
+                                <input type="checkbox" id="isLocal" checked>
+                                <span class="check-text">
+                                    <strong>Lives locally</strong>
+                                    Uncheck for someone visiting from out of town — they are
+                                    followed up differently.
+                                </span>
+                            </label>
+                        </div>
+
+                        <p class="section-title">About the visit</p>
+
+                        <div class="field-row">
+                            <div class="field">
+                                <label class="label" for="connectionSource">How they found us</label>
+                                <select class="input" id="connectionSource" name="connectionSource">
+                                    <option value="">Not recorded</option>
+                                    <option value="WALK_IN">Walk-in</option>
+                                    <option value="FRIEND_INVITE">Invited by a friend</option>
+                                    <option value="EVENT">Outreach event</option>
+                                    <option value="SOCIAL_MEDIA">Social media</option>
+                                    <option value="WEBSITE">Website</option>
+                                    <option value="OTHER">Other</option>
+                                </select>
+                            </div>
+
+                            <div class="field">
+                                <label class="label" for="firstVisitOn">Date of visit</label>
+                                <input class="input" id="firstVisitOn" name="firstVisitOn" type="date">
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="label" for="notes">Notes</label>
+                            <textarea class="input" id="notes" name="notes" rows="3"
+                                      maxlength="2000"
+                                      placeholder="Anything the volunteer should know before making contact."></textarea>
+                        </div>
+
+                        <p class="section-title">Follow-up</p>
+
+                        <div class="field">
+                            <label class="check">
+                                <input type="checkbox" id="startFollowUp" checked>
+                                <span class="check-text">
+                                    <strong>Start follow-up straight away</strong>
+                                    Opens a case and assigns it to an available volunteer.
+                                    Leave this on unless the visitor asked not to be contacted.
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="field" id="priorityField">
+                            <label class="label" for="priority">Priority</label>
+                            <select class="input" id="priority" name="priority">
+                                <option value="NORMAL">Normal</option>
+                                <option value="LOW">Low</option>
+                                <option value="HIGH">High</option>
+                                <option value="URGENT">Urgent</option>
+                            </select>
+                            <p class="hint">Raise this only if someone needs contacting sooner than usual.</p>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary" id="saveBtn">
+                                Save visitor
+                            </button>
+                            <button type="button" class="btn" id="clearBtn">Clear form</button>
+                            <span class="spacer"></span>
+                            <span class="hint" id="statusHint"></span>
+                        </div>
+
+                    </form>
                 </div>
-            </div>
+            </section>
 
-            <!-- Prayer -->
-            <div class="form-card">
-                <div class="form-card-header">
-                    <div class="form-card-icon">🙏</div>
-                    <h2 class="form-card-title">Prayer &amp; Needs</h2>
+            <!-- ---------------------------------------------- session list -->
+            <aside class="card">
+                <div class="card-head">
+                    <h2 class="card-title">Recorded just now</h2>
                 </div>
-                <div class="form-card-body">
-                    <div class="form-group">
-                        <label class="form-label">Prayer Requests</label>
-                        <textarea class="form-control" id="prayer_requests" rows="2" placeholder="Share any prayer requests..."></textarea>
-                    </div>
+                <div class="card-body" id="sessionList">
+                    <p class="empty">Nothing recorded yet in this session.</p>
                 </div>
-            </div>
+            </aside>
 
-            <div class="btn-row-actions">
-                <button type="submit" class="btn-submit" id="submitBtn">
-                    Submit
-                </button>
-            </div>
-
-        </form>
-
-        <div id="responseMessage" style="display:none;"></div>
-
-    </div>
-
-    <script>
-        $(document).ready(function () {
-
-            // Toggle Ref Section
-            $('#connection_source').on('change', function () {
-                const isRef = $(this).val() === 'Friend_Family_Invite';
-                $('.ref_div').toggle(isRef);
-
-                // Clear ref fields when hidden
-                if (!isRef) {
-                    $('#ref_name, #ref_phone').val('');
-                }
-            });
-
-            $('#visitorForm').on('submit', function (e) {
-                e.preventDefault();
-
-                const phone = $('#phone').val();
-                const connection = $('#connection_source').val();
-                const refName = $('#ref_name').val();
-                const refPhone = $('#ref_phone').val();
-
-                // ✅ Main phone validation (required + 10 digits)
-                if (!phone || !/^\d{10}$/.test(phone)) {
-                    showError('Enter valid 10-digit phone number');
-                    return;
-                }
-
-                // ✅ Ref validation (only for Friend/Family)
-                if (connection === 'Friend_Family_Invite') {
-
-                    if (!refName) {
-                        showError('Reference name is required');
-                        return;
-                    }
-
-                    if (!refPhone || !/^\d{10}$/.test(refPhone)) {
-                        showError('Enter valid 10-digit reference phone number');
-                        return;
-                    }
-                }
-
-                const formData = {
-                    firstName: $('#first_name').val(),
-                    lastName: $('#last_name').val(),
-                    phone: phone,
-                    email: $('#email').val(),
-                    ageRange: $('#age_range').val(),
-                    address: $('#address').val(),
-                    connectionSource: connection,
-                    refName: refName,
-                    refPhone: refPhone,
-                    prayerRequests: $('#prayer_requests').val(),
-                    householdType: $('#household_type').val(),
-                    LocationType: $('#ddlLocationType').val() || 'Local'
-                };
-
-                const btn = $('#submitBtn');
-                btn.prop('disabled', true).text('⏳ Submitting...');
-
-                $.ajax({
-                    url: API_BASE_URL + "/people",
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify(formData),
-
-                    success: function () {
-                        showSuccess('✓ Success! Welcome to our community.');
-                        $('#visitorForm')[0].reset();
-
-                        const isRef = $('#connection_source').val() === 'Friend_Family_Invite';
-                        $('.ref_div').toggle(isRef);
-                        $('#ref_name, #ref_phone').val('');
-                    },
-
-                    error: function (xhr) {
-                        showError(xhr.responseJSON?.message || 'Something went wrong');
-                    },
-
-                    complete: function () {
-                        btn.prop('disabled', false).text('Submit');
-                    }
-                });
-
-            });
-
-            // Helper functions
-            function showError(msg) {
-                $('#responseMessage')
-                    .removeClass('text-success')
-                    .addClass('text-danger')
-                    .text(msg)
-                    .show();
-            }
-
-            function showSuccess(msg) {
-                $('#responseMessage')
-                    .removeClass('text-danger')
-                    .addClass('text-success')
-                    .text(msg)
-                    .show();
-            }
-
-        });
-    </script>
+        </div>
+    </main>
 
 </body>
-
-
 </html>

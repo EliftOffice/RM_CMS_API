@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Add a user — RM_CMS Admin</title>
+
+    <link rel="icon" href="../assets/Images/favicon.ico">
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/toast.js"></script>
+    <script src="../assets/js/admin-shell.js"></script>
+    <script src="../assets/js/password-policy.js"></script>
+
+    <style>
+        .form-card { max-width: 640px; }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--ink-muted);
+            margin: 22px 0 12px;
+            padding-top: 16px;
+            border-top: 1px solid var(--line);
+        }
+
+        .section-title:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0 16px;
+        }
+
+        @media (max-width: 560px) { .field-row { grid-template-columns: minmax(0, 1fr); } }
+
+        .role-pick {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .role-pick:hover { background: var(--canvas); }
+        .role-pick input { margin-top: 3px; }
+        .role-pick .sub { color: var(--ink-muted); font-size: 12px; display: block; }
+
+        .picker-results {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            margin-top: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .picker-item { padding: 9px 12px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 13.5px; }
+        .picker-item:last-child { border-bottom: none; }
+        .picker-item:hover { background: var(--canvas); }
+        .picker-item .sub { color: var(--ink-muted); font-size: 12px; }
+
+        .chosen {
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+            padding: 12px 14px; border: 1px solid var(--accent);
+            border-radius: var(--radius); background: #f5f8ff;
+        }
+
+        .form-actions {
+            display: flex; gap: 10px; align-items: center;
+            margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line);
+        }
+
+        .form-actions .spacer { flex: 1; }
+        [aria-invalid="true"] { border-color: var(--danger) !important; }
+    </style>
+</head>
+
+<body>
+
+<div id="adminShell"></div>
+
+<main class="page" id="pageBody" hidden>
+
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Add a user</h1>
+            <p class="page-sub">
+                Create a system user directly. Attach to someone already on file, or
+                record a new person at the same time.
+            </p>
+        </div>
+        <a class="btn" href="/templates/Admin/users.html">Back to users</a>
+    </div>
+
+    <section class="card form-card">
+        <div class="card-body">
+
+            <div id="formError" class="notice notice-warn" role="alert" hidden></div>
+
+            <form id="userForm" novalidate>
+
+                <p class="section-title">Who</p>
+
+                <div class="field">
+                    <label class="label">Is this person already on file?</label>
+                    <label class="role-pick">
+                        <input type="radio" name="mode" value="new" checked>
+                        <span><strong>No — record them now</strong>
+                            <span class="sub">Creates the person and the user together.</span></span>
+                    </label>
+                    <label class="role-pick">
+                        <input type="radio" name="mode" value="existing">
+                        <span><strong>Yes — find them</strong>
+                            <span class="sub">Attaches access to their existing record, keeping all their history.</span></span>
+                    </label>
+                </div>
+
+                <!-- existing person -->
+                <div id="existingBlock" hidden>
+                    <div class="field">
+                        <label class="label" for="personSearch">Search by name</label>
+                        <input class="input" id="personSearch" autocomplete="off" placeholder="Start typing a name">
+                        <div class="picker-results" id="pickerResults" hidden></div>
+                    </div>
+
+                    <div class="field" id="chosenField" hidden>
+                        <label class="label">Selected person</label>
+                        <div class="chosen">
+                            <div>
+                                <div style="font-weight:600;" id="chosenName"></div>
+                                <div class="cell-sub" id="chosenSub"></div>
+                            </div>
+                            <button type="button" class="btn btn-sm" id="clearPerson">Change</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- new person -->
+                <div id="newBlock">
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="label" for="givenName">First name</label>
+                            <input class="input" id="givenName" maxlength="80" autocomplete="off">
+                        </div>
+                        <div class="field">
+                            <label class="label" for="familyName">Last name</label>
+                            <input class="input" id="familyName" maxlength="80" autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="label" for="mobile">Mobile number</label>
+                            <input class="input" id="mobile" type="tel" inputmode="numeric" maxlength="15"
+                                   autocomplete="off" aria-describedby="mobileHint">
+                            <p class="hint" id="mobileHint">This is also their username for signing in.</p>
+                        </div>
+                        <div class="field">
+                            <label class="label" for="email">Email</label>
+                            <input class="input" id="email" type="email" maxlength="255" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+
+                <p class="section-title">Role</p>
+
+                <div class="field">
+                    <div id="roleOptions"></div>
+                </div>
+
+                <div class="field" id="bandField" hidden>
+                    <label class="label" for="capacityBand">Weekly capacity</label>
+                    <select class="input" id="capacityBand"></select>
+                    <p class="hint">How many people they can follow up each week.</p>
+                </div>
+
+                <div class="field" id="teamField" hidden>
+                    <label class="label" for="teamId">Team</label>
+                    <select class="input" id="teamId"><option value="">No team yet</option></select>
+                </div>
+
+                <p class="section-title">Sign-in</p>
+
+                <div class="field" id="accessField">
+                    <label class="role-pick">
+                        <input type="checkbox" id="grantAccess" checked>
+                        <span><strong>Give them a sign-in</strong>
+                            <span class="sub" id="accessHint">
+                                Only volunteers can work without one. Every other role needs it.
+                            </span></span>
+                    </label>
+                </div>
+
+                <div id="passwordBlock">
+                    <div class="field">
+                        <label class="label" for="initialPassword">Initial password</label>
+                        <input type="text" class="input" id="initialPassword" maxlength="128"
+                               placeholder="Leave blank to generate one" autocomplete="off">
+                    </div>
+
+                    <div class="pw-rules">
+                        <p class="pw-rules-title">The password must have:</p>
+                        <ul id="passwordRulesList"></ul>
+                    </div>
+
+                    <div class="field" style="margin-top:12px;">
+                        <label class="role-option">
+                            <input type="checkbox" id="mustChange" checked>
+                            <span>Require a password change at first sign-in</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="saveBtn">Create user</button>
+                    <button type="button" class="btn" id="clearBtn">Clear</button>
+                    <span class="spacer"></span>
+                    <span class="hint" id="statusHint"></span>
+                </div>
+
+            </form>
+        </div>
+    </section>
+</main>
+
+<!-- one-time credential -->
+<div class="modal-backdrop" id="credentialModal">
+    <div class="modal">
+        <div class="modal-head">Password</div>
+        <div class="modal-body">
+            <p class="page-sub" id="credentialFor" style="margin-bottom:10px;"></p>
+            <div class="credential" id="credentialValue"></div>
+            <div class="notice notice-warn" style="margin-top:14px;">
+                Shown once. It cannot be retrieved again — copy it now.
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn btn-primary" data-close>Done</button>
+        </div>
+    </div>
+</div>
+
+<script src="../assets/js/add-user.js"></script>
+
+</body>
+</html>

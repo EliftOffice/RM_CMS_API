@@ -1,0 +1,460 @@
+/*
+ * Visitor intake — the data-entry operator's screen.
+ *
+ * Deliberately narrow. A DATA_ENTRY account can record a visitor and check for
+ * duplicates; it cannot list people or browse cases (GET /api/people is
+ * VolunteerOrAbove). So this is a capture form, not a CRUD console, and the
+ * "recorded just now" panel is built from what this session created rather than
+ * by reading the list back.
+ *
+ * Flow:
+ *   POST /api/people           -> create the person
+ *   POST /api/cases            -> open a case so a volunteer follows up  (optional)
+ *   GET  /api/people/lookup    -> warn about an existing record before saving
+ *
+ * Requires auth.js, toast.js and admin-shell.js.
+ */
+(function () {
+    'use strict';
+
+    var ROLES = ['ADMIN', 'PASTOR', 'TEAM_LEAD', 'VOLUNTEER', 'DATA_ENTRY'];
+
+    var form, saveBtn, clearBtn, dupNotice, formError, statusHint, sessionList;
+    var recorded = [];
+
+    // Set when the API refuses a save because someone shares the contact number.
+    // The next submit carries allowDuplicate, so recording a duplicate is always a
+    // second, deliberate action rather than something that happens by accident.
+    var duplicateAcknowledged = false;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        AdminShell
+            .boot({
+                roles: ROLES,
+                active: { href: '/templates/Peoples/PeopleEntry.html', area: 'Intake' }
+            })
+            .then(function (ok) {
+                if (!ok) return;    // boot already redirected to the login page
+                document.getElementById('pageBody').hidden = false;
+                init();
+            });
+    });
+
+    function init() {
+        form        = document.getElementById('intakeForm');
+        saveBtn     = document.getElementById('saveBtn');
+        clearBtn    = document.getElementById('clearBtn');
+        dupNotice   = document.getElementById('dupNotice');
+        formError   = document.getElementById('formError');
+        statusHint  = document.getElementById('statusHint');
+        sessionList = document.getElementById('sessionList');
+
+        loadReference();
+        setToday();
+        wireFollowUpToggle();
+
+        form.addEventListener('submit', onSubmit);
+        clearBtn.addEventListener('click', function () { resetForm(true); });
+
+        // Any edit invalidates a duplicate warning that was about the previous values.
+        form.addEventListener('input', function (e) {
+            clearFieldError(e.target);
+
+            if (duplicateAcknowledged || !dupNotice.hidden) {
+                duplicateAcknowledged = false;
+                hide(dupNotice);
+                saveBtn.textContent = 'Save visitor';
+            }
+        });
+
+        document.getElementById('mobile').addEventListener('blur', checkForDuplicate);
+    }
+
+    // ---------------------------------------------------------------- reference
+
+    /**
+     * Age bands are CHECK-constrained in the database, so the options come from the
+     * server rather than being hard-coded here — a mismatch would be rejected on save.
+     */
+    function loadReference() {
+        fetch(API_BASE_URL + '/people-reference')
+            .then(function (res) { return res.json(); })
+            .then(function (body) {
+                var bands = (body && body.data && body.data.ageBands) || [];
+                var select = document.getElementById('ageBand');
+
+                bands.forEach(function (code) {
+                    var option = document.createElement('option');
+                    option.value = code;
+                    option.textContent = labelForBand(code);
+                    select.appendChild(option);
+                });
+            })
+            .catch(function () {
+                showToast('Could not load the age-group list.', 'warning');
+            });
+    }
+
+    function labelForBand(code) {
+        if (code === 'UNDER_18') return 'Under 18';
+        if (code === 'OVER_60')  return 'Over 60';
+        return String(code).replace('_', '–');   // 26_35 -> 26–35
+    }
+
+    function setToday() {
+        var input = document.getElementById('firstVisitOn');
+        var now = new Date();
+        var month = String(now.getMonth() + 1).padStart(2, '0');
+        var day = String(now.getDate()).padStart(2, '0');
+
+        input.value = now.getFullYear() + '-' + month + '-' + day;
+    }
+
+    function wireFollowUpToggle() {
+        var toggle = document.getElementById('startFollowUp');
+        var priorityField = document.getElementById('priorityField');
+
+        function sync() { priorityField.hidden = !toggle.checked; }
+
+        toggle.addEventListener('change', sync);
+        sync();
+    }
+
+    // ---------------------------------------------------------------- duplicates
+
+    /**
+     * Pre-emptive check as the operator leaves the mobile field. The server checks
+     * again on save — this only saves them typing the rest of the form first.
+     * Contact values come back masked, so this shows that a record exists without
+     * disclosing anyone's number.
+     */
+    function checkForDuplicate() {
+        var mobile = document.getElementById('mobile').value.trim();
+        if (mobile.length < 6) return;
+
+        fetch(API_BASE_URL + '/people/lookup?q=' + encodeURIComponent(mobile))
+            .then(function (res) { return res.json(); })
+            .then(function (body) {
+                var matches = (body && body.data) || [];
+                if (!matches.length) return;
+
+                var names = matches.map(function (m) {
+                    return '<li>' + AdminShell.escapeHtml(m.fullName) +
+                           ' <span class="hint">' + AdminShell.escapeHtml(m.maskedContact || '') +
+                           '</span></li>';
+                }).join('');
+
+                dupNotice.innerHTML =
+                    '<strong>This number is already on file.</strong>' +
+                    '<ul class="dup-list">' + names + '</ul>' +
+                    'Check it is not the same person before saving.';
+
+                show(dupNotice);
+            })
+            .catch(function () { /* the save-time check is the one that counts */ });
+    }
+
+    // ---------------------------------------------------------------- submit
+
+    function onSubmit(event) {
+        event.preventDefault();
+
+        hide(formError);
+
+        var payload = readForm();
+        var problem = validate(payload);
+
+        if (problem) {
+            showError(problem.message);
+            markField(problem.field);
+            return;
+        }
+
+        setBusy(true, 'Saving…');
+
+        var request = buildPersonRequest(payload);
+        request.allowDuplicate = duplicateAcknowledged;
+
+        fetch(API_BASE_URL + '/people', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request)
+        })
+            .then(function (res) { return res.json(); })
+            .then(function (body) {
+                // responseType: 0 Success, 1 Warning, 2 Error.
+                if (!body || body.responseType === 2) {
+                    setBusy(false);
+                    showError((body && body.message) || 'Could not save this visitor.');
+                    return;
+                }
+
+                if (body.responseType === 1) {
+                    // The server refused because of a duplicate. Turn the notice into
+                    // an explicit second choice rather than saving behind their back.
+                    setBusy(false);
+                    offerDuplicateOverride(body.message);
+                    return;
+                }
+
+                var person = body.data;
+
+                if (!payload.startFollowUp) {
+                    finish(person, false);
+                    return;
+                }
+
+                openCase(person, payload);
+            })
+            .catch(function () {
+                setBusy(false);
+                showError('Could not reach the server. Check your connection and try again.');
+            });
+    }
+
+    /**
+     * Opens the care case. The person is already saved at this point, so a failure
+     * here is reported as a partial success — telling the operator "nothing saved"
+     * would make them enter the visitor twice.
+     */
+    function openCase(person, payload) {
+        var request = {
+            personId: person.id,
+            autoAssign: true,
+            priority: payload.priority || 'NORMAL'
+        };
+
+        if (payload.connectionSource) request.connectionSource = payload.connectionSource;
+        if (payload.firstVisitOn)     request.firstVisitOn = payload.firstVisitOn;
+
+        fetch(API_BASE_URL + '/cases', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request)
+        })
+            .then(function (res) { return res.json(); })
+            .then(function (body) {
+                if (!body || body.responseType === 2) {
+                    finish(person, false,
+                        (body && body.message) || 'Follow-up could not be started.');
+                    return;
+                }
+
+                finish(person, true);
+            })
+            .catch(function () {
+                finish(person, false, 'Saved, but follow-up could not be started.');
+            });
+    }
+
+    function finish(person, followUpStarted, warning) {
+        setBusy(false);
+
+        var name = (person && person.fullName) || 'Visitor';
+
+        if (warning) {
+            showToast(warning, 'warning');
+            showError(name + ' was saved, but follow-up did not start. ' +
+                      'Tell a team lead so it is picked up manually.');
+        } else {
+            showToast(name + ' recorded' + (followUpStarted ? ' and follow-up started.' : '.'),
+                      'success');
+        }
+
+        addToSession(person, followUpStarted);
+        resetForm(false);
+        document.getElementById('givenName').focus();
+    }
+
+    // ---------------------------------------------------------------- helpers
+
+    function readForm() {
+        return {
+            givenName:        value('givenName'),
+            familyName:       value('familyName'),
+            ageBand:          value('ageBand'),
+            gender:           value('gender'),
+            mobile:           value('mobile'),
+            email:            value('email'),
+            addressLine:      value('addressLine'),
+            locality:         value('locality'),
+            postalCode:       value('postalCode'),
+            notes:            value('notes'),
+            connectionSource: value('connectionSource'),
+            firstVisitOn:     value('firstVisitOn'),
+            priority:         value('priority'),
+            isLocal:          document.getElementById('isLocal').checked,
+            startFollowUp:    document.getElementById('startFollowUp').checked
+        };
+    }
+
+    function buildPersonRequest(p) {
+        var contacts = [{ contactType: 'MOBILE', value: p.mobile, isPrimary: true }];
+
+        if (p.email) contacts.push({ contactType: 'EMAIL', value: p.email, isPrimary: false });
+
+        var request = {
+            givenName: p.givenName,
+            isLocal: p.isLocal,
+            contacts: contacts
+        };
+
+        // Only send what was filled in; empty strings would overwrite with blanks.
+        if (p.familyName)  request.familyName = p.familyName;
+        if (p.ageBand)     request.ageBand = p.ageBand;
+        if (p.gender)      request.gender = p.gender;
+        if (p.addressLine) request.addressLine = p.addressLine;
+        if (p.locality)    request.locality = p.locality;
+        if (p.postalCode)  request.postalCode = p.postalCode;
+        if (p.notes)       request.notes = p.notes;
+
+        return request;
+    }
+
+    function validate(p) {
+        if (!p.givenName) {
+            return { field: 'givenName', message: 'Enter the visitor\'s first name.' };
+        }
+
+        if (!p.mobile) {
+            return { field: 'mobile', message: 'Enter a mobile number.' };
+        }
+
+        if (!/^[0-9+\-\s()]{6,15}$/.test(p.mobile)) {
+            return { field: 'mobile', message: 'That does not look like a valid mobile number.' };
+        }
+
+        if (p.email && p.email.indexOf('@') === -1) {
+            return { field: 'email', message: 'That does not look like a valid email address.' };
+        }
+
+        return null;
+    }
+
+    /**
+     * The server's refusal message names the matches but is written for a developer
+     * ("resubmit with allowDuplicate"). An operator gets the fact, not the API
+     * instruction — the names already came back, masked, from the pre-check.
+     */
+    function offerDuplicateOverride(message) {
+        var names = extractNames(message);
+
+        dupNotice.innerHTML =
+            '<strong>This number is already on file.</strong>' +
+            (names ? '<ul class="dup-list"><li>' + AdminShell.escapeHtml(names) + '</li></ul>'
+                   : '<br>') +
+            'Nothing has been saved. If this is the same person, there is nothing to do. ' +
+            'If it really is someone different — a shared family phone, for example — press ' +
+            '<strong>Save anyway</strong>.';
+
+        show(dupNotice);
+
+        duplicateAcknowledged = true;
+        saveBtn.textContent = 'Save anyway';
+        saveBtn.focus();
+    }
+
+    /**
+     * Pulls the matched names out of the server's message, which formats them as
+     * "... already recorded (Name, Other Name). ...". Best-effort only: if the
+     * wording ever changes the notice simply omits the names rather than showing
+     * a mangled string.
+     */
+    function extractNames(message) {
+        var match = /\(([^)]+)\)/.exec(String(message || ''));
+        return match ? match[1] : '';
+    }
+
+    function addToSession(person, followUpStarted) {
+        recorded.unshift({
+            name: (person && person.fullName) || '—',
+            reference: (person && person.referenceCode) || '',
+            followUp: followUpStarted,
+            at: new Date()
+        });
+
+        renderSession();
+    }
+
+    function renderSession() {
+        if (!recorded.length) {
+            sessionList.innerHTML = '<p class="empty">Nothing recorded yet in this session.</p>';
+            return;
+        }
+
+        sessionList.innerHTML = recorded.map(function (item) {
+            var time = item.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            return '<div class="session-item">' +
+                     '<div class="session-name">' + AdminShell.escapeHtml(item.name) + '</div>' +
+                     '<div class="session-meta">' +
+                       (item.reference ? AdminShell.escapeHtml(item.reference) + ' · ' : '') +
+                       time + ' · ' +
+                       (item.followUp ? 'follow-up started' : 'no follow-up') +
+                     '</div>' +
+                   '</div>';
+        }).join('');
+    }
+
+    function resetForm(clearEverything) {
+        var keepDate = document.getElementById('firstVisitOn').value;
+
+        form.reset();
+
+        document.getElementById('isLocal').checked = true;
+        document.getElementById('startFollowUp').checked = true;
+        document.getElementById('priorityField').hidden = false;
+
+        // The operator is usually entering a batch from the same service, so the
+        // visit date carries over rather than being retyped every time.
+        document.getElementById('firstVisitOn').value = clearEverything ? '' : keepDate;
+        if (clearEverything) setToday();
+
+        duplicateAcknowledged = false;
+        saveBtn.textContent = 'Save visitor';
+
+        hide(dupNotice);
+        hide(formError);
+        clearAllFieldErrors();
+    }
+
+    function setBusy(busy, message) {
+        saveBtn.disabled = busy;
+        clearBtn.disabled = busy;
+        statusHint.textContent = busy ? (message || '') : '';
+    }
+
+    function showError(message) {
+        formError.textContent = message;
+        formError.classList.add('notice-warn');
+        show(formError);
+        showToast(message, 'error');
+    }
+
+    function markField(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+
+        el.setAttribute('aria-invalid', 'true');
+        el.focus();
+    }
+
+    function clearFieldError(el) {
+        if (el && el.removeAttribute) el.removeAttribute('aria-invalid');
+    }
+
+    function clearAllFieldErrors() {
+        Array.prototype.forEach.call(
+            form.querySelectorAll('[aria-invalid]'),
+            function (el) { el.removeAttribute('aria-invalid'); });
+    }
+
+    function value(id) {
+        var el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+    }
+
+    function show(el) { el.hidden = false; }
+    function hide(el) { el.hidden = true; el.textContent = ''; }
+
+})();

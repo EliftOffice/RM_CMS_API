@@ -1,0 +1,377 @@
+/* ============================================================================
+   Team lead shell — the shared chrome for every team lead screen.
+
+   The dashboard, escalation detail, check-in and manual assignment screens each
+   carried their own copy of this palette and their own header markup, and they
+   had drifted: different paddings, different back links, one with no header at
+   all. Sharing it is what keeps them consistent as they change.
+
+   The COLOURS AND STYLE ARE UNCHANGED — this is the same palette those screens
+   already used, lifted into one place. Nothing here restyles the system.
+   ========================================================================== */
+
+:root {
+    --primary: #085c40;
+    --primary-hover: #064d35;
+    --primary-light: #e6f4ef;
+    --primary-dark: #053d2b;
+    --white: #ffffff;
+    --bg: #ffffff;
+    --surface: #f9fafb;
+    --border: #e5e7eb;
+    --text: #111827;
+    --muted: #6b7280;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --success: #16a34a;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --t: 0.18s ease;
+    --radius: 12px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    font-family: var(--font);
+    background: var(--surface);
+    color: var(--text);
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+}
+
+    /* The green rule across the top of every screen in the system. */
+    body::before {
+        content: '';
+        display: block;
+        height: 3px;
+        background: var(--primary);
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 999;
+    }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.tl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 24px;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 3px;
+    z-index: 10;
+}
+
+.tl-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.tl-logo {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--primary-light);
+    border: 2px solid var(--primary-light);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; flex-shrink: 0;
+    font-weight: 700; color: var(--primary); font-size: 14px;
+}
+
+    .tl-logo img { width: 30px; height: 30px; object-fit: contain; }
+
+.tl-titles { min-width: 0; }
+
+.tl-title {
+    font-size: 15px; font-weight: 700; color: var(--text);
+    margin: 0; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.tl-subtitle {
+    font-size: 11px; color: #9ca3af; margin: 0; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.tl-nav { display: flex; align-items: center; gap: 8px; }
+
+/* Three weights, so the bar reads at a glance rather than being a row of
+   identical pills:
+     .tl-btn-primary  the action this screen exists for
+     .tl-btn          a normal move to another screen
+     .tl-btn-quiet    leaving — set apart, never the brightest thing        */
+.tl-btn, .tl-btn-primary, .tl-btn-quiet {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background var(--t), border-color var(--t), color var(--t);
+    white-space: nowrap;
+}
+
+.tl-btn { background: var(--white); border-color: var(--border); color: var(--text); }
+
+    .tl-btn:hover { background: var(--primary-light); border-color: var(--primary-light); color: var(--primary-dark); }
+
+    /* The screen you are already on is marked, not linked away to. */
+    .tl-btn.is-current {
+        background: var(--primary-light);
+        border-color: var(--primary-light);
+        color: var(--primary-dark);
+        cursor: default;
+    }
+
+.tl-btn-primary { background: var(--primary); color: var(--white); }
+
+    .tl-btn-primary:hover { background: var(--primary-hover); color: var(--white); }
+
+.tl-btn-quiet {
+    background: transparent;
+    color: var(--muted);
+    /* Set apart so Sign out is never hit by muscle memory aimed at its neighbour. */
+    margin-left: 6px;
+    border-left: 1px solid var(--border);
+    border-radius: 0 8px 8px 0;
+    padding-left: 14px;
+}
+
+    .tl-btn-quiet:hover { color: var(--danger); }
+
+/* ── Page body ──────────────────────────────────────────────────────────── */
+.tl-body { max-width: 1100px; margin: 0 auto; padding: 20px 24px 48px; }
+
+    .tl-body.is-narrow { max-width: 640px; }
+
+.tl-back {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.82rem; font-weight: 600;
+    color: var(--muted); text-decoration: none;
+    margin-bottom: 12px;
+    transition: color var(--t);
+}
+
+    .tl-back:hover { color: var(--primary); }
+
+.tl-page-title { font-size: 1.4rem; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
+.tl-page-sub { font-size: 0.85rem; color: var(--muted); margin: 0 0 20px; }
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+.tl-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 18px;
+}
+
+.tl-card-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.tl-card-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: var(--primary-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+}
+
+.tl-card-title { font-size: 14px; font-weight: 700; margin: 0; }
+.tl-card-note { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 600; }
+
+.tl-card-body { padding: 18px; }
+
+    .tl-card-body.is-flush { padding: 0; }
+
+/* ── Forms ──────────────────────────────────────────────────────────────── */
+.tl-field { margin-bottom: 16px; }
+
+.tl-label {
+    display: block;
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    margin-bottom: 5px;
+}
+
+.tl-input, .tl-select, .tl-textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 11px;
+    font-size: 14px;
+    font-family: var(--font);
+    color: var(--text);
+    background: var(--white);
+    transition: border-color var(--t), box-shadow var(--t);
+}
+
+    .tl-input:focus, .tl-select:focus, .tl-textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+.tl-textarea { min-height: 84px; resize: vertical; }
+
+.tl-hint { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+
+.tl-check {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 9px 0;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+    .tl-check input[type=checkbox] {
+        width: 17px; height: 17px;
+        margin: 1px 0 0;
+        accent-color: var(--primary);
+        flex-shrink: 0;
+        cursor: pointer;
+    }
+
+.tl-section {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--muted);
+    padding-top: 8px; margin-bottom: 8px;
+    border-top: 1px solid var(--border);
+}
+
+    .tl-section:first-of-type { border-top: none; padding-top: 0; }
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.tl-save, .tl-secondary {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px; font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: background var(--t);
+}
+
+.tl-save { background: var(--primary); color: var(--white); }
+
+    .tl-save:hover:not(:disabled) { background: var(--primary-hover); }
+    .tl-save:disabled { opacity: .6; cursor: not-allowed; }
+
+.tl-secondary { background: var(--white); border: 1px solid var(--border); color: var(--text); }
+
+    .tl-secondary:hover { background: var(--surface); }
+
+.tl-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* ── Detail rows ────────────────────────────────────────────────────────── */
+.tl-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+
+    .tl-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .tl-row:first-child { padding-top: 0; }
+
+.tl-row-label {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em;
+    color: var(--muted);
+    flex-shrink: 0;
+}
+
+.tl-row-value { text-align: right; font-weight: 500; word-break: break-word; }
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+.tl-table { width: 100%; border-collapse: collapse; }
+
+    .tl-table thead th {
+        font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
+        color: var(--muted); font-weight: 700;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 10px 18px;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .tl-table tbody td {
+        padding: 12px 18px;
+        border-bottom: 1px solid #f1f2f4;
+        vertical-align: middle;
+        font-size: 14px;
+    }
+
+    .tl-table tbody tr:last-child td { border-bottom: none; }
+    .tl-table tbody tr:hover { background: #fafbfc; }
+
+/* Wide tables scroll inside their own box so the PAGE never scrolls sideways. */
+.tl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+.tl-empty { padding: 32px 18px; text-align: center; color: var(--muted); }
+
+/* ── Badges ─────────────────────────────────────────────────────────────── */
+.tl-badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: .03em;
+}
+
+.tl-badge-green { background: #dcfce7; color: #14532d; }
+.tl-badge-amber { background: #fef9c3; color: #854d0e; }
+.tl-badge-red { background: #fee2e2; color: #991b1b; }
+.tl-badge-grey { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+.tl-message { font-size: 13px; margin: 12px 0 0; }
+    .tl-message.is-error { color: #b91c1c; }
+    .tl-message.is-ok { color: var(--primary); }
+
+/* ── Mobile ─────────────────────────────────────────────────────────────────
+   Below 640px the header stacks: brand on the first line, the menu on its own
+   line beneath. Nothing is hidden behind a hamburger — there are three items,
+   and a menu you have to open is worse than a row you can see.
+   ------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+    .tl-header {
+        flex-wrap: wrap;
+        padding: 10px 14px;
+        gap: 8px 12px;
+    }
+
+    .tl-nav {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .tl-btn-quiet {
+        margin-left: auto;
+        border-left: none;
+        padding-left: 12px;
+    }
+
+    .tl-body { padding: 14px 12px 36px; }
+
+    .tl-card-body { padding: 14px; }
+
+    .tl-table thead th, .tl-table tbody td { padding-left: 12px; padding-right: 12px; }
+
+    .tl-page-title { font-size: 1.2rem; }
+
+    /* Stack detail rows: a label and a right-aligned value collide on a phone. */
+    .tl-row { flex-direction: column; gap: 2px; }
+    .tl-row-value { text-align: left; }
+
+    .tl-save, .tl-secondary { width: 100%; }
+}

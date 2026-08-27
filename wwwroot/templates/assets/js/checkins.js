@@ -1,316 +1,233 @@
-﻿function setMessage(text, color) {
-    if (window.showToast) {
-        // map color keywords to types
-        let type = 'success';
-        if (!text) return;
-        if (color === 'red' || color === 'danger' || color === 'error') type = 'error';
-        if (color === 'green' || color === 'success') type = 'success';
-        if (color === 'warning' || color === 'yellow') type = 'warning';
-        showToast(text, type);
+// Volunteer check-in — the form a team lead fills in after the conversation.
+//
+// Rewired to the v2 API (`Modules/CheckIns`). Four things were wrong before, and
+// the first meant the screen could never work at all:
+//
+//   1. The tone dropdown sent EMOJI ('😊', '😴'). The API stores GREEN/AMBER/RED
+//      and rejected everything, so no check-in could be saved from this form.
+//   2. The check-in date input was commented out, and the next-check-in date and
+//      action items were inside display:none wrappers — three fields the form
+//      collected nowhere.
+//   3. Meeting type was disabled and offered "Bi-Weekly" and "Emergency", which
+//      are not in the schema's vocabulary.
+//   4. A hidden teamLeadId was posted, so the record of WHO held a pastoral
+//      conversation was whatever the browser said. It comes from the token now.
+
+var CHECKIN_VOLUNTEER_ID = null;
+
+function setMessage(text, kind) {
+    $('#message').removeClass('is-error is-ok').addClass(kind || '').text(text || '');
+}
+
+$(function () {
+
+    var params = new URLSearchParams(window.location.search);
+    CHECKIN_VOLUNTEER_ID = params.get('id') || params.get('volunteerid');
+
+    $('#check_in_date').val(new Date().toISOString().split('T')[0]);
+
+    $('#capBandWrap').toggle($('#capacity_adjustment').is(':checked'));
+
+    $('#capacity_adjustment').on('change', function () {
+        $('#capBandWrap').toggle(this.checked);
+        if (!this.checked) $('#new_capacity_band').val('');
+    });
+
+    if (!CHECKIN_VOLUNTEER_ID) {
+        setMessage('No volunteer was named. Open a check-in from the dashboard.', 'is-error');
+        $('#saveBtn').prop('disabled', true);
         return;
     }
 
-    $("#message").text(text).css("color", color);
-}
+    loadVolunteer();
+    loadCapacityBands();
+    loadHistory();
 
-function resetForm() {
-    $("#duration_min, #concerns_noted, #training_needs, #action_items").val("");
-    $("#meeting_type").val("Monthly");
-    $("#emotional_tone").val("");
-    $("#new_capacity_band").val("");
-    $("#capacity_adjustment, #follow_up_needed, #completion_rate_discussed, #boundary_issues").prop("checked", false);
-    $("#capBandWrap").hide();
-    $("#check_in_date").val(new Date().toISOString().split("T")[0]);
-    $("#next_check_in_date").val("");
-}
+    // ------------------------------------------------------------------
+    // Who this is about
+    // ------------------------------------------------------------------
+    function loadVolunteer() {
+        $.get(API_BASE_URL + '/volunteers/' + encodeURIComponent(CHECKIN_VOLUNTEER_ID))
+            .done(function (res) {
+                var v = res && res.data;
 
-// Load capacity bands from server and bind to #new_capacity_band
-function loadCapacityBands(selectedBand) {
-    // clear existing
-    const sel = $("#new_capacity_band");
-    sel.html('<option value="">Loading...</option>');
+                if (!v) { setMessage('That volunteer was not found.', 'is-error'); return; }
 
-    $.ajax({
-        url: API_BASE_URL + '/volunteers/capacity-bands',
-        method: 'GET',
-        success: function (res) {
-            sel.empty();
-            sel.append('<option value="">Select Capacity</option>');
-            if (res && Array.isArray(res.data)) {
-                const bands = res.data;
-                bands.forEach(b => {
-                    const name = b.bandName || '';
-                    const min = b.minPerWeek ?? b.min_per_week ?? '';
-                    const max = b.maxPerWeek ?? b.max_per_week ?? '';
-                    const label = `${name} (${min}-${max})`;
-                    const option = $("<option></option>")
-                        .attr('value', name)
-                        .attr('data-min', min)
-                        .attr('data-max', max)
-                        .text(label);
+                $('#volunteer_id').val(v.id);
+                $('#volunteer_name').text(v.fullName || 'Volunteer');
+                $('#volunteerTeam').text(v.teamName || '');
 
-                    if (selectedBand && selectedBand.toLowerCase() === name.toLowerCase()) {
-                        option.prop('selected', true);
-                    }
+                if (window.TeamLeadShell) {
+                    TeamLeadShell.setSubtitle(v.fullName || '');
+                }
 
-                    sel.append(option);
+                if (v.capacityBandCode) $('#new_capacity_band').val(v.capacityBandCode);
+            })
+            .fail(function (xhr) { setMessage(getError(xhr), 'is-error'); });
+    }
+
+    function loadCapacityBands() {
+        // The bands come from the shared volunteer reference payload; there is no
+        // dedicated capacity-bands route on the v2 API.
+        $.get(API_BASE_URL + '/volunteers/reference')
+            .done(function (res) {
+                var bands = (res && res.data && res.data.capacityBands) || [];
+                var sel = $('#new_capacity_band').empty();
+
+                sel.append('<option value="">— Select —</option>');
+
+                bands.forEach(function (b) {
+                    sel.append('<option value="' + escapeHtml(b.code) + '">' +
+                        escapeHtml(b.label || b.code) +
+                        ' (' + b.minPerWeek + '–' + b.maxPerWeek + ' a week)</option>');
                 });
-            } else {
-                // no data
-                showToast(res?.message || 'No capacity bands found', 'warning');
-            }
-        },
-        error: function (xhr) {
-            sel.empty();
-            sel.append('<option value="">Select Capacity</option>');
-            const msg = xhr.responseJSON?.message || xhr.responseText || 'Error loading capacity bands';
-            showToast(msg, 'error');
-        }
-    });
-}
-
-// Load volunteer details by id and set defaults
-function loadVolunteerDetails(volunteerId) {
-    if (!volunteerId) return;
-
-    $.ajax({
-        url: API_BASE_URL + '/volunteers/GetVolunteerDetails/' + encodeURIComponent(volunteerId),
-        method: 'GET',
-        success: function (res) {
-            if (res && res.responseType === 0 && res.data) {
-                const v = res.data;
-                $('#volunteer_id').val(v.volunteerId || volunteerId);
-                $('#team_lead_id').val(v.teamLeadId || '');
-                $('#volunteer_name').text(`${v.firstName || ''} ${v.lastName || ''}`.trim());
-                $('#team_lead_name').text(v.teamLeadName || '');
-
-                // pre-select capacity band in dropdown once loaded
-                loadCapacityBands(v.capacityBand);
-            } else if (res && res.responseType === 1 && res.data) {
-                const v = res.data;
-                $('#volunteer_id').val(v.volunteerId || volunteerId);
-                $('#team_lead_id').val(v.teamLeadId || '');
-                $('#volunteer_name').text(`${v.firstName || ''} ${v.lastName || ''}`.trim());
-                $('#team_lead_name').text(v.teamLeadName || '');
-                loadCapacityBands(v.capacityBand);
-                showToast(res.message || 'Volunteer loaded with warnings', 'warning');
-            } else {
-                showToast(res?.message || 'Volunteer not found', 'warning');
-                // still load bands without selection
-                loadCapacityBands();
-            }
-        },
-        error: function (xhr) {
-            const msg = xhr.responseJSON?.message || xhr.responseText || 'Error loading volunteer';
-            showToast(msg, 'error');
-            loadCapacityBands();
-        }
-    });
-}
-
-// Load nurture huddle data once TL ID is available
-function loadHuddleNurture(teamLeadId) {
-    fetch(`${API_BASE_URL}/check-ins/nurture-review/${teamLeadId}`)
-        .then(r => r.json())
-        .then(json => {
-            const data = json.data;
-            if (!data) return;
-            const panel = document.getElementById('nurtureHuddlePanel');
-            panel.style.display = '';
-
-            document.getElementById('huddleActiveCount').textContent = `Active: ${data.totalActive}`;
-            document.getElementById('huddleOverdueCount').textContent = `Overdue: ${data.overdueSteps}`;
-            document.getElementById('huddleReviewCount').textContent = `Awaiting Decision: ${data.awaitingFinalDecision}`;
-
-            // Awaiting review cards
-            const reviewCards = document.getElementById('huddleReviewCards');
-            const reviewList = document.getElementById('huddleReviewList');
-            reviewCards.innerHTML = '';
-            if (data.awaitingReview && data.awaitingReview.length > 0) {
-                reviewList.style.display = '';
-                data.awaitingReview.forEach(seq => {
-                    reviewCards.innerHTML += `
-                            <div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;margin-bottom:8px;">
-                                <div style="font-weight:600;font-size:13px;">${seq.personName}</div>
-                                <div style="font-size:11px;color:#6b7280;">Volunteer: ${seq.volunteerName} &bull; Started: ${new Date(seq.startedAt).toLocaleDateString()}</div>
-                                <div style="font-size:11px;color:#dc2626;margin-top:4px;font-weight:600;">All 7 steps done — mark Permanent or Failed</div>
-                            </div>`;
-                });
-            }
-
-            // Active sequence cards
-            const activeCards = document.getElementById('huddleActiveCards');
-            activeCards.innerHTML = '';
-            if (!data.activeSequences || data.activeSequences.length === 0) {
-                activeCards.innerHTML = '<p style="font-size:12px;color:#9ca3af;">No active sequences.</p>';
-                return;
-            }
-            data.activeSequences.forEach(seq => {
-                const methodEmoji = seq.nextMethod === 'Call' ? '📞' : '🏠';
-                const isOverdue = seq.nextStepStatus === 'Overdue';
-                activeCards.innerHTML += `
-                        <div style="background:#fff;border:1px solid ${isOverdue ? '#fecaca' : '#e5e7eb'};border-radius:8px;padding:10px 12px;margin-bottom:8px;">
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                                <div>
-                                    <span style="font-weight:600;font-size:13px;">${seq.personName}</span>
-                                    <span style="font-size:11px;color:#6b7280;margin-left:6px;">${seq.personPhone}</span>
-                                </div>
-                                <span style="font-size:10px;font-weight:700;background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:12px;">Step ${seq.currentStep}/7</span>
-                            </div>
-                            <div style="font-size:11px;color:#374151;margin-top:4px;">
-                                Volunteer: <b>${seq.volunteerName}</b> &bull;
-                                Next: ${methodEmoji} ${seq.nextMethod}
-                                ${seq.nextScheduledDate ? '(' + new Date(seq.nextScheduledDate).toLocaleDateString() + ')' : ''}
-                                ${isOverdue ? '<span style="color:#dc2626;font-weight:700;"> ⚠️ Overdue</span>' : ''}
-                            </div>
-                        </div>`;
+            })
+            .fail(function () {
+                $('#new_capacity_band').html('<option value="">Bands unavailable</option>');
             });
-        })
-        .catch(e => console.error('Nurture huddle error', e))
-}
-
-// ── INIT ──────────────────────────────────────────────────
-$(document).ready(function () {
-
-    // GET volunteerId from URL only
-    const params = new URLSearchParams(window.location.search);
-    const volunteerId = params.get("id");
-
-    // load volunteer details and capacity bands
-    if (volunteerId) {
-        loadVolunteerDetails(volunteerId);
-    } else {
-        // fallback: just load bands
-        loadCapacityBands();
     }
 
-    // also set teamLead and volunteer id if present in query
-    const teamLeadId = params.get("teamLeadId");
-    if (teamLeadId) {
-        $("#team_lead_id").val(teamLeadId);
-        loadHuddleNurture(teamLeadId);
+    /** What was agreed last time, so the lead is not starting cold. */
+    function loadHistory() {
+        $.get(API_BASE_URL + '/check-ins/volunteer/' + encodeURIComponent(CHECKIN_VOLUNTEER_ID) + '?limit=5')
+            .done(function (res) {
+                var rows = (res && res.data) || [];
+
+                if (!rows.length) {
+                    $('#lastCheckIn').text('No check-in recorded for them yet.');
+                    return;
+                }
+
+                var last = rows[0];
+
+                $('#lastCheckIn').text(
+                    'Last check-in ' + formatDate(last.heldOn) +
+                    ' — tone ' + (last.emotionalTone || 'not recorded') +
+                    (last.followUpRequired ? ', follow-up was flagged.' : '.'));
+
+                $('#historyTable tbody').html(rows.map(function (r) {
+                    return '<tr>' +
+                        '<td>' + formatDate(r.heldOn) + '</td>' +
+                        '<td>' + escapeHtml(prettyType(r.meetingType)) + '</td>' +
+                        '<td>' + toneBadge(r.emotionalTone) + '</td>' +
+                        '<td>' + escapeHtml(r.concerns || r.actionItems || '—') + '</td>' +
+                    '</tr>';
+                }).join(''));
+
+                $('#historyCard').show();
+            });
     }
-       
 
-    const volunteerName = params.get("vName");
-    if (volunteerName) $("#volunteer_name").text(decodeURIComponent(volunteerName));
+    // ------------------------------------------------------------------
+    // Save
+    // ------------------------------------------------------------------
+    $('#saveBtn').click(function () {
+        setMessage('');
 
-    const teamLeadName = params.get("tName");
-    if (teamLeadName) $("#team_lead_name").text(decodeURIComponent(teamLeadName));
+        var tone = $('#emotional_tone').val();
 
-    // Set today as default
-    $("#check_in_date").val(new Date().toISOString().split("T")[0]);
-
-    // Toggle capacity
-    $("#capacity_adjustment").on("change", function () {
-        $("#capBandWrap").toggle(this.checked);
-       // if (!this.checked) $("#new_capacity_band").val("");
-    });
-
-    $("#follow_up_needed").change(function () {
-
-        if ($(this).is(":checked")) {
-
-            $("#nextcheckindate").show();
-            $("#action_itemsDiv").show();
-
-        } else {
-
-            $("#nextcheckindate").hide();
-            $("#action_itemsDiv").hide();
-
-            // ✅ clear values
-            $("#next_check_in_date").val("");
-            $("#action_items").val("");
-
-        }
-
-    });
-
-    // when capacity band changes, optionally update UI or store data
-    $(document).on('change', '#new_capacity_band', function () {
-        const opt = $(this).find('option:selected');
-        // nothing mandatory to do now; save handler will read data-min/data-max
-    });
-
-    // ── SAVE ───────────────────────────────────────────────
-    $("#saveBtn").click(function () {
-        setMessage("", "");
-        const selectedOption = $("#new_capacity_band option:selected");
-
-        const data = {
-            volunteerId: $("#volunteer_id").val(),
-            teamLeadId: $("#team_lead_id").val(),
-
-            checkInDate: $("#check_in_date").val() || null,
-
-            durationMin: parseInt($("#duration_min").val()) || null,
-
-            meetingType: $("#meeting_type").val(),
-
-            emotionalTone: $("#emotional_tone").val(),
-
-            capacityAdjustment: $("#capacity_adjustment").is(":checked"),
-
-            newCapacityBand: $("#new_capacity_band").val() || null,
-
-            concernsNoted: $("#concerns_noted").val() || null,
-
-            followUpNeeded: $("#follow_up_needed").is(":checked"),
-
-            completionRateDiscussed: $("#completion_rate_discussed").is(":checked"),
-
-            boundaryIssues: $("#boundary_issues").is(":checked"),
-
-            trainingNeeds: $("#training_needs").val() || null,
-
-            actionItems: $("#action_items").val() || null,
-
-            nextCheckInDate: $("#next_check_in_date").val() || null,
-
-            capacityMin: selectedOption.data("min") || null,
-
-            capacityMax: selectedOption.data("max") || null
-        };
-
-       
-
-        if (!data.volunteerId || !data.teamLeadId || !data.emotionalTone) {
-          //  setMessage("Volunteer, Team Lead and Emotional Tone are required.", "red");
-            showToast("Emotional Tone are required.", "warning");
-            
+        if (!tone) {
+            toast('Choose an emotional tone before saving.', 'warning');
+            $('#emotional_tone').focus();
             return;
         }
 
-        $("#saveBtn").prop("disabled", true).text("Saving…");
+        var payload = {
+            volunteerId: $('#volunteer_id').val() || CHECKIN_VOLUNTEER_ID,
+            heldOn: $('#check_in_date').val() || null,
+            durationMinutes: parseInt($('#duration_min').val(), 10) || null,
+            meetingType: $('#meeting_type').val() || 'MONTHLY',
+            emotionalTone: tone,
+            concerns: $('#concerns_noted').val() || null,
+            trainingNeeds: $('#training_needs').val() || null,
+            actionItems: $('#action_items').val() || null,
+            // The band change below is itself a capacity review, so the flag is
+            // set from the thing that happened rather than from a checkbox that
+            // asked the lead to remember to tick it.
+            capacityReviewed: $('#capacity_adjustment').is(':checked'),
+            boundaryIssuesRaised: $('#boundary_issues').is(':checked'),
+            followUpRequired: $('#follow_up_needed').is(':checked'),
+            nextCheckInOn: $('#next_check_in_date').val() || null,
+            newCapacityBandCode: $('#capacity_adjustment').is(':checked')
+                ? ($('#new_capacity_band').val() || null)
+                : null
+        };
+
+        $('#saveBtn').prop('disabled', true).text('Saving…');
 
         $.ajax({
-            url: API_BASE_URL + "/check-ins",
-            type: "POST",
-            contentType: "application/json",
-            data: JSON.stringify(data),
-            success: function (res) {
-
-                showToast(res.message || "Check-in saved successfully!", "success");
-                window.parent.bootstrap.Modal
-                    .getInstance(window.parent.document.getElementById('esclationModel'))
-                    .hide();
-
-                resetForm();
-              //  setMessage(res.message || "Check-in saved successfully!", "green");
-             
-               // resetForm();
-            },
-            error: function (err) {
-                
-                const msg = err.responseJSON?.message || err.responseText || "An error occurred.";
-               // setMessage(msg, "red");
-                showToast(msg, "error");
-            },
-            complete: function () {
-                $("#saveBtn").prop("disabled", false).text("Save");
+            url: API_BASE_URL + '/check-ins',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload)
+        })
+        .done(function (res) {
+            // A refusal is an HTTP 200 carrying responseType 1, so a handler that
+            // assumes 200 == saved would tell a team lead the conversation is on
+            // file when it is not.
+            if (res && res.responseType !== 0) {
+                toast(res.message || 'That could not be saved.', 'warning');
+                setMessage(res.message || '', 'is-error');
+                return;
             }
+
+            toast(res.message || 'Check-in recorded.', 'success');
+            setMessage(res.message || 'Check-in recorded.', 'is-ok');
+            resetForm();
+            loadHistory();
+        })
+        .fail(function (xhr) {
+            toast(getError(xhr), 'error');
+            setMessage(getError(xhr), 'is-error');
+        })
+        .always(function () {
+            $('#saveBtn').prop('disabled', false).text('Save check-in');
         });
     });
 
+    function resetForm() {
+        $('#duration_min, #concerns_noted, #training_needs, #action_items').val('');
+        $('#emotional_tone').val('');
+        $('#capacity_adjustment, #follow_up_needed, #boundary_issues').prop('checked', false);
+        $('#capBandWrap').hide();
+        $('#next_check_in_date').val('');
+        $('#check_in_date').val(new Date().toISOString().split('T')[0]);
+    }
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+    function toneBadge(tone) {
+        if (tone === 'GREEN') return '<span class="tl-badge tl-badge-green">Green</span>';
+        if (tone === 'AMBER') return '<span class="tl-badge tl-badge-amber">Amber</span>';
+        if (tone === 'RED') return '<span class="tl-badge tl-badge-red">Red</span>';
+
+        return '<span class="tl-badge tl-badge-grey">—</span>';
+    }
+
+    function prettyType(code) {
+        if (!code) return '—';
+        return code.charAt(0) + code.slice(1).toLowerCase().replace(/_/g, '-');
+    }
+
+    function formatDate(value) {
+        if (!value) return '—';
+        var d = new Date(value);
+        return isNaN(d) ? '—' : d.toLocaleDateString();
+    }
+
+    function toast(message, kind) {
+        if (typeof showToast === 'function') showToast(message, kind);
+    }
+
+    function escapeHtml(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function getError(xhr) {
+        var b = xhr && xhr.responseJSON;
+        return (b && (b.message || b.detail || b.title)) || 'Something went wrong.';
+    }
 });

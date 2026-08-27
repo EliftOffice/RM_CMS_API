@@ -52,9 +52,15 @@ namespace RM_CMS.Modules.Volunteers.Api
         /// <summary>
         /// Enrols an existing person as a volunteer. Seeds the capacity history so the
         /// band trail starts at enrolment rather than at the first change.
+        ///
+        /// PASTOR OR ADMIN, not team leads. Enrolling somebody creates an account that
+        /// can read other people's pastoral records, and a team lead choosing who joins
+        /// their own team is the wrong person to make that call — it is the same reason
+        /// they cannot promote anyone. The button is gone from their menu too; this is
+        /// the half that cannot be bypassed by typing the URL.
         /// </summary>
         [HttpPost]
-        [Authorize(Policy = PolicyNames.TeamLeadOrAbove)]
+        [Authorize(Policy = PolicyNames.PastorOrAdmin)]
         [ProducesResponseType(typeof(ApiResponse<VolunteerDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<ApiResponse<VolunteerDto>>> Enrol([FromBody] EnrolVolunteerRequest request)
         {
