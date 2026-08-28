@@ -16,9 +16,9 @@ screen should have produced, which is how a bug in step 2 gets found in step 5.
 | # | Screen | Document | Role |
 |---|---|---|---|
 | 1 | Visitor entry | [01-visitor-entry.md](01-visitor-entry.md) | Data entry and above |
-| 2 | Volunteer assignments | *(to be written)* | Volunteer |
+| 2 | Volunteer assignments | [02-volunteer-assignments.md](02-volunteer-assignments.md) | Volunteer |
 | 3 | Log a contact | *(to be written)* | Volunteer |
-| 4 | Team lead dashboard | *(to be written)* | Team lead |
+| 4 | Team lead dashboard | [04-team-lead-dashboard.md](04-team-lead-dashboard.md) | Team lead |
 | 5 | Escalation detail | *(to be written)* | Team lead |
 | 6 | Check-in | *(to be written)* | Team lead |
 | 7 | People pipeline | *(to be written)* | Team lead / pastor |
@@ -47,6 +47,14 @@ first:
 ```sql
 UPDATE user_account SET must_change_password = 0 WHERE username = '<their mobile>';
 ```
+
+Clearing it is not optional: a token issued to an account that still has the flag is
+refused by every endpoint except the password-change one, with HTTP 403
+`password_change_required`. **Put the flag back when you are done.**
+
+> Not *quite* every account: `9859939859` (Prisk G) carries a different `password_hash`
+> and does not accept that password. Guessing at it costs you the login rate limiter —
+> five attempts per five minutes, then HTTP 429 for the rest of the window.
 
 > **The dev database holds real production data** — real names, real phone numbers,
 > real pastoral detail. Treat it accordingly: it is not sample data, and it should not
