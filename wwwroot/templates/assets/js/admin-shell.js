@@ -29,6 +29,17 @@
             roles: ['ADMIN', 'PASTOR']
         },
         { label: 'Users', href: '/templates/Admin/users.html', roles: ['ADMIN'] },
+        {
+            // Pastors and team leads are listed because an administrator CAN grant
+            // them this screen (team.manage_by_pastor / team.manage_by_team_lead).
+            // The link showing is not the grant: the page asks /api/teams/access on
+            // load and replaces itself with an explanation when nothing is granted.
+            // Hiding it until granted would need the nav to read settings on every
+            // page, and a link that explains itself beats one that is simply absent.
+            label: 'Teams',
+            href: '/templates/Admin/teams.html',
+            roles: ['ADMIN', 'PASTOR', 'TEAM_LEAD']
+        },
         { label: 'Accounts', href: '/templates/Admin/accounts.html', roles: ['ADMIN'] },
         { label: 'Settings', href: '/templates/Admin/siteadmin.html', roles: ['ADMIN'] },
         { label: 'Telegram', href: '/templates/Admin/telegram.html', roles: ['ADMIN'] }

@@ -23,6 +23,25 @@ namespace RM_CMS.Modules.Volunteers.Data
 
         Task<bool> NameExistsAsync(long campusId, string name, long? excludingTeamId = null);
         Task<long?> ResolveLeadAccountIdAsync(string? accountPublicId);
+
+        /// <summary>
+        /// Accounts that could lead a team. Its own query rather than the user
+        /// directory because that route is admin-only, and a pastor granted team
+        /// management still has to be able to pick a leader.
+        /// </summary>
+        Task<IReadOnlyList<LeadCandidate>> ListLeadCandidatesAsync(long? campusId);
+    }
+
+    /// <summary>One account that may be set as a team's lead.</summary>
+    public sealed class LeadCandidate
+    {
+        public string AccountId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string RoleCode { get; set; } = string.Empty;
+        public string? CampusName { get; set; }
+
+        /// <summary>The team they already lead, when they lead one.</summary>
+        public string? LeadsTeam { get; set; }
     }
 
     public sealed class TeamRepository : ITeamRepository
@@ -152,6 +171,41 @@ namespace RM_CMS.Modules.Volunteers.Data
                 Name = name,
                 Excluding = excludingTeamId
             }) > 0;
+        }
+
+        public async Task<IReadOnlyList<LeadCandidate>> ListLeadCandidatesAsync(long? campusId)
+        {
+            // TEAM_LEAD and PASTOR only. A volunteer cannot lead a team, and putting a
+            // data-entry operator in the list would offer an assignment that hands
+            // them every escalation raised on that team's people.
+            //
+            // DISTINCT because an account can hold both roles; the role shown is the
+            // most senior, which is what MIN over this ordering gives.
+            const string sql = @"
+                SELECT
+                    ua.public_id AS AccountId,
+                    p.full_name  AS Name,
+                    MIN(CASE ur.role_code WHEN 'PASTOR' THEN 'PASTOR'
+                                          ELSE 'TEAM_LEAD' END) AS RoleCode,
+                    c.name       AS CampusName,
+                    (SELECT t.name FROM team t
+                      WHERE t.lead_user_id = ua.id AND t.is_active = 1
+                      ORDER BY t.name LIMIT 1) AS LeadsTeam
+                FROM user_account ua
+                JOIN user_role ur ON ur.user_account_id = ua.id
+                JOIN person p     ON p.id = ua.person_id
+                LEFT JOIN campus c ON c.id = p.campus_id
+                WHERE ua.is_active = 1
+                  AND p.deleted_at IS NULL
+                  AND ur.role_code IN ('TEAM_LEAD', 'PASTOR')
+                  AND (@CampusId IS NULL OR p.campus_id = @CampusId)
+                GROUP BY ua.public_id, p.full_name, c.name, ua.id
+                ORDER BY p.full_name;";
+
+            using var connection = _dbFactory.GetConnection();
+
+            return (await connection.QueryAsync<LeadCandidate>(
+                sql, new { CampusId = campusId })).ToList();
         }
 
         public async Task<long?> ResolveLeadAccountIdAsync(string? accountPublicId)

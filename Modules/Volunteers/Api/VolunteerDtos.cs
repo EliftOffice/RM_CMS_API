@@ -187,6 +187,44 @@ namespace RM_CMS.Modules.Volunteers.Api
         public int RowVersion { get; set; }
     }
 
+    /// <summary>
+    /// What the signed-in caller may do with teams.
+    ///
+    /// The screen renders itself from this rather than from the role claim, so
+    /// there is one authority on what is allowed and it is the server. Hiding a
+    /// button is a courtesy; <c>UpdateTeamAsync</c> is the actual check.
+    /// </summary>
+    public sealed class TeamAccessDto
+    {
+        public bool CanOpen { get; set; }
+        public bool CanCreate { get; set; }
+
+        /// <summary>Every team in scope — admin everywhere, pastor at their campus.</summary>
+        public bool CanEditAnyTeam { get; set; }
+
+        /// <summary>Only the team this caller leads, and only its name and size.</summary>
+        public bool CanEditOwnTeam { get; set; }
+
+        public bool CanReassignLead { get; set; }
+        public bool CanDeactivate { get; set; }
+        public bool CanSeeAllCampuses { get; set; }
+
+        /// <summary>NONE, OWNTEAMONLY, CAMPUSWIDE or ADMINISTRATOR.</summary>
+        public string Scope { get; set; } = "NONE";
+    }
+
+    /// <summary>An account that could be set as a team's lead.</summary>
+    public sealed class LeadCandidateDto
+    {
+        public string AccountId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string RoleCode { get; set; } = string.Empty;
+        public string? CampusName { get; set; }
+
+        /// <summary>The team they already lead, so the picker can warn before a swap.</summary>
+        public string? LeadsTeam { get; set; }
+    }
+
     public sealed class CapacityChangeDto
     {
         public string? FromBandCode { get; set; }

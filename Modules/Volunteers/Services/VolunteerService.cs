@@ -29,6 +29,12 @@ namespace RM_CMS.Modules.Volunteers.Services
         Task<ApiResponse<IReadOnlyList<TeamDto>>> ListTeamsAsync(string? campusId, bool includeInactive);
         Task<ApiResponse<TeamDto>> CreateTeamAsync(CreateTeamRequest request);
         Task<ApiResponse<TeamDto>> UpdateTeamAsync(string publicId, UpdateTeamRequest request);
+
+        /// <summary>What the caller may do on the team management screen.</summary>
+        Task<ApiResponse<TeamAccessDto>> GetTeamAccessAsync();
+
+        /// <summary>Accounts that could be set as a team's lead, in the caller's scope.</summary>
+        Task<ApiResponse<IReadOnlyList<LeadCandidateDto>>> ListLeadCandidatesAsync();
     }
 
     public sealed class VolunteerService : IVolunteerService
@@ -39,6 +45,7 @@ namespace RM_CMS.Modules.Volunteers.Services
         private readonly ITeamRepository _teams;
         private readonly ICurrentIdentity _current;
         private readonly IUserAccountRepository _accounts;
+        private readonly RM_CMS.Modules.Settings.Data.ISettingRepository _settings;
         private readonly TimeProvider _clock;
         private readonly ILogger<VolunteerService> _logger;
 
@@ -47,6 +54,7 @@ namespace RM_CMS.Modules.Volunteers.Services
             ITeamRepository teams,
             ICurrentIdentity current,
             IUserAccountRepository accounts,
+            RM_CMS.Modules.Settings.Data.ISettingRepository settings,
             TimeProvider clock,
             ILogger<VolunteerService> logger)
         {
@@ -54,6 +62,7 @@ namespace RM_CMS.Modules.Volunteers.Services
             _teams = teams;
             _current = current;
             _accounts = accounts;
+            _settings = settings;
             _clock = clock;
             _logger = logger;
         }
@@ -482,22 +491,149 @@ namespace RM_CMS.Modules.Volunteers.Services
             return Ok(ToDto(created!), "Team created");
         }
 
+        /// <summary>
+        /// Who may do what on the team management screen.
+        ///
+        /// An administrator always has it. A pastor or team lead has it only when an
+        /// administrator has switched the matching grant on, because the team a
+        /// volunteer sits in decides whose pastoral records their lead can read —
+        /// widening that is a deliberate act, not a default.
+        /// </summary>
+        private async Task<TeamAccess> ResolveTeamAccessAsync()
+        {
+            if (_current.IsAdmin) return TeamAccess.Administrator;
+
+            if (_current.IsInRole(RoleCodes.Pastor))
+            {
+                return await _settings.GetBoolAsync("team.manage_by_pastor", false)
+                    ? TeamAccess.CampusWide
+                    : TeamAccess.None;
+            }
+
+            if (_current.IsInRole(RoleCodes.TeamLead))
+            {
+                return await _settings.GetBoolAsync("team.manage_by_team_lead", false)
+                    ? TeamAccess.OwnTeamOnly
+                    : TeamAccess.None;
+            }
+
+            return TeamAccess.None;
+        }
+
+        private enum TeamAccess
+        {
+            None,
+
+            /// <summary>Rename and resize the one team they lead. Nothing else.</summary>
+            OwnTeamOnly,
+
+            /// <summary>Every team at their own campus, including the lead.</summary>
+            CampusWide,
+
+            /// <summary>Every team everywhere, plus create.</summary>
+            Administrator
+        }
+
+        public async Task<ApiResponse<TeamAccessDto>> GetTeamAccessAsync()
+        {
+            var access = await ResolveTeamAccessAsync();
+
+            // The screen renders from this rather than from the role, so the server
+            // stays the single authority on what is allowed. A client that ignores it
+            // still hits the same checks in UpdateTeamAsync.
+            return Ok(new TeamAccessDto
+            {
+                CanOpen          = access != TeamAccess.None,
+                CanCreate        = access == TeamAccess.Administrator,
+                CanEditAnyTeam   = access is TeamAccess.Administrator or TeamAccess.CampusWide,
+                CanEditOwnTeam   = access == TeamAccess.OwnTeamOnly,
+                CanReassignLead  = access is TeamAccess.Administrator or TeamAccess.CampusWide,
+                CanDeactivate    = access is TeamAccess.Administrator or TeamAccess.CampusWide,
+                CanSeeAllCampuses = access == TeamAccess.Administrator,
+                Scope            = access.ToString().ToUpperInvariant()
+            }, "Team access resolved");
+        }
+
+        public async Task<ApiResponse<IReadOnlyList<LeadCandidateDto>>> ListLeadCandidatesAsync()
+        {
+            var access = await ResolveTeamAccessAsync();
+
+            // Only somebody who can actually reassign a lead needs the list of people
+            // who could be one. A team lead cannot, so they do not get the roster.
+            if (access is not (TeamAccess.Administrator or TeamAccess.CampusWide))
+            {
+                return Warn<IReadOnlyList<LeadCandidateDto>>(
+                    "You do not have permission to change who leads a team.");
+            }
+
+            // An administrator sees every campus; a pastor sees their own.
+            var campusKey = access == TeamAccess.Administrator
+                ? null
+                : await _volunteers.ResolveCampusIdAsync(_current.CampusId);
+
+            var rows = await _teams.ListLeadCandidatesAsync(campusKey);
+
+            return Ok<IReadOnlyList<LeadCandidateDto>>(rows.Select(r => new LeadCandidateDto
+            {
+                AccountId = r.AccountId,
+                Name = r.Name,
+                RoleCode = r.RoleCode,
+                CampusName = r.CampusName,
+                LeadsTeam = r.LeadsTeam
+            }).ToList(), "Lead candidates retrieved");
+        }
+
         public async Task<ApiResponse<TeamDto>> UpdateTeamAsync(string publicId, UpdateTeamRequest request)
         {
+            var access = await ResolveTeamAccessAsync();
+
+            if (access == TeamAccess.None)
+                return Warn<TeamDto>("You do not have permission to manage teams.");
+
             var team = await _teams.GetByPublicIdAsync(publicId);
 
             if (team is null || !_current.CanAccessCampus(team.CampusPublicId))
                 return Warn<TeamDto>("Team not found.");
+
+            // A team lead may only touch the team they actually lead. Without this the
+            // grant would let any team lead rename or resize every other team on the
+            // campus, which is not what "edit your own team" means.
+            if (access == TeamAccess.OwnTeamOnly &&
+                !string.Equals(team.LeadUserPublicId, _current.AccountId, StringComparison.Ordinal))
+            {
+                return Warn<TeamDto>("You can only edit the team you lead.");
+            }
 
             var name = request.Name.Trim();
 
             if (await _teams.NameExistsAsync(team.CampusId, name, team.Id))
                 return Warn<TeamDto>($"A team called '{name}' already exists at this campus.");
 
-            var leadKey = await _teams.ResolveLeadAccountIdAsync(request.LeadAccountId);
+            // A team lead gets the name and the size. The lead and the active flag are
+            // pinned to what is already stored and the request's values are ignored.
+            //
+            // Reassigning the lead is the dangerous one: a team lead who could set
+            // lead_user_id could hand themselves another team, and with it every
+            // escalation and pastoral note raised on that team's people. Retiring a
+            // team is the other — it would let them take their own team out of the
+            // assignment pool. Both stay with a pastor or an administrator.
+            var restricted = access == TeamAccess.OwnTeamOnly;
 
-            if (!string.IsNullOrWhiteSpace(request.LeadAccountId) && leadKey is null)
-                return Warn<TeamDto>("That team lead account does not exist or is disabled.");
+            long? leadKey;
+
+            if (restricted)
+            {
+                leadKey = team.LeadUserId;
+            }
+            else
+            {
+                leadKey = await _teams.ResolveLeadAccountIdAsync(request.LeadAccountId);
+
+                if (!string.IsNullOrWhiteSpace(request.LeadAccountId) && leadKey is null)
+                    return Warn<TeamDto>("That team lead account does not exist or is disabled.");
+            }
+
+            var isActive = restricted ? team.IsActive : request.IsActive;
 
             // Lowering the ceiling below the current membership would leave the team
             // permanently over limit with no way to explain it.
@@ -508,7 +644,7 @@ namespace RM_CMS.Modules.Volunteers.Services
                     $"Move some out before lowering the limit to {request.MaxMembers}.");
             }
 
-            if (!request.IsActive && team.MemberCount > 0)
+            if (!isActive && team.MemberCount > 0)
             {
                 return Warn<TeamDto>(
                     $"{team.Name} still has {team.MemberCount} active volunteers. " +
@@ -517,7 +653,7 @@ namespace RM_CMS.Modules.Volunteers.Services
 
             var updated = await _teams.UpdateAsync(
                 team.Id, request.RowVersion, name, leadKey,
-                request.MaxMembers, request.IsActive, await ActingUserIdAsync());
+                request.MaxMembers, isActive, await ActingUserIdAsync());
 
             if (!updated)
                 return Warn<TeamDto>("This record was changed by someone else. Reload and try again.");

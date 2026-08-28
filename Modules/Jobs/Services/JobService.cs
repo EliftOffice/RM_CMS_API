@@ -156,6 +156,14 @@ namespace RM_CMS.Modules.Jobs.Services
 
                         if (assigned)
                         {
+                            // Assigning a case without giving the volunteer something
+                            // to DO leaves them carrying a case they cannot see: the
+                            // counter moves, the work list stays empty, and nobody is
+                            // called. AssignAsync touches care_case, the assignment
+                            // ledger and the load counters — the work item is this
+                            // job's to create.
+                            await CreateFirstFollowUpAsync(careCase.Id, pick.Id, now, actingUserId);
+
                             report.RecordProcessed();
                         }
                         else
@@ -172,6 +180,38 @@ namespace RM_CMS.Modules.Jobs.Services
                     }
                 }
             });
+
+        /// <summary>
+        /// The work item that makes an assignment real.
+        ///
+        /// Due TODAY. <c>assignment.response_target_hours</c> is a deadline — "make
+        /// first contact within 48 hours" — not a delay before the volunteer may
+        /// start, and <c>/api/contacts/mine</c> only returns contacts whose
+        /// <c>scheduled_on</c> has arrived. Scheduling it forward would hide the work
+        /// for exactly as long as the target allowed for doing it.
+        ///
+        /// Idempotent, like every other job: a case that already has a pending
+        /// contact is left alone, so re-running the sweep cannot double-book a
+        /// volunteer.
+        /// </summary>
+        private async Task CreateFirstFollowUpAsync(
+            long caseId, long volunteerId, DateTime nowUtc, long? actingUserId)
+        {
+            if (await _interactions.GetPendingForCaseAsync(caseId) is not null) return;
+
+            await _interactions.CreateAsync(new CareInteraction
+            {
+                PublicId = Ulid.NewUlid(),
+                CareCaseId = caseId,
+                VolunteerId = volunteerId,
+                Stage = InteractionStage.InitialFollowUp,
+                SequenceNumber =
+                    await _interactions.MaxSequenceAsync(caseId, InteractionStage.InitialFollowUp) + 1,
+                MethodCode = "CALL",
+                ScheduledOn = nowUtc.Date,
+                Status = InteractionStatus.Pending
+            }, actingUserId);
+        }
 
         // ==================================================================
         // 2 · Nurture progression

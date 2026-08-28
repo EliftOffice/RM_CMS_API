@@ -298,8 +298,22 @@ namespace RM_CMS.Modules.Care.Services
 
             if (existing is not null) return;
 
-            var targetHours = await _lookups.GetIntSettingAsync("assignment.response_target_hours", 48);
-
+            // DUE TODAY, not in N days' time.
+            //
+            // This used to read assignment.response_target_hours (48) and schedule the
+            // first contact that many hours LATER — turning a deadline into a delay.
+            // "Target hours for first contact" means contact them WITHIN 48 hours; it
+            // does not mean wait two days before starting.
+            //
+            // The effect was invisible from the intake screen and total for the
+            // volunteer: /api/contacts/mine only returns contacts whose scheduled_on
+            // has arrived, so a visitor recorded today produced a follow-up the
+            // assigned volunteer could not see until the target had already expired.
+            // Somebody who walked in on Sunday got their first call on Tuesday at the
+            // earliest, and the work list read as empty in the meantime.
+            //
+            // The response target is a deadline, and the mark-overdue job is what
+            // enforces it. Scheduling is not the place to express it.
             await _interactions.CreateAsync(new CareInteraction
             {
                 PublicId = Ulid.NewUlid(),
@@ -308,7 +322,7 @@ namespace RM_CMS.Modules.Care.Services
                 Stage = InteractionStage.InitialFollowUp,
                 SequenceNumber = await _interactions.MaxSequenceAsync(careCase.Id, InteractionStage.InitialFollowUp) + 1,
                 MethodCode = "CALL",
-                ScheduledOn = _clock.GetUtcNow().UtcDateTime.Date.AddDays(Math.Max(0, targetHours / 24)),
+                ScheduledOn = _clock.GetUtcNow().UtcDateTime.Date,
                 Status = InteractionStatus.Pending
             }, actingUserId);
         }

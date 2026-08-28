@@ -73,7 +73,13 @@ reachable and under capacity**, three more tables move:
 | `care_case` | Updated — `assigned_volunteer_id`, `team_id`, `assigned_at`, `status='IN_PROGRESS'` |
 | `care_case_assignment` | One history row, `reason='AUTO'` |
 | `volunteer` | `current_case_load` +1, `lifetime_cases_assigned` +1, `last_assigned_at` set |
-| `care_interaction` | **The first follow-up**, `stage='INITIAL_FOLLOW_UP'`, `method_code='CALL'`, `status='PENDING'`, scheduled `assignment.response_target_hours` (48h) out |
+| `care_interaction` | **The first follow-up**, `stage='INITIAL_FOLLOW_UP'`, `method_code='CALL'`, `status='PENDING'`, `scheduled_on = today` |
+
+> **`scheduled_on` must be TODAY.** It used to be set `assignment.response_target_hours`
+> (48h) into the future, which read the target as a delay rather than a deadline. Since
+> `/api/contacts/mine` only returns contacts whose `scheduled_on` has arrived, the
+> assigned volunteer could not see the person until the 48 hours were already gone. The
+> target is a deadline; the mark-overdue job enforces it.
 
 If nobody has capacity the case stays `AWAITING_ASSIGNMENT` and waits for the
 `assign-unassigned` job or a manual assignment. The screen says so.
@@ -280,7 +286,7 @@ WHERE p.full_name LIKE 'Suresh Test%';
 | `status` | `IN_PROGRESS` |
 | `volunteer` | a real name, not null |
 | `history_rows` | **1** (`reason='AUTO'`) |
-| `interactions` | **1** — the first follow-up, `PENDING`, dated ~2 days out |
+| `interactions` | **1** — the first follow-up, `PENDING`, `scheduled_on = today` |
 
 And the volunteer's counter went up:
 

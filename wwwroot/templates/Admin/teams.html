@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Teams — RM_CMS Admin</title>
+
+    <link rel="icon" href="../assets/Images/favicon.ico">
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/toast.js"></script>
+    <script src="../assets/js/admin-shell.js"></script>
+    <script src="../assets/js/teams.js"></script>
+
+    <style>
+        /* Capacity is the number a lead actually acts on, so it gets a bar rather
+           than sitting as "7 / 12" among five other figures. */
+        .cap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 130px;
+        }
+
+        .cap-track {
+            flex: 1;
+            height: 6px;
+            border-radius: 999px;
+            background: var(--line);
+            overflow: hidden;
+        }
+
+        .cap-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: var(--accent);
+        }
+
+        .cap-fill-full  { background: var(--warn); }
+        .cap-fill-over  { background: var(--danger); }
+
+        .cap-text { font-size: 12.5px; color: var(--ink-muted); white-space: nowrap; }
+
+        .row-muted td { opacity: .55; }
+
+        .lead-none { color: var(--ink-muted); font-style: italic; }
+
+        .scope-note {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .locked {
+            max-width: 620px;
+            margin: 60px auto;
+            text-align: center;
+        }
+
+        .locked h2 { font-size: 17px; margin: 0 0 8px; }
+        .locked p  { color: var(--ink-muted); font-size: 13.5px; line-height: 1.6; margin: 0 0 6px; }
+
+        .grant-key {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12.5px;
+            background: #f3f4f6;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+
+        .field-locked { opacity: .55; }
+    </style>
+</head>
+<body>
+    <div id="adminShell"></div>
+
+    <main class="page" id="pageBody" hidden>
+
+        <div class="page-head">
+            <div>
+                <h1 class="page-title">Teams</h1>
+                <p class="page-sub" id="pageSub">
+                    A team is who a volunteer belongs to, and who reads their escalations.
+                </p>
+            </div>
+            <button type="button" class="btn btn-primary" id="newTeamBtn" hidden>New team</button>
+        </div>
+
+        <div id="scopeNote"></div>
+
+        <div class="card">
+            <div class="card-head">
+                <span class="card-title">All teams</span>
+                <div class="toolbar">
+                    <input type="search" class="input" id="search" placeholder="Search team or lead…" autocomplete="off">
+                    <select class="select" id="statusFilter">
+                        <option value="active">Active only</option>
+                        <option value="all">Include retired</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="table" id="teamsTable">
+                    <thead>
+                        <tr>
+                            <th>Team</th>
+                            <th>Campus</th>
+                            <th>Team lead</th>
+                            <th>Members</th>
+                            <th>Status</th>
+                            <th class="cell-actions">&nbsp;</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="6" class="empty">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Shown instead of the page when no grant applies. -->
+    <main class="page" id="lockedBody" hidden>
+        <div class="locked card">
+            <div class="card-body">
+                <h2>Team management is not enabled for your role</h2>
+                <p id="lockedWhy"></p>
+                <p>
+                    An administrator can turn it on under <strong>Settings → Team</strong>.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- ── Create / edit ─────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" id="editModal">
+        <div class="modal">
+            <div class="modal-head">
+                <span class="card-title" id="editTitle">Edit team</span>
+                <button type="button" class="btn btn-sm" data-close>Close</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="field">
+                    <label class="label" for="fName">Team name</label>
+                    <input type="text" class="input" id="fName" maxlength="120" autocomplete="off">
+                    <div class="hint">Unique within the campus.</div>
+                </div>
+
+                <!-- No campus picker: the API creates at the caller's own campus and
+                     a team cannot move afterwards. A dropdown with one option that
+                     cannot change is a control that only invites a wrong click. -->
+                <div class="field" id="campusField" hidden>
+                    <label class="label">Campus</label>
+                    <div class="hint" id="campusHint"></div>
+                </div>
+
+                <div class="field" id="leadField">
+                    <label class="label" for="fLead">Team lead</label>
+                    <select class="select" id="fLead"></select>
+                    <div class="hint" id="leadHint">
+                        The lead reads every escalation raised on this team's people.
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label" for="fMax">Maximum members</label>
+                    <input type="number" class="input" id="fMax" min="1" max="100" step="1">
+                    <div class="hint" id="maxHint">
+                        The span-of-control ceiling. Auto-assignment stops at it.
+                    </div>
+                </div>
+
+                <div class="field" id="activeField">
+                    <label class="label">
+                        <input type="checkbox" id="fActive"> Active
+                    </label>
+                    <div class="hint">
+                        A retired team keeps its history. It must be empty first.
+                    </div>
+                </div>
+
+                <div class="notice notice-warn" id="editNotice" hidden></div>
+            </div>
+
+            <div class="modal-foot">
+                <button type="button" class="btn" data-close>Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

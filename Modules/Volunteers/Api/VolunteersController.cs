@@ -204,8 +204,38 @@ namespace RM_CMS.Modules.Volunteers.Api
             return HttpResponseHelper.CreateHttpResponse(await _volunteers.CreateTeamAsync(request));
         }
 
+        /// <summary>
+        /// What the caller may do on the team management screen. Cheap, and the
+        /// screen calls it before rendering so it never offers a control the server
+        /// would refuse.
+        /// </summary>
+        [HttpGet("access")]
+        [Authorize(Policy = PolicyNames.TeamLeadOrAbove)]
+        [ProducesResponseType(typeof(ApiResponse<TeamAccessDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Access() => Ok(await _volunteers.GetTeamAccessAsync());
+
+        /// <summary>
+        /// Accounts that could lead a team, scoped to the caller. Separate from the
+        /// user directory because that route is admin-only and a pastor granted team
+        /// management still has to be able to pick a leader.
+        /// </summary>
+        [HttpGet("lead-candidates")]
+        [Authorize(Policy = PolicyNames.TeamLeadOrAbove)]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<LeadCandidateDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> LeadCandidates() =>
+            Ok(await _volunteers.ListLeadCandidatesAsync());
+
+        /// <summary>
+        /// Edits a team.
+        ///
+        /// The policy is deliberately wider than the capability: a pastor or team
+        /// lead may reach this route, and <c>UpdateTeamAsync</c> decides whether the
+        /// administrator has actually granted them anything and which fields they may
+        /// touch. Putting that in the policy instead would mean a role list in one
+        /// place and a settings-driven grant in another, disagreeing quietly.
+        /// </summary>
         [HttpPut("{id}")]
-        [Authorize(Policy = PolicyNames.AdminOnly)]
+        [Authorize(Policy = PolicyNames.TeamLeadOrAbove)]
         [ProducesResponseType(typeof(ApiResponse<TeamDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<ApiResponse<TeamDto>>> Update(string id, [FromBody] UpdateTeamRequest request)
         {

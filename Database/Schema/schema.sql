@@ -1570,6 +1570,12 @@ INSERT INTO app_setting (setting_key, setting_value, value_type, category, descr
     ('health.amber_threshold',           '75',   'INTEGER', 'HEALTH',     'Completion rate %% for an amber flag',                            0,  100),
     ('team.max_span_full_time',          '12',   'INTEGER', 'TEAM',       'Maximum volunteers for a full-time team lead',                    1,   50),
     ('team.max_span_player_coach',       '8',    'INTEGER', 'TEAM',       'Maximum volunteers for a player-coach team lead',                 1,   50),
+    -- Who may reach the team management screen, beyond an administrator. Both off
+    -- by default: the team a volunteer sits in decides whose pastoral records their
+    -- lead can read, so widening that is a decision an administrator makes on
+    -- purpose rather than a default anyone inherits.
+    ('team.manage_by_pastor',            'false','BOOLEAN', 'TEAM',       'Pastors may manage teams at their own campus',                    NULL, NULL),
+    ('team.manage_by_team_lead',         'false','BOOLEAN', 'TEAM',       'Team leads may rename and resize the team they lead',             NULL, NULL),
     -- Off by default: turning this on before the bot is configured would lock
     -- every unlinked user out of the application.
     ('huddle.day_of_week',               '6',    'INTEGER', 'HUDDLE',     'Team huddle day (1=Mon ... 7=Sun)',                               1,    7),
