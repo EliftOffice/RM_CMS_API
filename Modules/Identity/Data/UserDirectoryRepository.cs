@@ -105,6 +105,9 @@ namespace RM_CMS.Modules.Identity.Data
         public string? RoleCodes { get; set; }
 
         public DateTime CreatedAt { get; set; }
+
+        /// <summary>An active, verified TELEGRAM contact exists for this person.</summary>
+        public bool HasTelegram { get; set; }
     }
 
     public sealed class RoleGrantRow
@@ -170,7 +173,15 @@ namespace RM_CMS.Modules.Identity.Data
                 (SELECT GROUP_CONCAT(ur.role_code ORDER BY ur.role_code)
                    FROM user_role ur WHERE ur.user_account_id = ua.id) AS RoleCodes,
 
-                p.created_at            AS CreatedAt
+                p.created_at            AS CreatedAt,
+
+                -- Reachability, shown as an icon on the list. Active links only:
+                -- a disconnected row still holds the chat id but delivers nothing.
+                EXISTS (SELECT 1 FROM person_contact tg
+                         WHERE tg.person_id = p.id
+                           AND tg.contact_type = 'TELEGRAM'
+                           AND tg.is_verified = 1
+                           AND tg.opted_out_at IS NULL) AS HasTelegram
 
             FROM person p
             LEFT JOIN user_account ua ON ua.person_id = p.id

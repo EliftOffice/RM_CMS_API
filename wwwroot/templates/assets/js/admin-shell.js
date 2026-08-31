@@ -19,15 +19,10 @@
             href: '/templates/Peoples/PeopleEntry.html',
             roles: ['ADMIN', 'PASTOR', 'TEAM_LEAD', 'VOLUNTEER', 'DATA_ENTRY']
         },
-        {
-            // NOT team leads. Enrolling a volunteer creates an account that can
-            // read other people's pastoral records; that is a pastor's or an
-            // administrator's decision, not one a team lead makes for their own
-            // team. The API enforces the same boundary.
-            label: 'Add volunteer',
-            href: '/templates/Volunteers/AddVolunteer.html',
-            roles: ['ADMIN', 'PASTOR']
-        },
+        // 'Add volunteer' used to sit here. It has been folded into Add a user,
+        // which does the same enrolment plus the sign-in decision in one pass —
+        // two screens that both created volunteers was the source of volunteers
+        // enrolled without a login, who can never be assigned anything.
         { label: 'Users', href: '/templates/Admin/users.html', roles: ['ADMIN'] },
         {
             // Pastors and team leads are listed because an administrator CAN grant
@@ -39,6 +34,14 @@
             label: 'Teams',
             href: '/templates/Admin/teams.html',
             roles: ['ADMIN', 'PASTOR', 'TEAM_LEAD']
+        },
+        {
+            // Administrators only, with no grant to widen it. Creating a campus
+            // creates a tenancy boundary, and retiring one decides whose records
+            // stop being reachable — neither is a pastor's call.
+            label: 'Campuses',
+            href: '/templates/Admin/campuses.html',
+            roles: ['ADMIN']
         },
         { label: 'Accounts', href: '/templates/Admin/accounts.html', roles: ['ADMIN'] },
         { label: 'Settings', href: '/templates/Admin/siteadmin.html', roles: ['ADMIN'] },

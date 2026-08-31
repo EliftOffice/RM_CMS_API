@@ -33,6 +33,25 @@ namespace RM_CMS.Modules.Telegram.Services
 
         Task<ApiResponse<bool>> DisconnectAsync(string? personPublicId = null);
 
+        /// <summary>
+        /// Links a person to a chat id an administrator already holds, without waiting
+        /// for that person to press Start.
+        ///
+        /// The id is checked against Telegram first. Ordinary linking proves ownership
+        /// — the person opens the deep link and Telegram tells us who they are — and
+        /// this path has no such proof, so the one guarantee it CAN offer is that the
+        /// chat exists and the bot can reach it. Without that a mistyped digit is a
+        /// valid id belonging to a stranger, and the first sign of the mistake is
+        /// somebody else receiving another person's pastoral alerts.
+        /// </summary>
+        Task<ApiResponse<TelegramLinkStatus>> LinkManuallyAsync(AdminLinkTelegramRequest request);
+
+        /// <summary>
+        /// Sends a short message to a person's linked chat, so an administrator can
+        /// confirm it arrives at the right person before a real alert does.
+        /// </summary>
+        Task<ApiResponse<bool>> SendTestMessageAsync(string personPublicId);
+
         /// <summary>How many people are linked, for the setup screen's adoption figure.</summary>
         Task<int> CountLinkedAsync();
     }
@@ -80,13 +99,20 @@ namespace RM_CMS.Modules.Telegram.Services
             var contact = await _telegram.GetContactAsync(personId.Value);
             var linked = contact is not null && contact.OptedOutAt is null && contact.IsVerified;
 
+            // Only worth a query when they are actually linked — the answer is
+            // meaningless otherwise.
+            var sharedWith = linked
+                ? await _telegram.CountOthersOnChatIdAsync(contact!.ChatId, personId.Value)
+                : 0;
+
             return Ok(new TelegramLinkStatus
             {
                 IsLinked = linked,
                 IsConfigured = _client.IsConfigured,
                 IsRequired = await IsRequiredAsync(),
                 Username = linked ? contact!.Value : null,
-                LinkedAt = linked ? contact!.VerifiedAt : null
+                LinkedAt = linked ? contact!.VerifiedAt : null,
+                SharedWithCount = sharedWith
             }, linked ? "Connected" : "Not connected");
         }
 
@@ -211,6 +237,121 @@ namespace RM_CMS.Modules.Telegram.Services
             _logger.LogInformation("Telegram disconnected for person {PersonId}", personId.Value);
 
             return Ok(true, "Telegram disconnected. They will no longer receive messages here.");
+        }
+
+        public async Task<ApiResponse<TelegramLinkStatus>> LinkManuallyAsync(AdminLinkTelegramRequest request)
+        {
+            var personId = await _telegram.ResolvePersonIdAsync(request.PersonId);
+
+            if (personId is null) return Warn<TelegramLinkStatus>("That person was not found.");
+
+            if (!long.TryParse(request.ChatId?.Trim(), out var chatId) || chatId == 0)
+            {
+                return Warn<TelegramLinkStatus>(
+                    "A Telegram chat id is a whole number, like 123456789. " +
+                    "It is not the @username.");
+            }
+
+            // Sharing a chat id is ALLOWED, by decision.
+            //
+            // This used to refuse outright, on the grounds that two people on one chat
+            // id means each receives the other's alerts. That is still true and is why
+            // the count below is reported rather than left silent — but it is a
+            // legitimate arrangement when one phone is genuinely shared, or when an
+            // office relays messages, and the guard made those cases impossible.
+            var sharedWith = await _telegram.CountOthersOnChatIdAsync(
+                chatId.ToString(), personId.Value);
+
+            if (!_client.IsConfigured)
+            {
+                return Warn<TelegramLinkStatus>(
+                    "The Telegram bot is not configured, so the chat id cannot be checked. " +
+                    "Set it up under Telegram first.");
+            }
+
+            var (ok, detail, username, displayName) = await _client.GetChatAsync(chatId);
+
+            if (!ok)
+            {
+                // The usual cause is a chat that has never started the bot. Telegram
+                // cannot message such a chat at all, so linking it would produce a
+                // volunteer who looks reachable and is not.
+                _logger.LogWarning(
+                    "Telegram rejected chat {ChatId} during manual linking by {AccountId}: {Detail}",
+                    chatId, _current.AccountId, detail);
+
+                return Warn<TelegramLinkStatus>(
+                    "Telegram does not recognise that chat id, or the bot cannot reach it. " +
+                    "The person must have started a conversation with the bot at least once.");
+            }
+
+            var now = _clock.GetUtcNow().UtcDateTime;
+            var actingUserId = await ActingUserIdAsync();
+
+            await _telegram.LinkAsync(
+                personId.Value, chatId.ToString(),
+                username ?? request.Username?.TrimStart('@'),
+                now, actingUserId);
+
+            // Worth a warning rather than an information line: this is the one linking
+            // path with no proof of ownership, so it should be easy to find later.
+            _logger.LogWarning(
+                "Telegram linked MANUALLY by admin {AccountId} for person {PersonId} " +
+                "to chat {ChatId} ({DisplayName}).",
+                _current.AccountId, personId.Value, chatId, displayName ?? "unnamed");
+
+            var status = await GetStatusAsync(request.PersonId);
+
+            var who = string.IsNullOrWhiteSpace(displayName) ? "that chat" : displayName;
+            var message = $"Linked to {who}.";
+
+            // Said plainly rather than buried: everyone on a shared chat id receives
+            // each other's alerts, and that is not visible from anywhere else.
+            if (sharedWith > 0)
+            {
+                message += sharedWith == 1
+                    ? " 1 other person already uses this chat id — both of them will receive each other's messages."
+                    : $" {sharedWith} other people already use this chat id — all of them will receive each other's messages.";
+            }
+
+            return Ok(status.Data, message + " Send a test message to confirm it arrives.");
+        }
+
+        public async Task<ApiResponse<bool>> SendTestMessageAsync(string personPublicId)
+        {
+            var personId = await _telegram.ResolvePersonIdAsync(personPublicId);
+
+            if (personId is null) return Warn<bool>("That person was not found.");
+
+            var contact = await _telegram.GetContactAsync(personId.Value);
+
+            if (contact is null || contact.OptedOutAt is not null)
+                return Warn<bool>("They have no connected Telegram account.");
+
+            // ChatId, not Value: Value is the display form ('@handle' or 'chat:123')
+            // and does not parse.
+            if (!long.TryParse(contact.ChatId, out var chatId))
+                return Warn<bool>("Their stored chat id is not a number, so nothing can be sent.");
+
+            var sent = await _client.SendMessageAsync(
+                chatId,
+                "This is a test message from RM_CMS. If you did not expect it, " +
+                "please tell the church office — it may have been sent to the wrong person.");
+
+            if (!sent)
+            {
+                return Warn<bool>(
+                    "Telegram would not deliver the message. The link is stored but not working — " +
+                    "disconnect it and have them link it themselves.");
+            }
+
+            _logger.LogInformation(
+                "Telegram test message sent to person {PersonId} by {AccountId}",
+                personId.Value, _current.AccountId);
+
+            // The wording matters: a delivered message proves the chat is reachable,
+            // not that it belongs to the right person. Only they can confirm that.
+            return Ok(true, "Test message sent. Ask them to confirm they received it.");
         }
 
         public Task<int> CountLinkedAsync() => _telegram.CountLinkedAsync();

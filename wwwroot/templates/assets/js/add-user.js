@@ -26,7 +26,7 @@ $(function () {
           hint: 'Full administration, including user management. Grant sparingly.' }
     ];
 
-    var state = { person: null, bands: [], teams: [] };
+    var state = { person: null, bands: [], teams: [], campuses: [] };
     var esc = AdminShell.escapeHtml;
     var searchTimer = null;
 
@@ -42,6 +42,7 @@ $(function () {
     function init() {
         renderRoles();
         loadReference();
+        attachMobile();
         attachPolicy();
 
         $('input[name="mode"]').on('change', syncMode);
@@ -69,14 +70,45 @@ $(function () {
         }).join(''));
     }
 
+    /**
+     * Capacity as radio cards, matching the screen this replaced.
+     *
+     * A dropdown hid the one thing the choice turns on — the weekly numbers — behind
+     * a closed control, so the administrator picked a label. Here the range and the
+     * band's own note are both visible while the decision is made.
+     *
+     * The first band is pre-selected: the API refuses a volunteer with no band, and
+     * an empty "Choose…" that only ever produces an error is a worse default than
+     * the lightest real one.
+     */
+    function renderBands() {
+        var host = $('#bandOptions');
+
+        if (!state.bands.length) {
+            host.html('<p class="hint">No capacity bands are configured.</p>');
+            return;
+        }
+
+        host.html(state.bands.map(function (b, i) {
+            var note = b.description || '';
+
+            return '<label class="band-option">' +
+                     '<input type="radio" name="band" value="' + esc(b.code) + '"' +
+                       (i === 0 ? ' checked' : '') + '>' +
+                     '<span class="band-text">' +
+                       '<strong>' + esc(b.label) + ' — ' + b.minPerWeek +
+                         ' to ' + b.maxPerWeek + ' a week</strong>' +
+                       (note ? '<span class="sub">' + esc(note) + '</span>' : '') +
+                     '</span>' +
+                   '</label>';
+        }).join(''));
+    }
+
     function loadReference() {
         $.ajax({ url: API_BASE_URL + '/volunteers/reference', method: 'GET' })
             .done(function (res) {
                 state.bands = (res.data && res.data.capacityBands) || [];
-                $('#capacityBand').html('<option value="">Choose…</option>' + state.bands.map(function (b) {
-                    return '<option value="' + esc(b.code) + '">' + esc(b.label) +
-                           ' — ' + b.minPerWeek + ' to ' + b.maxPerWeek + ' a week</option>';
-                }).join(''));
+                renderBands();
             });
 
         $.ajax({ url: API_BASE_URL + '/teams', method: 'GET' })
@@ -86,6 +118,31 @@ $(function () {
                     return '<option value="' + esc(t.id) + '">' + esc(t.name) + '</option>';
                 }).join(''));
             });
+
+        // Campus decides which visitors this person can ever be given, so it is
+        // offered whenever there is a real choice. One campus means one option, and
+        // a dropdown that can only be answered one way is noise: the server applies
+        // the same default when the field is absent.
+        $.ajax({ url: API_BASE_URL + '/campuses/options', method: 'GET' })
+            .done(function (res) {
+                state.campuses = (res && res.data) || [];
+
+                $('#campusId').html(state.campuses.map(function (c) {
+                    return '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>';
+                }).join(''));
+
+                $('#campusField').prop('hidden', state.campuses.length < 2);
+            })
+            .fail(function () { $('#campusField').prop('hidden', true); });
+    }
+
+    function attachMobile() {
+        // The mobile number becomes the username, so the same rule has to hold here
+        // as on intake — otherwise one screen creates a login the other cannot.
+        MobileInput.attach(document.getElementById('mobile'), {
+            hint: document.getElementById('mobileHint'),
+            hintText: '10 digits, starting 6-9. This is also their username for signing in.'
+        });
     }
 
     function attachPolicy() {
@@ -110,6 +167,17 @@ $(function () {
 
         $('#bandField').prop('hidden', role !== 'VOLUNTEER');
         $('#teamField').prop('hidden', role !== 'VOLUNTEER' && role !== 'TEAM_LEAD');
+
+        // Start date lives on the volunteer record, so it only means anything for a
+        // role that creates one.
+        $('#startedField').prop('hidden', role !== 'VOLUNTEER');
+
+        // The team dropdown does two different jobs: for a team lead it is the team
+        // they will LEAD, for a volunteer the team they JOIN. Saying which stops a
+        // wrong pick that is invisible until somebody wonders why a lead has no team.
+        $('#teamHint').text(role === 'TEAM_LEAD'
+            ? 'The team they will lead. They will read every escalation raised on its people.'
+            : 'A volunteer can be added to a team later.');
 
         // Only a volunteer may work without a sign-in; the rest are exercised entirely
         // through the UI, so the choice is removed rather than silently ignored.
@@ -201,16 +269,32 @@ $(function () {
             if (!given)  return fail('Enter a first name.');
             if (!mobile) return fail('Enter a mobile number — it is also the username.');
 
+            if (!MobileInput.isValid(mobile)) {
+                return fail(MobileInput.problem(mobile) ||
+                            'Enter a 10-digit Indian mobile number starting 6, 7, 8 or 9.');
+            }
+
             body.givenName = given;
             body.familyName = $('#familyName').val().trim() || undefined;
             body.mobile = mobile;
             body.email = $('#email').val().trim() || undefined;
         }
 
+        // Sent only when the picker was shown. Omitted, the server files them at the
+        // caller's own campus, which is the right answer while there is only one.
+        if (!$('#campusField').prop('hidden')) {
+            var campus = $('#campusId').val();
+            if (campus) body.campusId = campus;
+        }
+
         if (role === 'VOLUNTEER') {
-            var band = $('#capacityBand').val();
-            if (!band) return fail('Choose their weekly capacity.');
+            var band = $('input[name="band"]:checked').val();
+            if (!band) return fail('Choose how much they can take on each week.');
             body.capacityBandCode = band;
+
+            // Omitted means today, which the volunteer service applies.
+            var started = $('#startedOn').val();
+            if (started) body.startedOn = started;
         }
 
         var team = $('#teamId').val();

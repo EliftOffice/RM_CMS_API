@@ -563,7 +563,12 @@ namespace RM_CMS.Modules.Identity.Services
                     SecurityStamp = Ulid.NewUlid(),
                     TokenVersion = 1,
                     IsActive = true,
-                    MustChangePassword = true
+
+                    // Was hard-coded true, which silently overrode the caller. The
+                    // add-user screen collects this as a checkbox and sent it all the
+                    // way down, and it died here: unticking it changed nothing and
+                    // every account came out forced to change at first sign-in.
+                    MustChangePassword = request.MustChangePassword
                 };
 
                 var violations = _passwords.Validate(password, account);

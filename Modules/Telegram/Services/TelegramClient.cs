@@ -39,6 +39,19 @@ namespace RM_CMS.Modules.Telegram.Services
         /// </summary>
         Task<(bool Ok, string Detail)> GetMeAsync(CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Asks Telegram what it knows about a chat id.
+        ///
+        /// This is what makes an administrator entering a chat id by hand safe enough
+        /// to allow. A chat id is an opaque integer, so a mistyped one is not
+        /// malformed — it is a VALID id belonging to somebody else, and the mistake
+        /// only surfaces when that stranger starts receiving another person's
+        /// pastoral alerts. Telegram answering for the id proves the chat exists and
+        /// that this bot can reach it.
+        /// </summary>
+        Task<(bool Ok, string Detail, string? Username, string? DisplayName)> GetChatAsync(
+            long chatId, CancellationToken cancellationToken = default);
+
         /// <summary>The configured bot username, for display. Never the token.</summary>
         string? BotUsername { get; }
 
@@ -77,6 +90,45 @@ namespace RM_CMS.Modules.Telegram.Services
             if (!HasToken) return (false, "No bot token is configured.");
 
             return await PostAsync("getMe", "{}", cancellationToken);
+        }
+
+        public async Task<(bool Ok, string Detail, string? Username, string? DisplayName)> GetChatAsync(
+            long chatId, CancellationToken cancellationToken = default)
+        {
+            if (!HasToken) return (false, "No bot token is configured.", null, null);
+
+            var payload = JsonSerializer.Serialize(new { chat_id = chatId });
+            var (ok, detail) = await PostAsync("getChat", payload, cancellationToken);
+
+            if (!ok) return (false, detail, null, null);
+
+            // Pull the handle and name back out so the caller can show the
+            // administrator WHO they are about to link, rather than asking them to
+            // trust a number they typed.
+            try
+            {
+                using var doc = JsonDocument.Parse(detail);
+
+                if (!doc.RootElement.TryGetProperty("result", out var result))
+                    return (true, detail, null, null);
+
+                var username = result.TryGetProperty("username", out var u) ? u.GetString() : null;
+
+                var first = result.TryGetProperty("first_name", out var f) ? f.GetString() : null;
+                var last = result.TryGetProperty("last_name", out var l) ? l.GetString() : null;
+                var title = result.TryGetProperty("title", out var t) ? t.GetString() : null;
+
+                var display = title ?? string.Join(' ',
+                    new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+                return (true, detail, username, string.IsNullOrWhiteSpace(display) ? null : display);
+            }
+            catch (JsonException)
+            {
+                // Telegram answered, which is the part that matters. A shape we cannot
+                // parse costs the confirmation name, not the verification.
+                return (true, detail, null, null);
+            }
         }
 
         public string BuildDeepLink(string startPayload) =>

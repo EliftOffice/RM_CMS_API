@@ -242,7 +242,7 @@ namespace RM_CMS.Modules.People.Services
                 }
 
                 // ---- campus ----
-                var campusPublicId = request.CampusId ?? _current.CampusId;
+                var campusPublicId = request.CampusId ?? _current.DefaultCampusId;
                 var campusKey = await _people.ResolveCampusIdAsync(campusPublicId);
 
                 if (campusPublicId is not null && campusKey is null)

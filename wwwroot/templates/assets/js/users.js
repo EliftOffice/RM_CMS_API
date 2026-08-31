@@ -48,6 +48,23 @@ $(function () {
         teams: []
     };
 
+    /**
+     * Telegram mark plus a green tick. Inline SVG rather than an image so it
+     * inherits colour and stays crisp, and carries its own accessible label —
+     * a bare tick in a table tells a screen reader nothing.
+     */
+    var TELEGRAM_LINKED =
+        '<span class="tg-ok" role="img" aria-label="Telegram connected">' +
+          '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
+            '<path fill="#229ED9" d="M21.9 4.3 18.9 19c-.2 1-.8 1.2-1.7.8l-4.6-3.4-2.2 2.2c-.3.3-.5.5-1 .5l.3-4.7 8.6-7.8c.4-.3-.1-.5-.6-.2L6.900 11l-4.6-1.4c-1-.3-1-1 .2-1.5l18-6.9c.8-.3 1.5.2 1.2 1.4z"/>' +
+          '</svg>' +
+          '<svg class="tg-tick" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">' +
+            '<circle cx="12" cy="12" r="12" fill="#16a34a"/>' +
+            '<path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" ' +
+                  'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '</svg>' +
+        '</span>';
+
     var esc = AdminShell.escapeHtml;
 
     AdminShell.boot({
@@ -86,6 +103,7 @@ $(function () {
         $('.modal-backdrop').on('click', function (e) { if (e.target === this) closeModals(); });
 
         wireRowActions();
+        wireTelegram();
         wireModals();
     }
 
@@ -201,6 +219,17 @@ $(function () {
         if (u.promotableTo.length)
             buttons.push('<button type="button" class="btn btn-sm" data-act="promote">Promote</button>');
 
+        // Offered to everyone on file, account or not: reachability is a property of
+        // the PERSON, and a volunteer without a login still needs alerts to arrive.
+        //
+        // Linked shows as an icon rather than a word, so a column of ticks can be
+        // scanned for the gaps. It stays a button — clicking it still opens the
+        // manage view — it just stops shouting at the people who are already fine.
+        buttons.push(u.hasTelegram
+            ? '<button type="button" class="btn btn-sm btn-icon" data-act="telegram" ' +
+                  'title="Telegram connected">' + TELEGRAM_LINKED + '</button>'
+            : '<button type="button" class="btn btn-sm" data-act="telegram">Telegram</button>');
+
         if (u.hasAccount) {
             buttons.push('<button type="button" class="btn btn-sm" data-act="roles">Roles</button>');
             buttons.push('<button type="button" class="btn btn-sm" data-act="password">Password</button>');
@@ -225,7 +254,164 @@ $(function () {
             if (action === 'promote')  return openPromote(user);
             if (action === 'roles')    return openRoles(user);
             if (action === 'password') return openPassword(user);
+            if (action === 'telegram') return openTelegram(user);
             if (action === 'toggle')   return toggleStatus(user);
+        });
+    }
+
+    // ------------------------------------------------------------------ telegram
+
+    /**
+     * Admin-side Telegram linking.
+     *
+     * Two ways in, and the order on screen is the order of preference:
+     *
+     *   1. Send them an invitation link. Telegram then tells us who they are, which
+     *      is proof of ownership.
+     *   2. Enter a chat id directly, when the office already holds one. No proof —
+     *      the server checks the id is real and reachable, and nothing more.
+     *
+     * The second exists because it is sometimes the only option, not because it is
+     * as good. The screen says so rather than presenting them as equals.
+     */
+    function openTelegram(user) {
+        $('#tgPersonName').text(user.fullName);
+        $('#tgChatId').val('');
+        $('#tgUsername').val('');
+        $('#tgNotice').prop('hidden', true).text('');
+        $('#tgInvite').prop('hidden', true).text('');
+        $('#tgStatus').text('Checking…');
+        $('#tgDisconnectBtn').prop('hidden', true);
+        $('#tgTestBtn').prop('hidden', true);
+
+        $('#telegramModal').addClass('open');
+
+        $.ajax({
+            url: API_BASE_URL + '/telegram/status',
+            method: 'GET',
+            data: { personId: user.personId }
+        })
+            .done(function (res) {
+                var s = (res && res.data) || {};
+
+                if (!s.isConfigured) {
+                    $('#tgStatus').text('The Telegram bot is not configured yet.');
+                    return;
+                }
+
+                if (s.isLinked) {
+                    var line = 'Connected' + (s.username ? ' as ' + s.username : '') + '.';
+
+                    if (s.sharedWithCount > 0) {
+                        line += s.sharedWithCount === 1
+                            ? ' Shared with 1 other person, who receives the same messages.'
+                            : ' Shared with ' + s.sharedWithCount +
+                              ' other people, who all receive the same messages.';
+                    }
+
+                    $('#tgStatus').text(line);
+                    $('#tgDisconnectBtn').prop('hidden', false);
+                    $('#tgTestBtn').prop('hidden', false);
+                } else {
+                    $('#tgStatus').text('Not connected. They will not receive alerts.');
+                }
+            })
+            .fail(function () { $('#tgStatus').text('Could not read their Telegram status.'); });
+    }
+
+    function tgNotice(text) { $('#tgNotice').prop('hidden', false).text(text); }
+
+    function submitLink() {
+        var chatId = $.trim($('#tgChatId').val());
+
+        if (!chatId) return tgNotice('Enter the numeric chat id.');
+
+        var $b = $('#tgLinkBtn').prop('disabled', true).text('Checking…');
+
+        $.ajax({
+            url: API_BASE_URL + '/telegram/link',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                personId: state.editing.personId,
+                chatId: chatId,
+                username: $.trim($('#tgUsername').val()) || null
+            })
+        })
+            .done(function (res) {
+                if (!res || res.responseType !== 0) { tgNotice(res && res.message); return; }
+
+                // Carries the sharing count when there is one, which is the only
+                // place that overlap is ever stated.
+                showToast(res.message, 'success');
+                openTelegram(state.editing);
+                load();
+            })
+            .fail(function (xhr) {
+                var b = xhr && xhr.responseJSON;
+                tgNotice((b && (b.message || b.detail || b.title)) || 'That could not be linked.');
+            })
+            .always(function () { $b.prop('disabled', false).text('Link this chat id'); });
+    }
+
+    function wireTelegram() {
+        // 1 — the route that proves ownership.
+        $('#tgInviteBtn').on('click', function () {
+            var $b = $(this).prop('disabled', true).text('Creating…');
+
+            $.ajax({
+                url: API_BASE_URL + '/telegram/invitation',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ personId: state.editing.personId })
+            })
+                .done(function (res) {
+                    if (!res || res.responseType !== 0) { tgNotice(res && res.message); return; }
+
+                    $('#tgInvite').prop('hidden', false).text(res.data.deepLink);
+                    tgNotice('Send them this link. It expires, and it can only be used once.');
+                })
+                .fail(function () { tgNotice('Could not create an invitation.'); })
+                .always(function () { $b.prop('disabled', false).text('Create invitation link'); });
+        });
+
+        // 2 — the route that asserts it.
+        $('#tgLinkBtn').on('click', submitLink);
+
+        $('#tgTestBtn').on('click', function () {
+            var $b = $(this).prop('disabled', true).text('Sending…');
+
+            $.ajax({
+                url: API_BASE_URL + '/telegram/test-message',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ personId: state.editing.personId })
+            })
+                .done(function (res) {
+                    if (!res || res.responseType !== 0) { tgNotice(res && res.message); return; }
+                    tgNotice(res.message);
+                })
+                .fail(function () { tgNotice('Could not send a test message.'); })
+                .always(function () { $b.prop('disabled', false).text('Send test message'); });
+        });
+
+        $('#tgDisconnectBtn').on('click', function () {
+            var $b = $(this).prop('disabled', true).text('Disconnecting…');
+
+            $.ajax({
+                url: API_BASE_URL + '/telegram/disconnect',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ personId: state.editing.personId })
+            })
+                .done(function (res) {
+                    if (!res || res.responseType !== 0) { tgNotice(res && res.message); return; }
+
+                    showToast(res.message, 'success');
+                    openTelegram(state.editing);
+                })
+                .fail(function () { tgNotice('Could not disconnect.'); })
+                .always(function () { $b.prop('disabled', false).text('Disconnect'); });
         });
     }
 

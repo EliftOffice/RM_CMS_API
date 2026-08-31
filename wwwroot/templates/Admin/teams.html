@@ -154,11 +154,12 @@
                     <div class="hint">Unique within the campus.</div>
                 </div>
 
-                <!-- No campus picker: the API creates at the caller's own campus and
-                     a team cannot move afterwards. A dropdown with one option that
-                     cannot change is a control that only invites a wrong click. -->
+                <!-- Chosen at creation and fixed afterwards: a team owns volunteers
+                     and cases that belong to its campus, so moving it would strand
+                     them. On edit this collapses to a read-only line. -->
                 <div class="field" id="campusField" hidden>
-                    <label class="label">Campus</label>
+                    <label class="label" for="fCampus">Campus</label>
+                    <select class="select" id="fCampus"></select>
                     <div class="hint" id="campusHint"></div>
                 </div>
 

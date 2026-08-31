@@ -650,6 +650,15 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.Modules.Settings.Services.ISettingService,
                                        RM_CMS.Modules.Settings.Services.SettingService>();
 
+            // ---- Campuses module ----
+            // The tenancy boundary everything else scopes on. The table shipped with
+            // the first schema and a single seeded row, but nothing could create a
+            // second one, so the boundary was never exercised.
+            builder.Services.AddScoped<RM_CMS.Modules.Campuses.Data.ICampusRepository,
+                                       RM_CMS.Modules.Campuses.Data.CampusRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Campuses.Services.ICampusService,
+                                       RM_CMS.Modules.Campuses.Services.CampusService>();
+
             // ---- Jobs module (new architecture) ----
             // Replaces the legacy CornJobs slice. Triggered by an external cron over
             // the JobRunner policy — there is no in-process scheduler, so a second

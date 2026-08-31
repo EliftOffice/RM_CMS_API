@@ -208,12 +208,12 @@ namespace RM_CMS.Modules.Volunteers.Services
 
                 // Campus: explicit, else the caller's, else refuse — a volunteer with no
                 // campus could never be found by the assignment query.
-                var campusKey = await _volunteers.ResolveCampusIdAsync(request.CampusId ?? _current.CampusId);
+                var campusKey = await _volunteers.ResolveCampusIdAsync(request.CampusId ?? _current.DefaultCampusId);
 
                 if (campusKey is null)
                     return Warn<VolunteerDto>("A campus is required. Supply campusId.");
 
-                if (!_current.CanAccessCampus(request.CampusId ?? _current.CampusId))
+                if (!_current.CanAccessCampus(request.CampusId ?? _current.DefaultCampusId))
                     return Warn<VolunteerDto>("You cannot enrol a volunteer at that campus.");
 
                 long? teamKey = null;
@@ -460,12 +460,12 @@ namespace RM_CMS.Modules.Volunteers.Services
 
         public async Task<ApiResponse<TeamDto>> CreateTeamAsync(CreateTeamRequest request)
         {
-            var campusKey = await _volunteers.ResolveCampusIdAsync(request.CampusId ?? _current.CampusId);
+            var campusKey = await _volunteers.ResolveCampusIdAsync(request.CampusId ?? _current.DefaultCampusId);
 
             if (campusKey is null)
                 return Warn<TeamDto>("A campus is required. Supply campusId.");
 
-            if (!_current.CanAccessCampus(request.CampusId ?? _current.CampusId))
+            if (!_current.CanAccessCampus(request.CampusId ?? _current.DefaultCampusId))
                 return Warn<TeamDto>("You cannot create a team at that campus.");
 
             var name = request.Name.Trim();
@@ -477,6 +477,10 @@ namespace RM_CMS.Modules.Volunteers.Services
 
             if (!string.IsNullOrWhiteSpace(request.LeadAccountId) && leadKey is null)
                 return Warn<TeamDto>("That team lead account does not exist or is disabled.");
+
+            var leadMismatch = await LeadIsAtAnotherCampusAsync(leadKey, campusKey.Value);
+
+            if (leadMismatch is not null) return Warn<TeamDto>(leadMismatch);
 
             var id = await _teams.CreateAsync(new Team
             {
@@ -631,6 +635,12 @@ namespace RM_CMS.Modules.Volunteers.Services
 
                 if (!string.IsNullOrWhiteSpace(request.LeadAccountId) && leadKey is null)
                     return Warn<TeamDto>("That team lead account does not exist or is disabled.");
+
+                // Same rule as creation: the team cannot move, so the lead has to be
+                // at the campus the team already belongs to.
+                var leadMismatch = await LeadIsAtAnotherCampusAsync(leadKey, team.CampusId);
+
+                if (leadMismatch is not null) return Warn<TeamDto>(leadMismatch);
             }
 
             var isActive = restricted ? team.IsActive : request.IsActive;
@@ -676,6 +686,29 @@ namespace RM_CMS.Modules.Volunteers.Services
         {
             var effective = string.IsNullOrWhiteSpace(_current.CampusId) ? requested : _current.CampusId;
             return await _volunteers.ResolveCampusIdAsync(effective);
+        }
+
+        /// <summary>
+        /// Refuses a lead whose own campus is not the team's, and explains why.
+        /// Returns null when the pairing is fine.
+        ///
+        /// Now that an administrator can create a team at any campus, nothing else
+        /// stops a lead at one site being put in charge of another site's team — and
+        /// a lead reads every escalation raised on their team's people, so that would
+        /// quietly punch a hole straight through the campus boundary.
+        /// </summary>
+        private async Task<string?> LeadIsAtAnotherCampusAsync(long? leadAccountId, long teamCampusId)
+        {
+            if (leadAccountId is null) return null;
+
+            var leadCampus = await _teams.GetLeadCampusIdAsync(leadAccountId.Value);
+
+            // No campus on their person record is a data gap, not a mismatch: refusing
+            // here would block a legitimate lead for a reason they cannot fix.
+            if (leadCampus is null || leadCampus == teamCampusId) return null;
+
+            return "That person belongs to a different campus. " +
+                   "A team lead must be at the same campus as the team they lead.";
         }
 
         private async Task<long?> ActingUserIdAsync()

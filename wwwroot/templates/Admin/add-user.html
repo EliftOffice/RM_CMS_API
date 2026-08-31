@@ -15,6 +15,7 @@
     <script src="../assets/js/toast.js"></script>
     <script src="../assets/js/admin-shell.js"></script>
     <script src="../assets/js/password-policy.js"></script>
+    <script src="../assets/js/mobile-input.js"></script>
 
     <style>
         .form-card { max-width: 640px; }
@@ -54,6 +55,25 @@
         .role-pick:hover { background: var(--canvas); }
         .role-pick input { margin-top: 3px; }
         .role-pick .sub { color: var(--ink-muted); font-size: 12px; display: block; }
+
+        /* Capacity as cards rather than a dropdown. The band decides how much work
+           auto-assignment will hand this person, so the numbers and the note belong
+           on screen while the choice is made, not hidden behind a closed select. */
+        .band-option {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .band-option:hover { background: var(--canvas); }
+        .band-option input { margin-top: 3px; }
+        .band-text strong { display: block; }
+        .band-text .sub { color: var(--ink-muted); font-size: 12px; }
 
         .picker-results {
             border: 1px solid var(--line);
@@ -160,9 +180,11 @@
                     <div class="field-row">
                         <div class="field">
                             <label class="label" for="mobile">Mobile number</label>
-                            <input class="input" id="mobile" type="tel" inputmode="numeric" maxlength="15"
-                                   autocomplete="off" aria-describedby="mobileHint">
-                            <p class="hint" id="mobileHint">This is also their username for signing in.</p>
+                            <input class="input" id="mobile" type="tel" inputmode="numeric" maxlength="10"
+                                   autocomplete="tel" aria-describedby="mobileHint">
+                            <p class="hint" id="mobileHint">
+                                10 digits, starting 6-9. This is also their username for signing in.
+                            </p>
                         </div>
                         <div class="field">
                             <label class="label" for="email">Email</label>
@@ -177,15 +199,36 @@
                     <div id="roleOptions"></div>
                 </div>
 
+                <!-- Hidden while one campus exists. Appears as soon as there are
+                     two, because campus decides which visitors this person can be
+                     given: a volunteer only ever receives cases from their own site. -->
+                <div class="field" id="campusField" hidden>
+                    <label class="label" for="campusId">Campus</label>
+                    <select class="input" id="campusId"></select>
+                    <p class="hint">
+                        Which site they serve. A volunteer is only ever assigned visitors
+                        from their own campus, and a team lead only sees that campus.
+                    </p>
+                </div>
+
                 <div class="field" id="bandField" hidden>
-                    <label class="label" for="capacityBand">Weekly capacity</label>
-                    <select class="input" id="capacityBand"></select>
-                    <p class="hint">How many people they can follow up each week.</p>
+                    <label class="label">How many people can they follow up each week?</label>
+                    <div id="bandOptions"></div>
                 </div>
 
                 <div class="field" id="teamField" hidden>
                     <label class="label" for="teamId">Team</label>
                     <select class="input" id="teamId"><option value="">No team yet</option></select>
+                    <p class="hint" id="teamHint">A volunteer can be added to a team later.</p>
+                </div>
+
+                <div class="field" id="startedField" hidden>
+                    <label class="label" for="startedOn">Start date</label>
+                    <input class="input" id="startedOn" type="date">
+                    <p class="hint">
+                        When they began serving. Leave blank for today — backdate it if they
+                        have been serving already.
+                    </p>
                 </div>
 
                 <p class="section-title">Sign-in</p>

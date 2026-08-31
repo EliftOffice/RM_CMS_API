@@ -50,6 +50,7 @@
         sessionList = document.getElementById('sessionList');
 
         loadReference();
+        loadCampuses();
         setToday();
         wireFollowUpToggle();
 
@@ -65,6 +66,13 @@
                 hide(dupNotice);
                 saveBtn.textContent = 'Save visitor';
             }
+        });
+
+        // Digits-only, ten of them, starting 6-9 — enforced as they type.
+        MobileInput.attach(document.getElementById('mobile'), {
+            hint: document.getElementById('mobileHint'),
+            hintText: '10 digits, starting 6-9. Checked against existing records ' +
+                      'as you leave the field.'
         });
 
         document.getElementById('mobile').addEventListener('blur', checkForDuplicate);
@@ -110,6 +118,46 @@
         input.value = now.getFullYear() + '-' + month + '-' + day;
     }
 
+    /**
+     * The campus this visitor is being recorded at.
+     *
+     * It matters more than it looks: the case is opened at the PERSON's campus, and
+     * auto-assignment only considers volunteers at that campus. Filing someone
+     * against the wrong site means nobody who serves them can pick them up.
+     *
+     * The server returns only campuses this operator may file against — one for a
+     * campus-scoped account, all of them for an organisation-wide one. With a single
+     * option the field stays hidden and the server applies the same default.
+     */
+    function loadCampuses() {
+        fetch(API_BASE_URL + '/campuses/options')
+            .then(function (res) { return res.json(); })
+            .then(function (body) {
+                var list = (body && body.data) || [];
+                var select = document.getElementById('campus');
+
+                select.innerHTML = list.map(function (c) {
+                    return '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
+                }).join('');
+
+                // One choice is not a choice. Leave it hidden and let the server
+                // default to the operator's own campus.
+                document.getElementById('campusField').hidden = list.length < 2;
+            })
+            .catch(function () {
+                // Non-fatal: without the picker the server still files the visitor at
+                // the operator's own campus, which is right in the single-campus case
+                // and the only sensible fallback in any other.
+                document.getElementById('campusField').hidden = true;
+            });
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     function wireFollowUpToggle() {
         var toggle = document.getElementById('startFollowUp');
         var priorityField = document.getElementById('priorityField');
@@ -130,7 +178,10 @@
      */
     function checkForDuplicate() {
         var mobile = document.getElementById('mobile').value.trim();
-        if (mobile.length < 6) return;
+
+        // Only worth asking once the number is complete: a partial number matches
+        // half the directory and the warning would be noise.
+        if (!MobileInput.isValid(mobile)) return;
 
         fetch(API_BASE_URL + '/people/lookup?q=' + encodeURIComponent(mobile))
             .then(function (res) { return res.json(); })
@@ -283,6 +334,7 @@
             connectionSource: value('connectionSource'),
             firstVisitOn:     value('firstVisitOn'),
             priority:         value('priority'),
+            campusId:         value('campus'),
             isLocal:          document.getElementById('isLocal').checked,
             startFollowUp:    document.getElementById('startFollowUp').checked
         };
@@ -308,6 +360,10 @@
         if (p.postalCode)  request.postalCode = p.postalCode;
         if (p.notes)       request.notes = p.notes;
 
+        // Omitted when the picker is hidden, which lets the server fall back to the
+        // operator's own campus rather than this screen guessing at one.
+        if (p.campusId)    request.campusId = p.campusId;
+
         return request;
     }
 
@@ -320,8 +376,12 @@
             return { field: 'mobile', message: 'Enter a mobile number.' };
         }
 
-        if (!/^[0-9+\-\s()]{6,15}$/.test(p.mobile)) {
-            return { field: 'mobile', message: 'That does not look like a valid mobile number.' };
+        if (!MobileInput.isValid(p.mobile)) {
+            return {
+                field: 'mobile',
+                message: MobileInput.problem(p.mobile) ||
+                         'Enter a 10-digit Indian mobile number starting 6, 7, 8 or 9.'
+            };
         }
 
         if (p.email && p.email.indexOf('@') === -1) {

@@ -51,12 +51,36 @@ namespace RM_CMS.Modules.Telegram.Data
 
         Task<long?> ResolvePersonIdAsync(string personPublicId);
         Task<string?> GetPersonPublicIdAsync(long personId);
+
+        /// <summary>
+        /// A person's name, for a message that says WHO holds a chat id. "Somebody
+        /// else" is not something an administrator can act on.
+        /// </summary>
+        Task<string?> GetPersonNameAsync(long personId);
+
+        /// <summary>
+        /// How many OTHER people are actively linked to this chat id.
+        ///
+        /// Sharing is permitted, so this is not a guard — it is the number the screen
+        /// reports, because everyone on one chat id receives everyone else's alerts
+        /// and nothing else on any screen would reveal that.
+        /// </summary>
+        Task<int> CountOthersOnChatIdAsync(string chatId, long excludingPersonId);
     }
 
     public sealed class TelegramContactRow
     {
         public long Id { get; set; }
+
+        /// <summary>The DISPLAY value — '@handle', or 'chat:123' when no handle is known.</summary>
         public string Value { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The chat id itself, from <c>normalized_value</c>. This is the one to send
+        /// to; <see cref="Value"/> is for people to read and is not parseable.
+        /// </summary>
+        public string ChatId { get; set; } = string.Empty;
+
         public string? Username { get; set; }
         public bool IsVerified { get; set; }
         public DateTime? VerifiedAt { get; set; }
@@ -166,7 +190,8 @@ namespace RM_CMS.Modules.Telegram.Data
         public async Task<TelegramContactRow?> GetContactAsync(long personId)
         {
             const string sql = @"
-                SELECT id AS Id, value AS Value, is_verified AS IsVerified,
+                SELECT id AS Id, value AS Value, normalized_value AS ChatId,
+                       is_verified AS IsVerified,
                        verified_at AS VerifiedAt, opted_out_at AS OptedOutAt
                 FROM person_contact
                 WHERE person_id = @PersonId AND contact_type = 'TELEGRAM'
@@ -255,6 +280,33 @@ namespace RM_CMS.Modules.Telegram.Data
 
             return await connection.ExecuteScalarAsync<string?>(
                 "SELECT public_id FROM person WHERE id = @Id LIMIT 1;",
+                new { Id = personId });
+        }
+
+        public async Task<int> CountOthersOnChatIdAsync(string chatId, long excludingPersonId)
+        {
+            // Active links only. A disconnected row still holds the chat id but its
+            // owner receives nothing, so counting it would overstate the overlap.
+            const string sql = @"
+                SELECT COUNT(*)
+                FROM person_contact
+                WHERE contact_type = 'TELEGRAM'
+                  AND normalized_value = @ChatId
+                  AND opted_out_at IS NULL
+                  AND person_id <> @PersonId;";
+
+            using var connection = _dbFactory.GetConnection();
+
+            return await connection.ExecuteScalarAsync<int>(
+                sql, new { ChatId = chatId, PersonId = excludingPersonId });
+        }
+
+        public async Task<string?> GetPersonNameAsync(long personId)
+        {
+            using var connection = _dbFactory.GetConnection();
+
+            return await connection.ExecuteScalarAsync<string?>(
+                "SELECT full_name FROM person WHERE id = @Id LIMIT 1;",
                 new { Id = personId });
         }
     }

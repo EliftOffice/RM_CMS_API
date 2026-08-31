@@ -25,6 +25,13 @@ namespace RM_CMS.Modules.Volunteers.Data
         Task<long?> ResolveLeadAccountIdAsync(string? accountPublicId);
 
         /// <summary>
+        /// The campus a candidate lead's own person record sits at, so a team can
+        /// refuse a lead from another site. A lead reads every escalation raised on
+        /// their team's people, which is exactly the boundary campus exists to draw.
+        /// </summary>
+        Task<long?> GetLeadCampusIdAsync(long accountId);
+
+        /// <summary>
         /// Accounts that could lead a team. Its own query rather than the user
         /// directory because that route is admin-only, and a pastor granted team
         /// management still has to be able to pick a leader.
@@ -216,6 +223,19 @@ namespace RM_CMS.Modules.Volunteers.Data
 
             using var connection = _dbFactory.GetConnection();
             return await connection.ExecuteScalarAsync<long?>(sql, new { PublicId = accountPublicId });
+        }
+
+        public async Task<long?> GetLeadCampusIdAsync(long accountId)
+        {
+            const string sql = @"
+                SELECT p.campus_id
+                FROM user_account ua
+                JOIN person p ON p.id = ua.person_id
+                WHERE ua.id = @Id
+                LIMIT 1;";
+
+            using var connection = _dbFactory.GetConnection();
+            return await connection.ExecuteScalarAsync<long?>(sql, new { Id = accountId });
         }
     }
 }

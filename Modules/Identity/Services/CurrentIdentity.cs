@@ -25,6 +25,14 @@ namespace RM_CMS.Modules.Identity.Services
         /// <summary>The campus this account is scoped to. Null means organisation-wide.</summary>
         string? CampusId { get; }
 
+        /// <summary>
+        /// The campus new records default to when the caller does not name one.
+        /// Falls back to the caller's own home campus, so an organisation-wide
+        /// account still files somewhere sensible. Never use this for authorization —
+        /// that is <see cref="CanAccessCampus"/>.
+        /// </summary>
+        string? DefaultCampusId { get; }
+
         IReadOnlyList<string> Roles { get; }
         bool IsInRole(string roleCode);
         bool IsAdmin { get; }
@@ -60,6 +68,13 @@ namespace RM_CMS.Modules.Identity.Services
         public string? VolunteerId => Claim(ClaimNames.VolunteerId);
         public string? TeamId => Claim(ClaimNames.TeamId);
         public string? CampusId => Claim(ClaimNames.CampusId);
+
+        /// <summary>
+        /// Scope first, home campus second. An organisation-wide caller has no scope
+        /// claim, so without the fallback every record they create would land with no
+        /// campus at all.
+        /// </summary>
+        public string? DefaultCampusId => CampusId ?? Claim(ClaimNames.HomeCampusId);
 
         public IReadOnlyList<string> Roles =>
             Principal?.FindAll(ClaimNames.Role).Select(c => c.Value).ToList() ?? new List<string>();

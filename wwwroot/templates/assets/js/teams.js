@@ -28,6 +28,7 @@ $(function () {
         access: null,
         teams: [],
         leads: [],
+        campuses: [],
         search: '',
         includeInactive: false,
         editing: null      // null = creating
@@ -55,7 +56,10 @@ $(function () {
                 renderScopeNote();
                 bind();
 
-                if (state.access.canCreate) $('#newTeamBtn').prop('hidden', false);
+                if (state.access.canCreate) {
+                    $('#newTeamBtn').prop('hidden', false);
+                    loadCampuses();
+                }
                 if (state.access.canReassignLead) loadLeads();
 
                 loadTeams();
@@ -243,11 +247,48 @@ $(function () {
         $('#activeField').toggleClass('field-locked', lockActive);
         $('#activeField').prop('hidden', creating);
 
-        $('#campusField').prop('hidden', !creating);
-        $('#campusHint').text('Created at your own campus. A team cannot move afterwards.');
+        renderCampusField(creating, team);
 
         $('#editModal').addClass('open');
         $('#fName').trigger('focus');
+    }
+
+    /**
+     * Campus is a create-time decision.
+     *
+     * An administrator is organisation-wide and can put a team at any site, which
+     * is the whole point of having more than one. It used to be taken silently
+     * from whoever was signed in — invisible while there was one campus, and wrong
+     * the moment there were two.
+     *
+     * On edit it becomes a read-only line rather than disappearing: which campus a
+     * team belongs to is worth seeing, and it cannot be changed because the team's
+     * volunteers and cases belong to that campus too.
+     */
+    function renderCampusField(creating, team) {
+        if (!creating) {
+            $('#campusField').prop('hidden', false);
+            $('#fCampus').prop('hidden', true);
+            $('#campusHint').text('At ' + (team.campusName || 'an unknown campus') +
+                                  '. A team cannot move — its volunteers and cases belong there too.');
+            return;
+        }
+
+        // One option is not a choice, and the server applies the same default.
+        var choices = state.campuses || [];
+
+        $('#campusField').prop('hidden', choices.length < 2);
+        $('#fCampus').prop('hidden', false).html(choices.map(function (c) {
+            return '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>';
+        }).join(''));
+
+        $('#campusHint').text('Which site this team serves. It cannot be changed afterwards.');
+    }
+
+    function loadCampuses() {
+        $.ajax({ url: API_BASE_URL + '/campuses/options', method: 'GET' })
+            .done(function (res) { state.campuses = (res && res.data) || []; })
+            .fail(function () { state.campuses = []; });
     }
 
     function buildLeadOptions(selectedId) {
@@ -258,7 +299,18 @@ $(function () {
         // value is kept as an option rather than silently reset to none.
         var known = false;
 
-        state.leads.forEach(function (c) {
+        // Only leads at the campus this team is (or will be) at. The server refuses
+        // a mismatch, so offering one would be a control whose only outcome is an
+        // error message.
+        var campusName = state.editing
+            ? state.editing.campusName
+            : selectedCampusName();
+
+        var eligible = state.leads.filter(function (c) {
+            return !campusName || !c.campusName || c.campusName === campusName;
+        });
+
+        eligible.forEach(function (c) {
             if (c.accountId === selectedId) known = true;
 
             var suffix = c.leadsTeam ? ' — leads ' + c.leadsTeam : '';
@@ -276,6 +328,14 @@ $(function () {
         }
 
         $('#fLead').html(options.join(''));
+    }
+
+    /** The campus name currently chosen in the create picker, if any. */
+    function selectedCampusName() {
+        var id = $('#fCampus').val();
+        var match = (state.campuses || []).filter(function (c) { return c.id === id; })[0];
+
+        return match ? match.name : null;
     }
 
     function closeEditor() {
@@ -304,7 +364,13 @@ $(function () {
                 body: {
                     name: name,
                     leadAccountId: $('#fLead').val() || null,
-                    maxMembers: max
+                    maxMembers: max,
+
+                    // Omitted when the picker was hidden, which lets the server fall
+                    // back to the caller's own campus — right when there is only one.
+                    campusId: $('#campusField').prop('hidden')
+                        ? null
+                        : ($('#fCampus').val() || null)
                 }
             }
             : {
@@ -364,6 +430,9 @@ $(function () {
             var team = state.teams.filter(function (t) { return t.id === id; })[0];
             if (team) openEditor(team);
         });
+
+        // Changing the campus changes who is eligible to lead it.
+        $('#fCampus').on('change', function () { buildLeadOptions($('#fLead').val()); });
 
         $('#editModal').on('click', '[data-close]', closeEditor);
 

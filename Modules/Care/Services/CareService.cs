@@ -216,10 +216,30 @@ namespace RM_CMS.Modules.Care.Services
                     "A team lead can lift that on their record if it was recorded in error.");
             }
 
-            var campusKey = await _cases.ResolveCampusIdAsync(_current.CampusId);
+            // The case belongs to the PERSON's campus, not the operator's.
+            //
+            // This used to read _current.CampusId, which was invisible while one
+            // campus existed and wrong the moment there were two: the case campus is
+            // what FindEligibleAsync filters volunteers on, so a visitor recorded at
+            // one site by an operator from another would have been handed to a
+            // volunteer who does not serve them. It also failed outright for an
+            // organisation-wide account, which has no campus claim at all.
+            var campusKey = await _cases.GetPersonCampusIdAsync(personKey.Value);
 
             if (campusKey is null)
-                return Warn<CaseDto>("A campus is required to open a case.");
+            {
+                return Warn<CaseDto>(
+                    "That person is not attached to a campus, so no case can be opened for them. " +
+                    "Set their campus on their record first.");
+            }
+
+            // Belt and braces: the person's campus must still be one this caller may
+            // act for. Reaching here with someone else's person would mean the people
+            // module let them through, but a case is the wrong place to find out.
+            var campusPublicId = await _cases.GetCampusPublicIdAsync(campusKey.Value);
+
+            if (!_current.CanAccessCampus(campusPublicId))
+                return Warn<CaseDto>("You cannot open a case for that campus.");
 
             var plan = await _lookups.GetDefaultPlanAsync(campusKey);
 

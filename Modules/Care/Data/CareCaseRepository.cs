@@ -48,6 +48,17 @@ namespace RM_CMS.Modules.Care.Data
         Task<long?> ResolveVolunteerIdAsync(string volunteerPublicId);
         Task<long?> ResolveCampusIdAsync(string? campusPublicId);
 
+        /// <summary>
+        /// The campus a person belongs to. A case is opened at the PERSON's campus,
+        /// never the operator's — the case campus decides which volunteers are
+        /// eligible for it, so taking it from whoever happened to be at the keyboard
+        /// would hand a visitor to a volunteer at another site.
+        /// </summary>
+        Task<long?> GetPersonCampusIdAsync(long personId);
+
+        /// <summary>Public id of a campus, for the caller-scope check.</summary>
+        Task<string?> GetCampusPublicIdAsync(long campusId);
+
         /// <summary>An open case for this person, if one exists. Prevents duplicates.</summary>
         Task<CareCase?> FindOpenCaseForPersonAsync(long personId);
 
@@ -584,6 +595,22 @@ namespace RM_CMS.Modules.Care.Data
 
             using var connection = _dbFactory.GetConnection();
             return await connection.ExecuteScalarAsync<long?>(sql, new { PublicId = campusPublicId });
+        }
+
+        public async Task<long?> GetPersonCampusIdAsync(long personId)
+        {
+            const string sql = @"SELECT campus_id FROM person WHERE id = @Id LIMIT 1;";
+
+            using var connection = _dbFactory.GetConnection();
+            return await connection.ExecuteScalarAsync<long?>(sql, new { Id = personId });
+        }
+
+        public async Task<string?> GetCampusPublicIdAsync(long campusId)
+        {
+            const string sql = @"SELECT public_id FROM campus WHERE id = @Id LIMIT 1;";
+
+            using var connection = _dbFactory.GetConnection();
+            return await connection.ExecuteScalarAsync<string?>(sql, new { Id = campusId });
         }
 
         public async Task SetPersonDoNotContactAsync(long personId, string note, DateTime nowUtc, long? actingUserId)

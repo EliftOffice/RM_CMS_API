@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Campuses — RM_CMS Admin</title>
+
+    <link rel="icon" href="../assets/Images/favicon.ico">
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/toast.js"></script>
+    <script src="../assets/js/admin-shell.js"></script>
+    <script src="../assets/js/campuses.js"></script>
+
+    <style>
+        /* The code is a handle operators quote to each other, so it reads as one. */
+        .code-chip {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12px;
+            background: #f3f4f6;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 2px 6px;
+            white-space: nowrap;
+        }
+
+        /* What is attached to a campus, and therefore what blocks retiring it. */
+        .attached {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 10px;
+            font-size: 12.5px;
+            color: var(--ink-muted);
+        }
+
+        .attached b { color: var(--ink); font-weight: 600; }
+        .attached .zero { opacity: .45; }
+
+        .tz {
+            font-size: 12.5px;
+            color: var(--ink-muted);
+            white-space: nowrap;
+        }
+
+        .field-locked { opacity: .55; }
+
+        .why {
+            font-size: 12.5px;
+            line-height: 1.55;
+            color: var(--ink-muted);
+            margin: 2px 0 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="adminShell"></div>
+
+    <main class="page" id="pageBody" hidden>
+
+        <div class="page-head">
+            <div>
+                <h1 class="page-title">Campuses</h1>
+                <p class="page-sub">
+                    A campus is the boundary the whole system scopes on. People, volunteers,
+                    teams, cases and escalations each belong to exactly one.
+                </p>
+            </div>
+            <button type="button" class="btn btn-primary" id="newBtn">New campus</button>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <span class="card-title">All campuses</span>
+                <div class="toolbar">
+                    <select class="select" id="statusFilter">
+                        <option value="all">Include retired</option>
+                        <option value="active">Active only</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="table" id="campusTable">
+                    <thead>
+                        <tr>
+                            <th>Campus</th>
+                            <th>Code</th>
+                            <th>Time zone</th>
+                            <th>Attached</th>
+                            <th>Status</th>
+                            <th class="cell-actions">&nbsp;</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="6" class="empty">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- ── Create / edit ─────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" id="editModal">
+        <div class="modal">
+            <div class="modal-head">
+                <span class="card-title" id="editTitle">Edit campus</span>
+                <button type="button" class="btn btn-sm" data-close>Close</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="field">
+                    <label class="label" for="fName">Campus name</label>
+                    <input type="text" class="input" id="fName" maxlength="100" autocomplete="off">
+                    <div class="hint">What people call the site. Shown throughout the app.</div>
+                </div>
+
+                <div class="field" id="codeField">
+                    <label class="label" for="fCode">Code</label>
+                    <input type="text" class="input" id="fCode" maxlength="20" autocomplete="off"
+                           placeholder="ONGOLE">
+                    <div class="hint" id="codeHint">
+                        Short handle, letters and numbers. Uppercased automatically.
+                        <strong>It cannot be changed later</strong> — operators quote it and it
+                        appears in exports.
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label" for="fTimezone">Time zone</label>
+                    <input type="text" class="input" id="fTimezone" maxlength="64" autocomplete="off"
+                           list="tzList" placeholder="Asia/Kolkata">
+                    <datalist id="tzList">
+                        <option value="Asia/Kolkata"></option>
+                        <option value="Asia/Dubai"></option>
+                        <option value="Asia/Colombo"></option>
+                        <option value="Asia/Singapore"></option>
+                        <option value="Europe/London"></option>
+                        <option value="America/New_York"></option>
+                        <option value="America/Chicago"></option>
+                        <option value="Australia/Sydney"></option>
+                    </datalist>
+                    <div class="hint">IANA zone id. The server rejects one it does not recognise.</div>
+                </div>
+
+                <div class="field" id="activeField">
+                    <label class="label">
+                        <input type="checkbox" id="fActive"> Active
+                    </label>
+                    <div class="hint" id="activeHint">
+                        A retired campus keeps its history and stops accepting new records.
+                    </div>
+                    <p class="why" id="retireWhy" hidden></p>
+                </div>
+
+                <div class="notice notice-warn" id="editNotice" hidden></div>
+            </div>
+
+            <div class="modal-foot">
+                <button type="button" class="btn" data-close>Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -122,6 +122,12 @@ namespace RM_CMS.Modules.Telegram.Domain
 
         public string? Username { get; set; }
         public DateTime? LinkedAt { get; set; }
+
+        /// <summary>
+        /// How many OTHER people are linked to the same chat id. Zero is the normal
+        /// case; anything above it means alerts are shared both ways.
+        /// </summary>
+        public int SharedWithCount { get; set; }
     }
 
     public sealed class TelegramLinkInvitation
@@ -169,5 +175,34 @@ namespace RM_CMS.Modules.Telegram.Domain
         /// <summary>Whose link to remove. Omitted means the caller's own.</summary>
         [StringLength(26)]
         public string? PersonId { get; set; }
+    }
+
+    /// <summary>
+    /// An administrator linking somebody using details they already hold.
+    ///
+    /// <see cref="PersonId"/> is required and has no "my own" default: this is not a
+    /// self-service action, and an omitted target that silently meant "me" would be a
+    /// way to link the administrator's own account by accident.
+    /// </summary>
+    public sealed class AdminLinkTelegramRequest
+    {
+        [Required][StringLength(26, MinimumLength = 26)]
+        public string PersonId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The numeric Telegram chat id. Not the @username — Telegram's API cannot
+        /// start a conversation from a handle, only from an id of a chat that has
+        /// already messaged the bot.
+        /// </summary>
+        [Required][StringLength(32)]
+        public string ChatId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Optional display handle. Only used when Telegram does not report one
+        /// itself, which it usually does.
+        /// </summary>
+        [StringLength(64)]
+        public string? Username { get; set; }
+
     }
 }

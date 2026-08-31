@@ -178,6 +178,50 @@ namespace RM_CMS.Modules.Telegram.Api
         }
 
         /// <summary>
+        /// Links somebody using a chat id the administrator already holds, skipping
+        /// the deep-link handshake.
+        ///
+        /// Administrators only, and deliberately not folded into the self-service
+        /// routes above: those prove ownership through Telegram, this one asserts it.
+        /// The chat id is checked against Telegram before anything is written.
+        /// </summary>
+        [HttpPost("link")]
+        [Authorize(Policy = PolicyNames.AdminOnly)]
+        [EnableRateLimiting(RateLimitPolicies.Sensitive)]
+        [ProducesResponseType(typeof(ApiResponse<TelegramLinkStatus>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<TelegramLinkStatus>>> LinkManually(
+            [FromBody] AdminLinkTelegramRequest request)
+        {
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            return HttpResponseHelper.CreateHttpResponse(await _linking.LinkManuallyAsync(request));
+        }
+
+        /// <summary>
+        /// Sends a short test message to somebody's linked chat.
+        ///
+        /// The point of the manual path is that nobody proved they own the chat, so
+        /// the administrator needs a way to find out before a real escalation is the
+        /// thing that discovers a wrong digit.
+        /// </summary>
+        [HttpPost("test-message")]
+        [Authorize(Policy = PolicyNames.AdminOnly)]
+        [EnableRateLimiting(RateLimitPolicies.Sensitive)]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<bool>>> TestMessage(
+            [FromBody] DisconnectTelegramRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.PersonId))
+            {
+                return BadRequest(new ApiResponse<bool>(
+                    ResponseType.Warning, "Say whose link to test.", false));
+            }
+
+            return HttpResponseHelper.CreateHttpResponse(
+                await _linking.SendTestMessageAsync(request.PersonId));
+        }
+
+        /// <summary>
         /// What is configured, and what Telegram currently believes.
         ///
         /// Reports the token as a BOOLEAN and never its value. A setup screen needs to

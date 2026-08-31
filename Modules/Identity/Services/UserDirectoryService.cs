@@ -260,6 +260,7 @@ namespace RM_CMS.Modules.Identity.Services
                 CapacityBandCode = request.CapacityBandCode,
                 TeamId = request.TeamId,
                 LeadsTeamId = request.LeadsTeamId,
+                StartedOn = request.StartedOn,
                 GrantSystemAccess = request.GrantSystemAccess,
                 InitialPassword = request.InitialPassword,
                 MustChangePassword = request.MustChangePassword
@@ -275,6 +276,7 @@ namespace RM_CMS.Modules.Identity.Services
             public string? CapacityBandCode { get; init; }
             public string? TeamId { get; init; }
             public string? LeadsTeamId { get; init; }
+            public DateTime? StartedOn { get; init; }
             public bool GrantSystemAccess { get; init; }
             public string? InitialPassword { get; init; }
             public bool MustChangePassword { get; init; }
@@ -306,6 +308,11 @@ namespace RM_CMS.Modules.Identity.Services
                     PersonId = row.PersonPublicId,
                     Username = username!,
                     InitialPassword = options.InitialPassword,
+
+                    // Carried from the caller. Dropping it here was the whole bug:
+                    // RoleApplication held the administrator's choice and then never
+                    // passed it on, so CreateAccountAsync fell back to its default.
+                    MustChangePassword = options.MustChangePassword,
                     Roles = new List<RoleGrantRequest>
                     {
                         new() { RoleCode = target, CampusId = options.CampusId }
@@ -354,7 +361,11 @@ namespace RM_CMS.Modules.Identity.Services
                     PersonId = row.PersonPublicId,
                     CapacityBandCode = options.CapacityBandCode!,
                     CampusId = options.CampusId,
-                    TeamId = options.TeamId
+                    TeamId = options.TeamId,
+
+                    // Null defaults to today inside the volunteer service, which is the
+                    // right answer for someone enrolled as they walk in.
+                    StartedOn = options.StartedOn
                 });
 
                 if (enrolled.ResponseType != ResponseType.Success)
@@ -426,6 +437,8 @@ namespace RM_CMS.Modules.Identity.Services
                 Roles = roles,
                 HighestRole = highest,
                 PromotableTo = NextRungs(standing),
+
+                HasTelegram = row.HasTelegram,
 
                 IsVolunteer = row.VolunteerId.HasValue,
                 VolunteerId = row.VolunteerPublicId,

@@ -67,6 +67,13 @@ namespace RM_CMS.Modules.Identity.Api
         [StringLength(128, MinimumLength = 12)]
         public string? InitialPassword { get; set; }
 
+        /// <summary>
+        /// Whether the initial password is a one-time credential. Defaults to true:
+        /// an account whose password the administrator knows is the unsafe case, so
+        /// it has to be asked for rather than fallen into.
+        /// </summary>
+        public bool MustChangePassword { get; set; } = true;
+
         [Required][MinLength(1, ErrorMessage = "At least one role is required.")]
         public List<RoleGrantRequest> Roles { get; set; } = new();
     }

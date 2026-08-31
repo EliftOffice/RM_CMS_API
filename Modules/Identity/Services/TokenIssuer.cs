@@ -74,8 +74,26 @@ namespace RM_CMS.Modules.Identity.Services
                 claims.Add(new Claim(ClaimNames.TeamId, account.TeamPublicId));
 
             // The tenancy boundary. Absent means organisation-wide.
-            if (!string.IsNullOrWhiteSpace(account.CampusPublicId))
+            //
+            // This used to be the person's campus, unconditionally. That made an
+            // administrator scoped to whichever site their own person record happened
+            // to sit at — invisible while one campus existed, and the moment a second
+            // was created they could create it and then not file anything against it.
+            //
+            // user_role.campus_id IS NULL already means "organisation-wide grant", so
+            // the fix is to honour it. Deliberately limited to ADMIN and PASTOR: a
+            // null campus on a volunteer or data-entry grant is far more likely to be
+            // an oversight than an intention, and the cost of reading it as intent is
+            // someone seeing another site's pastoral records.
+            if (!IsOrganisationWide(account) && !string.IsNullOrWhiteSpace(account.CampusPublicId))
                 claims.Add(new Claim(ClaimNames.CampusId, account.CampusPublicId));
+
+            // Always present, even for an organisation-wide account. This is not a
+            // permission — it is the campus their records default to when they do not
+            // name one, which an org-wide caller still needs or every person they
+            // record lands with no campus at all.
+            if (!string.IsNullOrWhiteSpace(account.CampusPublicId))
+                claims.Add(new Claim(ClaimNames.HomeCampusId, account.CampusPublicId));
 
             if (account.MustChangePassword)
                 claims.Add(new Claim(ClaimNames.MustChangePassword, "1"));
@@ -94,6 +112,20 @@ namespace RM_CMS.Modules.Identity.Services
 
             return new AccessToken(new JwtSecurityTokenHandler().WriteToken(token), jti, expires);
         }
+
+        /// <summary>
+        /// True when the account holds an ADMIN or PASTOR role granted with no campus
+        /// — the shape <c>user_role.campus_id IS NULL</c> was designed to express.
+        ///
+        /// Only those two roles. Widening it to every role would turn a null campus on
+        /// a volunteer grant, which is almost certainly a data oversight, into
+        /// organisation-wide read access over other sites' pastoral records.
+        /// </summary>
+        private static bool IsOrganisationWide(UserAccount account) =>
+            account.Roles.Any(r =>
+                string.IsNullOrWhiteSpace(r.CampusPublicId) &&
+                (string.Equals(r.RoleCode, RoleCodes.Admin, StringComparison.Ordinal) ||
+                 string.Equals(r.RoleCode, RoleCodes.Pastor, StringComparison.Ordinal)));
 
         public RefreshTokenMaterial CreateRefreshToken()
         {

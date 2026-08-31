@@ -83,7 +83,19 @@ namespace RM_CMS.Modules.Identity.Domain
         /// Public ULID of the campus this account is scoped to. Organisation-wide
         /// accounts omit it. This is the tenancy boundary.
         /// </summary>
+        /// <summary>
+        /// The tenancy SCOPE. Absent means organisation-wide, so it is omitted for an
+        /// account holding an org-wide Admin or Pastor grant.
+        /// </summary>
         public const string CampusId = "cid";
+
+        /// <summary>
+        /// The caller's HOME campus — the one their own person record sits at. Always
+        /// present, and never a permission: it is only the default campus for records
+        /// they create. Scope and default are different questions, and collapsing them
+        /// into one claim is what made an administrator accidentally site-locked.
+        /// </summary>
+        public const string HomeCampusId = "hcid";
 
         public const string MustChangePassword = "pwd_reset";
     }

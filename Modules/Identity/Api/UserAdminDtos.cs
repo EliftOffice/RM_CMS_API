@@ -81,6 +81,13 @@ namespace RM_CMS.Modules.Identity.Api
         [StringLength(26)] public string? TeamId { get; set; }
         [StringLength(26)] public string? LeadsTeamId { get; set; }
 
+        /// <summary>
+        /// When they began serving. Volunteers only — it lands on the volunteer
+        /// record, and defaults to today when omitted. Backdating matters because
+        /// length of service is what a pastor reads when reviewing a team.
+        /// </summary>
+        public DateTime? StartedOn { get; set; }
+
         public bool GrantSystemAccess { get; set; } = true;
 
         [StringLength(128, MinimumLength = 12)]
@@ -132,6 +139,12 @@ namespace RM_CMS.Modules.Identity.Api
 
         /// <summary>What they could be promoted to next. Empty when already at the top.</summary>
         public List<string> PromotableTo { get; set; } = new();
+
+        /// <summary>
+        /// Linked to Telegram, so alerts can actually reach them. A property of the
+        /// PERSON, not the account — somebody with no login still needs reminders.
+        /// </summary>
+        public bool HasTelegram { get; set; }
 
         // ---- volunteer record, when they hold one ----
         public bool IsVolunteer { get; set; }
