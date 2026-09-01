@@ -73,7 +73,8 @@ namespace RM_CMS.Modules.Identity.Api
 
         [StringLength(255)] public string? Email { get; set; }
 
-        [Required][StringLength(30)]
+        [Required(ErrorMessage = "Choose a role for this user.")]
+        [StringLength(30)]
         public string RoleCode { get; set; } = string.Empty;
 
         [StringLength(26)] public string? CampusId { get; set; }
@@ -90,7 +91,11 @@ namespace RM_CMS.Modules.Identity.Api
 
         public bool GrantSystemAccess { get; set; } = true;
 
-        [StringLength(128, MinimumLength = 12)]
+        // The default message for this attribute names the property — "The field
+        // InitialPassword must be a string with a minimum length of 12" — which is
+        // the model talking, not the screen.
+        [StringLength(128, MinimumLength = 12,
+            ErrorMessage = "The password must be at least 12 characters. Leave it blank to have one generated.")]
         public string? InitialPassword { get; set; }
 
         /// <summary>Force a password change at first sign-in.</summary>

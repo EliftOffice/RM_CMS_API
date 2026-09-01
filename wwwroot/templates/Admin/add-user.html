@@ -131,7 +131,7 @@
                 <p class="section-title">Who</p>
 
                 <div class="field">
-                    <label class="label">Is this person already on file?</label>
+                    <label class="label">Is this person already in Visitors List?</label>
                     <label class="role-pick">
                         <input type="radio" name="mode" value="new" checked>
                         <span><strong>No — record them now</strong>
@@ -233,15 +233,11 @@
 
                 <p class="section-title">Sign-in</p>
 
-                <div class="field" id="accessField">
-                    <label class="role-pick">
-                        <input type="checkbox" id="grantAccess" checked>
-                        <span><strong>Give them a sign-in</strong>
-                            <span class="sub" id="accessHint">
-                                Only volunteers can work without one. Every other role needs it.
-                            </span></span>
-                    </label>
-                </div>
+                <!-- The "give them a sign-in" checkbox used to sit here, and only a
+                     volunteer could untick it. Removed: a volunteer with no login
+                     cannot be assigned anything — auto-assignment skips anyone
+                     unreachable — so the option only ever produced a roster entry
+                     that looked staffed and did no work. Every user now gets one. -->
 
                 <div id="passwordBlock">
                     <div class="field">

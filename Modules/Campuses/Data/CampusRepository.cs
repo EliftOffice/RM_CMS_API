@@ -48,8 +48,22 @@ namespace RM_CMS.Modules.Campuses.Data
                 c.is_active  AS IsActive,
                 c.created_at AS CreatedAt,
                 c.row_version AS RowVersion,
+                -- VISITORS only: somebody with neither a login nor a volunteer
+                -- record. Counting staff here made the figure meaningless — it read
+                -- 172 for a campus with 122 actual visitors, because every operator,
+                -- volunteer and pastor was folded into the same number.
                 (SELECT COUNT(*) FROM person p
-                  WHERE p.campus_id = c.id AND p.deleted_at IS NULL)        AS PersonCount,
+                  WHERE p.campus_id = c.id
+                    AND p.deleted_at IS NULL
+                    AND NOT EXISTS (SELECT 1 FROM user_account ua WHERE ua.person_id = p.id)
+                    AND NOT EXISTS (SELECT 1 FROM volunteer v2 WHERE v2.person_id = p.id)) AS PersonCount,
+
+                -- Counted separately rather than dropped: staff still belong to the
+                -- campus, and retiring it out from under them would strand accounts
+                -- with nowhere to sign in to.
+                (SELECT COUNT(*) FROM person p
+                  JOIN user_account ua ON ua.person_id = p.id
+                  WHERE p.campus_id = c.id AND p.deleted_at IS NULL)        AS StaffCount,
                 (SELECT COUNT(*) FROM volunteer v
                   WHERE v.campus_id = c.id AND v.status = 'ACTIVE')         AS VolunteerCount,
                 (SELECT COUNT(*) FROM team t

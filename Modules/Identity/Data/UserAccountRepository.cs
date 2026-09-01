@@ -101,12 +101,19 @@ namespace RM_CMS.Modules.Identity.Data
                 c.public_id              AS CampusPublicId,
 
                 v.public_id              AS VolunteerPublicId,
-                t.public_id              AS TeamPublicId
+
+                -- The team they LEAD if they lead one, otherwise the team they
+                -- BELONG to. This used to be the led team alone, so a volunteer —
+                -- who leads nothing — always came back with no team, and the
+                -- assignments screen showed 'N/A' where their team lead's name
+                -- should be.
+                COALESCE(lt.public_id, vt.public_id) AS TeamPublicId
             FROM user_account ua
             JOIN person p          ON p.id = ua.person_id
             LEFT JOIN campus c     ON c.id = p.campus_id
             LEFT JOIN volunteer v  ON v.person_id = p.id
-            LEFT JOIN team t       ON t.lead_user_id = ua.id";
+            LEFT JOIN team lt      ON lt.lead_user_id = ua.id
+            LEFT JOIN team vt      ON vt.id = v.team_id";
 
         public async Task<UserAccount?> GetByUsernameAsync(string normalizedUsername)
         {

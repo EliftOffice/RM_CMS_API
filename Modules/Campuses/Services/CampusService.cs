@@ -174,7 +174,8 @@ namespace RM_CMS.Modules.Campuses.Services
         {
             var parts = new List<string>();
 
-            if (c.PersonCount > 0) parts.Add($"{c.PersonCount} person record(s)");
+            if (c.PersonCount > 0) parts.Add($"{c.PersonCount} visitor(s)");
+            if (c.StaffCount > 0) parts.Add($"{c.StaffCount} person(s) with a sign-in");
             if (c.VolunteerCount > 0) parts.Add($"{c.VolunteerCount} active volunteer(s)");
             if (c.TeamCount > 0) parts.Add($"{c.TeamCount} active team(s)");
             if (c.OpenCaseCount > 0) parts.Add($"{c.OpenCaseCount} open case(s)");
@@ -190,6 +191,7 @@ namespace RM_CMS.Modules.Campuses.Services
             Timezone = c.Timezone,
             IsActive = c.IsActive,
             PersonCount = c.PersonCount,
+            StaffCount = c.StaffCount,
             VolunteerCount = c.VolunteerCount,
             TeamCount = c.TeamCount,
             OpenCaseCount = c.OpenCaseCount,

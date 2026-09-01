@@ -239,7 +239,10 @@ namespace RM_CMS.Modules.Identity.Services
                 });
 
                 if (created.ResponseType != ResponseType.Success || created.Data is null)
-                    return Warn<UserChangeResultDto>(created.Message);
+                    // Carry the code as well as the text: the screen uses it to add
+                    // the remedy that fits IT — "find them instead" — which the people
+                    // module cannot know about.
+                    return Warn<UserChangeResultDto>(created.Message, created.Code);
 
                 personPublicId = created.Data.Id;
                 result.PersonCreated = true;
@@ -511,6 +514,7 @@ namespace RM_CMS.Modules.Identity.Services
         }
 
         private static ApiResponse<T> Ok<T>(T data, string message) => new(ResponseType.Success, message, data);
-        private static ApiResponse<T> Warn<T>(string message) => new(ResponseType.Warning, message, default!);
+        private static ApiResponse<T> Warn<T>(string message, string? code = null) =>
+            new(ResponseType.Warning, message, default!, code);
     }
 }

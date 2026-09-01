@@ -226,13 +226,25 @@
         var request = buildPersonRequest(payload);
         request.allowDuplicate = duplicateAcknowledged;
 
+        var httpOk = true;
+
         fetch(API_BASE_URL + '/people', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(request)
         })
-            .then(function (res) { return res.json(); })
+            .then(function (res) { httpOk = res.ok; return res.json().catch(function () { return null; }); })
             .then(function (body) {
+                // fetch does not reject on 4xx, and a ProblemDetails body carries no
+                // responseType — so a validation failure used to fall THROUGH every
+                // check below and continue as though the save had worked, with
+                // `person` undefined and nothing shown. Anything but 2xx stops here.
+                if (!httpOk) {
+                    setBusy(false);
+                    showError(describeProblem(body, 'This visitor could not be saved.'));
+                    return;
+                }
+
                 // responseType: 0 Success, 1 Warning, 2 Error.
                 if (!body || body.responseType === 2) {
                     setBusy(false);
@@ -241,10 +253,19 @@
                 }
 
                 if (body.responseType === 1) {
-                    // The server refused because of a duplicate. Turn the notice into
-                    // an explicit second choice rather than saving behind their back.
                     setBusy(false);
-                    offerDuplicateOverride(body.message);
+
+                    // ONLY a duplicate gets the override. This used to treat every
+                    // warning as one, so an unknown age band or a campus the operator
+                    // cannot file against came back offering "save anyway as a
+                    // separate person" — an answer to a question nobody asked, and no
+                    // sign of what was actually wrong.
+                    if (body.code === 'duplicate_contact') {
+                        offerDuplicateOverride(body.message);
+                    } else {
+                        showError(body.message || 'This visitor could not be saved.');
+                    }
+
                     return;
                 }
 
@@ -278,16 +299,22 @@
         if (payload.connectionSource) request.connectionSource = payload.connectionSource;
         if (payload.firstVisitOn)     request.firstVisitOn = payload.firstVisitOn;
 
+        var caseHttpOk = true;
+
         fetch(API_BASE_URL + '/cases', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(request)
         })
-            .then(function (res) { return res.json(); })
+            .then(function (res) { caseHttpOk = res.ok; return res.json().catch(function () { return null; }); })
             .then(function (body) {
-                if (!body || body.responseType === 2) {
+                // The person IS saved by now, so every failure here is a partial
+                // success — saying "could not save" would make the operator enter
+                // them a second time. A warning counts too: "already has an open
+                // case" is a refusal, not a success.
+                if (!caseHttpOk || !body || body.responseType === 2 || body.responseType === 1) {
                     finish(person, false,
-                        (body && body.message) || 'Follow-up could not be started.');
+                        describeProblem(body, 'Follow-up could not be started.'));
                     return;
                 }
 
@@ -296,6 +323,32 @@
             .catch(function () {
                 finish(person, false, 'Saved, but follow-up could not be started.');
             });
+    }
+
+    /**
+     * Pulls something readable out of any failure shape this API produces.
+     *
+     * Three reach here: an ApiResponse warning (message), a ProblemDetails from model
+     * validation (title plus per-field `errors`), and nothing at all when the body was
+     * not JSON. The per-field errors are the useful part — the title is always the
+     * same "One or more validation errors occurred."
+     */
+    function describeProblem(body, fallback) {
+        if (!body) return fallback;
+
+        if (body.errors) {
+            var messages = [];
+
+            Object.keys(body.errors).forEach(function (field) {
+                (body.errors[field] || []).forEach(function (m) {
+                    if (messages.indexOf(m) === -1) messages.push(m);
+                });
+            });
+
+            if (messages.length) return messages.join(' ');
+        }
+
+        return body.message || body.detail || fallback;
     }
 
     function finish(person, followUpStarted, warning) {

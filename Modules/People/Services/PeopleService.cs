@@ -231,13 +231,13 @@ namespace RM_CMS.Modules.People.Services
                     if (visible.Count > 0)
                     {
                         _logger.LogInformation(
-                            "Intake blocked: {Count} existing people share a contact number", visible.Count);
+                            "Intake blocked: {Count} existing people share a contact detail", visible.Count);
 
                         return new ApiResponse<PersonDto>(
                             ResponseType.Warning,
-                            $"Someone with this contact number is already recorded ({string.Join(", ", visible.Select(p => p.FullName))}). " +
-                            "Open their record, or resubmit with allowDuplicate to record a separate person.",
-                            null!);
+                            DescribeDuplicate(visible, contacts),
+                            null!,
+                            ResponseCodes.DuplicateContact);
                     }
                 }
 
@@ -494,6 +494,59 @@ namespace RM_CMS.Modules.People.Services
         /// campus are visible to everyone authenticated.
         /// </summary>
         private bool CanAccess(Person person) => _current.CanAccessCampus(person.CampusPublicId);
+
+        /// <summary>
+        /// Says which detail clashed, with whom, and what kind it was.
+        ///
+        /// This used to read "Someone with this contact number is already recorded"
+        /// regardless — so a duplicate EMAIL was reported as a duplicate phone number,
+        /// and the operator had no idea which of the two fields to change. It also
+        /// told them to "resubmit with allowDuplicate", which is a request-body flag,
+        /// not something anybody can do from a screen.
+        /// </summary>
+        private static string DescribeDuplicate(
+            IReadOnlyList<Person> matches, IReadOnlyList<PersonContact> submitted)
+        {
+            var submittedByValue = submitted
+                .GroupBy(c => c.NormalizedValue, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+            // Which of the values actually collided, and on whom. A person can match on
+            // more than one, so each clash is reported once with the name beside it.
+            var clashes = new List<string>();
+
+            foreach (var person in matches)
+            {
+                foreach (var contact in person.Contacts ?? Enumerable.Empty<PersonContact>())
+                {
+                    if (!submittedByValue.TryGetValue(contact.NormalizedValue, out var mine)) continue;
+
+                    var label = mine.ContactType switch
+                    {
+                        "EMAIL" => "email",
+                        "MOBILE" => "mobile number",
+                        "WHATSAPP" => "WhatsApp number",
+                        "LANDLINE" => "landline",
+                        _ => "contact detail"
+                    };
+
+                    var line = $"The {label} {mine.Value} is already recorded for {person.FullName}";
+
+                    if (!clashes.Contains(line, StringComparer.Ordinal)) clashes.Add(line);
+                }
+            }
+
+            // The lookup matched on something, so an empty list means the matching
+            // contact is one this caller cannot see. Say that rather than nothing.
+            if (clashes.Count == 0)
+            {
+                return $"These details are already recorded for {string.Join(", ", matches.Select(p => p.FullName))}. " +
+                       "Open that record, or record this as a separate person if they are genuinely different.";
+            }
+
+            return string.Join(". ", clashes) +
+                   ". Open that record, or record this as a separate person if they are genuinely different.";
+        }
 
         /// <summary>Forces a campus-scoped caller onto their own campus regardless of what they asked for.</summary>
         private string? ScopeCampus(string? requested) =>

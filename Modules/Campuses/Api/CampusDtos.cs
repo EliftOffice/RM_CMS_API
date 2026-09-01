@@ -56,7 +56,11 @@ namespace RM_CMS.Modules.Campuses.Api
         public string Timezone { get; set; } = string.Empty;
         public bool IsActive { get; set; }
 
+        /// <summary>Visitors only — people with no sign-in and no volunteer record.</summary>
         public int PersonCount { get; set; }
+
+        /// <summary>People with a sign-in at this campus.</summary>
+        public int StaffCount { get; set; }
         public int VolunteerCount { get; set; }
         public int TeamCount { get; set; }
         public int OpenCaseCount { get; set; }

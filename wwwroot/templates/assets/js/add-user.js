@@ -47,7 +47,7 @@ $(function () {
 
         $('input[name="mode"]').on('change', syncMode);
         $('#roleOptions').on('change', 'input[name="role"]', syncRole);
-        $('#grantAccess').on('change', syncAccess);
+        $('#campusId').on('change', renderTeams);
 
         $('#personSearch').on('input', onSearch);
         $('#clearPerson').on('click', clearPerson);
@@ -114,9 +114,7 @@ $(function () {
         $.ajax({ url: API_BASE_URL + '/teams', method: 'GET' })
             .done(function (res) {
                 state.teams = res.data || [];
-                $('#teamId').html('<option value="">No team yet</option>' + state.teams.map(function (t) {
-                    return '<option value="' + esc(t.id) + '">' + esc(t.name) + '</option>';
-                }).join(''));
+                renderTeams();
             });
 
         // Campus decides which visitors this person can ever be given, so it is
@@ -132,6 +130,7 @@ $(function () {
                 }).join(''));
 
                 $('#campusField').prop('hidden', state.campuses.length < 2);
+                renderTeams();
             })
             .fail(function () { $('#campusField').prop('hidden', true); });
     }
@@ -143,6 +142,50 @@ $(function () {
             hint: document.getElementById('mobileHint'),
             hintText: '10 digits, starting 6-9. This is also their username for signing in.'
         });
+    }
+
+    /**
+     * Teams belonging to the selected campus, and only those.
+     *
+     * A volunteer is only ever assigned visitors from their own campus, and a team
+     * lead only sees their own campus — so a team from elsewhere is not a slightly
+     * odd choice, it is one the server rejects. Offering it would be a control whose
+     * only possible outcome is an error.
+     *
+     * With the campus picker hidden there is one campus, so every team the caller
+     * can see already belongs to it and no filtering is needed.
+     */
+    function renderTeams() {
+        var scoped = state.teams;
+
+        if (!$('#campusField').prop('hidden')) {
+            var campusId = $('#campusId').val();
+
+            // campusId is absent on a team only when the payload predates it; keep
+            // those rather than silently dropping a real team.
+            scoped = state.teams.filter(function (t) {
+                return !campusId || !t.campusId || t.campusId === campusId;
+            });
+        }
+
+        var previous = $('#teamId').val();
+
+        $('#teamId').html('<option value="">No team yet</option>' + scoped.map(function (t) {
+            return '<option value="' + esc(t.id) + '">' + esc(t.name) + '</option>';
+        }).join(''));
+
+        // Keep the choice when it survives the new campus; drop it when it does not.
+        if (previous && scoped.some(function (t) { return t.id === previous; })) {
+            $('#teamId').val(previous);
+        }
+
+        var role = $('input[name="role"]:checked').val();
+
+        $('#teamHint').text(scoped.length === 0
+            ? 'No teams at this campus yet. They can be placed in one later.'
+            : role === 'TEAM_LEAD'
+                ? 'The team they will lead. They will read every escalation raised on its people.'
+                : 'A volunteer can be added to a team later.');
     }
 
     function attachPolicy() {
@@ -173,25 +216,10 @@ $(function () {
         $('#startedField').prop('hidden', role !== 'VOLUNTEER');
 
         // The team dropdown does two different jobs: for a team lead it is the team
-        // they will LEAD, for a volunteer the team they JOIN. Saying which stops a
-        // wrong pick that is invisible until somebody wonders why a lead has no team.
-        $('#teamHint').text(role === 'TEAM_LEAD'
-            ? 'The team they will lead. They will read every escalation raised on its people.'
-            : 'A volunteer can be added to a team later.');
+        // they will LEAD, for a volunteer the team they JOIN. renderTeams owns the
+        // wording because it also knows whether the campus has any teams at all.
+        renderTeams();
 
-        // Only a volunteer may work without a sign-in; the rest are exercised entirely
-        // through the UI, so the choice is removed rather than silently ignored.
-        var optional = role === 'VOLUNTEER';
-
-        $('#accessField').prop('hidden', !optional);
-
-        if (!optional) $('#grantAccess').prop('checked', true);
-
-        syncAccess();
-    }
-
-    function syncAccess() {
-        $('#passwordBlock').prop('hidden', !$('#grantAccess').is(':checked'));
     }
 
     // ------------------------------------------------------------------ picker
@@ -255,7 +283,10 @@ $(function () {
 
         var body = {
             roleCode: role,
-            grantSystemAccess: $('#grantAccess').is(':checked'),
+            // Always true. A volunteer without a login is skipped by
+              // auto-assignment and can never be given a case, so the account is not
+              // optional in any sense that matters.
+            grantSystemAccess: true,
             mustChangePassword: $('#mustChange').is(':checked')
         };
 
@@ -318,7 +349,18 @@ $(function () {
                 busy(false);
 
                 if (!res || res.responseType !== 0) {
-                    return fail((res && res.message) || 'Could not create this user.');
+                    var message = (res && res.message) || 'Could not create this user.';
+
+                    // This screen has no "record anyway" option, and it should not:
+                    // when the person already exists the right move is to attach
+                    // access to their record, which is what the other mode does. The
+                    // server states the clash; the remedy is this screen's to name.
+                    if (res && res.code === 'duplicate_contact') {
+                        message += ' To give the existing person a sign-in, ' +
+                                   'choose "Yes — find them" above and search for them.';
+                    }
+
+                    return fail(message);
                 }
 
                 showToast(res.message, 'success');
@@ -333,9 +375,49 @@ $(function () {
             })
             .fail(function (xhr) {
                 busy(false);
-                var body = xhr.responseJSON;
-                fail((body && (body.message || body.title)) || 'Could not create this user.');
+                fail(describeFailure(xhr));
             });
+    }
+
+    /**
+     * Turns a failed response into something worth reading.
+     *
+     * A model-validation failure is a ProblemDetails whose `title` is the useless
+     * "One or more validation errors occurred." — the part that says WHICH field is
+     * wrong lives in `errors`. Showing the title alone, which is what this did, told
+     * the administrator nothing at all.
+     */
+    function describeFailure(xhr) {
+        var body = xhr && xhr.responseJSON;
+
+        if (!body) {
+            return xhr && xhr.status === 0
+                ? 'Could not reach the server. Check your connection and try again.'
+                : 'Could not create this user.';
+        }
+
+        // ApiResponse warnings come back on a 200 and are handled above; this is the
+        // ProblemDetails path.
+        if (body.errors) {
+            var messages = [];
+
+            Object.keys(body.errors).forEach(function (field) {
+                (body.errors[field] || []).forEach(function (m) {
+                    if (messages.indexOf(m) === -1) messages.push(m);
+                });
+            });
+
+            if (messages.length) return messages.join(' ');
+        }
+
+        if (body.message) return body.message;
+        if (body.detail) return body.detail;
+
+        // Last resort. The generic validation title is deliberately not used — it is
+        // the string this function exists to avoid showing.
+        return xhr.status === 403
+            ? 'You do not have permission to create users.'
+            : 'Could not create this user.';
     }
 
     function fail(message) {

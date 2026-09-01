@@ -32,7 +32,11 @@ namespace RM_CMS.Modules.Campuses.Domain
         // These are what make the retire guard explainable: "3 volunteers and 12 open
         // cases still belong to Ongole" is actionable, "cannot retire" is not.
 
+        /// <summary>Visitors: neither a login nor a volunteer record.</summary>
         public int PersonCount { get; set; }
+
+        /// <summary>People with a sign-in at this campus.</summary>
+        public int StaffCount { get; set; }
         public int VolunteerCount { get; set; }
         public int TeamCount { get; set; }
         public int OpenCaseCount { get; set; }
@@ -42,6 +46,7 @@ namespace RM_CMS.Modules.Campuses.Domain
 
         /// <summary>Nothing is attached, so retiring it costs nobody anything.</summary>
         public bool CanRetire =>
-            PersonCount == 0 && VolunteerCount == 0 && TeamCount == 0 && OpenCaseCount == 0;
+            PersonCount == 0 && StaffCount == 0 &&
+            VolunteerCount == 0 && TeamCount == 0 && OpenCaseCount == 0;
     }
 }

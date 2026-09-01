@@ -82,16 +82,24 @@ $(function () {
      * guessing what "cannot retire" is about.
      */
     function attached(c) {
+        // 'people' used to fold staff and visitors into one figure, which made it
+        // mean nothing: 172 for a campus with 122 visitors. They are separate rows
+        // because they are separate decisions when emptying a campus.
         var bits = [
-            ['people', c.personCount],
+            ['visitors', c.personCount],
+            ['staff', c.staffCount],
             ['volunteers', c.volunteerCount],
             ['teams', c.teamCount],
             ['open cases', c.openCaseCount]
         ];
 
         return '<div class="attached">' + bits.map(function (b) {
-            var zero = b[1] ? '' : ' zero';
-            return '<span class="' + zero.trim() + '"><b>' + b[1] + '</b> ' + b[0] + '</span>';
+            // A count the API did not send reads as 0, not "undefined". An older
+            // server is the usual reason, and a stale field should look like an
+            // empty one rather than shouting a JavaScript keyword at the operator.
+            var n = b[1] || 0;
+
+            return '<span class="' + (n ? '' : 'zero') + '"><b>' + n + '</b> ' + b[0] + '</span>';
         }).join('') + '</div>';
     }
 
@@ -145,7 +153,8 @@ $(function () {
 
     function describe(c) {
         var parts = [];
-        if (c.personCount)    parts.push(c.personCount + ' person record(s)');
+        if (c.personCount)    parts.push(c.personCount + ' visitor(s)');
+        if (c.staffCount)     parts.push(c.staffCount + ' person(s) with a sign-in');
         if (c.volunteerCount) parts.push(c.volunteerCount + ' active volunteer(s)');
         if (c.teamCount)      parts.push(c.teamCount + ' active team(s)');
         if (c.openCaseCount)  parts.push(c.openCaseCount + ' open case(s)');
