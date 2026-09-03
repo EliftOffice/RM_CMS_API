@@ -678,6 +678,16 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.Modules.Dashboards.Services.ITeamLeadDashboardService,
                                        RM_CMS.Modules.Dashboards.Services.TeamLeadDashboardService>();
 
+            // The pastor dashboard reuses the team lead read model for cases,
+            // contacts, nurture and volunteer load — a pastor's scope is just a
+            // longer team-id list — and adds only the three aggregates unique to
+            // overseeing several teams: pastor-alerted escalations, the per-team
+            // leaderboard, and huddle compliance by team.
+            builder.Services.AddScoped<RM_CMS.Modules.Dashboards.Data.IPastorDashboardRepository,
+                                       RM_CMS.Modules.Dashboards.Data.PastorDashboardRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Dashboards.Services.IPastorDashboardService,
+                                       RM_CMS.Modules.Dashboards.Services.PastorDashboardService>();
+
             // ---- Pipeline module (new architecture) ----
             // Every visitor and where their journey has reached. Scoped by role in
             // the service: team lead to their own teams, pastor to their campus,
@@ -813,6 +823,10 @@ namespace RM_CMS
             // Must run after authentication so the claims exist, and after authorization so
             // it only ever affects callers who were otherwise allowed through.
             app.UseMiddleware<PasswordChangeRequiredMiddleware>();
+
+            // After the password gate: somebody who must change their password has a
+            // more urgent problem, and being told about both at once helps nobody.
+            app.UseMiddleware<TelegramLinkRequiredMiddleware>();
 
             app.MapControllers();
 

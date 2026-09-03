@@ -85,8 +85,10 @@ namespace RM_CMS.Modules.Identity.Services
             // null campus on a volunteer or data-entry grant is far more likely to be
             // an oversight than an intention, and the cost of reading it as intent is
             // someone seeing another site's pastoral records.
-            if (!IsOrganisationWide(account) && !string.IsNullOrWhiteSpace(account.CampusPublicId))
-                claims.Add(new Claim(ClaimNames.CampusId, account.CampusPublicId));
+            var scopeCampusPublicId = ScopeCampusPublicId(account);
+
+            if (!IsOrganisationWide(account) && !string.IsNullOrWhiteSpace(scopeCampusPublicId))
+                claims.Add(new Claim(ClaimNames.CampusId, scopeCampusPublicId));
 
             // Always present, even for an organisation-wide account. This is not a
             // permission — it is the campus their records default to when they do not
@@ -126,6 +128,27 @@ namespace RM_CMS.Modules.Identity.Services
                 string.IsNullOrWhiteSpace(r.CampusPublicId) &&
                 (string.Equals(r.RoleCode, RoleCodes.Admin, StringComparison.Ordinal) ||
                  string.Equals(r.RoleCode, RoleCodes.Pastor, StringComparison.Ordinal)));
+
+        /// <summary>
+        /// The campus an ADMIN or PASTOR grant itself names, when it names one.
+        ///
+        /// <c>account.CampusPublicId</c> is the PERSON's own home campus — where they
+        /// happen to be a member, not where their role authorises them to act. A
+        /// pastor overseeing a campus other than the one they personally attend is a
+        /// normal shape (the org chart is not the membership roster), so the grant's
+        /// own <c>campus_id</c> — not the person's — has to be what ends up in the
+        /// token. Falls back to the home campus only for a role this method does not
+        /// scope (team lead, volunteer, ...), unchanged from before this existed.
+        /// </summary>
+        private static string? ScopeCampusPublicId(UserAccount account)
+        {
+            var scopedGrant = account.Roles.FirstOrDefault(r =>
+                !string.IsNullOrWhiteSpace(r.CampusPublicId) &&
+                (string.Equals(r.RoleCode, RoleCodes.Admin, StringComparison.Ordinal) ||
+                 string.Equals(r.RoleCode, RoleCodes.Pastor, StringComparison.Ordinal)));
+
+            return scopedGrant?.CampusPublicId ?? account.CampusPublicId;
+        }
 
         public RefreshTokenMaterial CreateRefreshToken()
         {

@@ -341,6 +341,7 @@ namespace RM_CMS.Modules.Dashboards.Data
                     v.public_id           AS PublicId,
                     v.reference_code      AS ReferenceCode,
                     p.full_name           AS Name,
+                    vt.name               AS TeamName,
                     v.status              AS Status,
                     v.capacity_band_code  AS CapacityBandCode,
                     cb.label              AS CapacityBandLabel,
@@ -349,6 +350,19 @@ namespace RM_CMS.Modules.Dashboards.Data
                     (SELECT COUNT(*) FROM escalation e
                       WHERE e.raised_by_volunteer_id = v.id
                         AND e.status NOT IN ('RESOLVED','CLOSED','REFERRED_OUT')) AS OpenEscalations,
+
+                    -- Reachability, so the card stops presenting somebody who cannot
+                    -- be assigned as though they were free. On ACTIVE alone an
+                    -- unlinked volunteer showed a full, untouched allowance and no
+                    -- 'Full' badge — the picture of somebody with room — and the lead
+                    -- only found out otherwise when the assignment was refused.
+                    EXISTS (SELECT 1 FROM user_account ua
+                             WHERE ua.person_id = p.id AND ua.is_active = 1) AS HasLogin,
+                    EXISTS (SELECT 1 FROM person_contact tg
+                             WHERE tg.person_id = p.id
+                               AND tg.contact_type = 'TELEGRAM'
+                               AND tg.is_verified = 1
+                               AND tg.opted_out_at IS NULL) AS HasTelegram,
 
                     -- Completion over the three most recent COMPLETE weeks. Counts,
                     -- not percentages: a week with nothing scheduled is a week with
@@ -391,6 +405,7 @@ namespace RM_CMS.Modules.Dashboards.Data
                 FROM volunteer v
                 JOIN person p        ON p.id = v.person_id
                 JOIN capacity_band cb ON cb.code = v.capacity_band_code
+                LEFT JOIN team vt     ON vt.id = v.team_id
                 WHERE v.team_id IN @TeamIds
                   AND v.status = 'ACTIVE'
                   AND p.deleted_at IS NULL

@@ -341,10 +341,23 @@ $(function () {
             .done(function (res) {
                 if (!res || res.responseType !== 0) { tgNotice(res && res.message); return; }
 
-                // Carries the sharing count when there is one, which is the only
-                // place that overlap is ever stated.
-                showToast(res.message, 'success');
+                // telegram_linked_unverified: the link was recorded, but Telegram
+                // itself was never reached to confirm it — a timeout, not a refusal.
+                // A plain green "success" toast would overstate what actually
+                // happened, so this gets the amber warning styling and stays out of
+                // the way it disappears in a few seconds by ALSO leaving the notice
+                // line filled in, so the ask to send a test message is still there
+                // after the toast is gone.
+                var unverified = res.code === 'telegram_linked_unverified';
+
+                showToast(res.message, unverified ? 'warning' : 'success');
+
+                // openTelegram() reloads the modal from scratch and clears the notice
+                // area as part of that reset, so the persistent copy has to be written
+                // AFTER it reopens, not before.
                 openTelegram(state.editing);
+                if (unverified) tgNotice(res.message);
+
                 load();
             })
             .fail(function (xhr) {

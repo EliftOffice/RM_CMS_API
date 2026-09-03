@@ -169,6 +169,20 @@ $(function () {
                 flag += ' <span class="badge bg-light text-dark" title="No spare capacity">Full</span>';
             }
 
+            // Unreachable outranks everything else on this row. The card exists to
+            // answer "who can take another one?", and this person cannot take any —
+            // assignment refuses them. Without the badge they read as the team's
+            // freest volunteer: a full allowance, nothing assigned, and no 'Full'
+            // marker to suggest otherwise.
+            if (v.isReachable === false) {
+                var missing = (v.hasLogin === false ? 'no sign-in' : '') +
+                              (v.hasLogin === false && v.hasTelegram === false ? ', ' : '') +
+                              (v.hasTelegram === false ? 'no Telegram' : '');
+
+                flag = '<span class="badge bg-secondary" title="Cannot be assigned: ' +
+                       escapeHtml(missing) + '">Unreachable</span> ' + flag;
+            }
+
             return "<tr>" +
                 "<td class='v-name' style='cursor:pointer' data-id='" + v.publicId + "'>" +
                     "<span style=\"display:flex;align-items:center;gap:6px;\">" +

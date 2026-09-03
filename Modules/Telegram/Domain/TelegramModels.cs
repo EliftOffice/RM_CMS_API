@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 
 namespace RM_CMS.Modules.Telegram.Domain
 {
@@ -20,6 +21,30 @@ namespace RM_CMS.Modules.Telegram.Domain
 
         /// <summary>The bot's @name, used to build the deep link people click.</summary>
         public string? BotUsername { get; set; }
+
+        /// <summary>
+        /// The username as Telegram will accept it: no leading '@', no surrounding
+        /// whitespace, no trailing punctuation.
+        ///
+        /// A stray character here fails silently and confusingly — the deep link
+        /// becomes https://t.me/mybot.?start=… which Telegram serves as "user not
+        /// found", while every other Telegram feature keeps working because they use
+        /// the token rather than the name.
+        /// </summary>
+        public string? NormalizedBotUsername =>
+            string.IsNullOrWhiteSpace(BotUsername)
+                ? null
+                : BotUsername.Trim().TrimStart('@').Trim().TrimEnd('.', ',', '/', ' ');
+
+        /// <summary>
+        /// True when the configured username is not a shape Telegram allows, so the
+        /// setup screen can say so instead of leaving a broken link to be discovered
+        /// by whoever clicks it.
+        /// </summary>
+        public bool BotUsernameLooksValid =>
+            !string.IsNullOrWhiteSpace(NormalizedBotUsername) &&
+            NormalizedBotUsername!.Length is >= 5 and <= 32 &&
+            NormalizedBotUsername.All(c => char.IsLetterOrDigit(c) || c == '_');
 
         /// <summary>Base address, overridable only so tests can point elsewhere.</summary>
         public string ApiBaseUrl { get; set; } = "https://api.telegram.org";

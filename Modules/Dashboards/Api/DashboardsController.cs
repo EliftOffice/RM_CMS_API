@@ -21,8 +21,13 @@ namespace RM_CMS.Modules.Dashboards.Api
     public sealed class DashboardsController : ControllerBase
     {
         private readonly ITeamLeadDashboardService _teamLead;
+        private readonly IPastorDashboardService _pastor;
 
-        public DashboardsController(ITeamLeadDashboardService teamLead) => _teamLead = teamLead;
+        public DashboardsController(ITeamLeadDashboardService teamLead, IPastorDashboardService pastor)
+        {
+            _teamLead = teamLead;
+            _pastor = pastor;
+        }
 
         /// <summary>
         /// The signed-in team lead's dashboard: escalations they owe an answer to, their
@@ -32,5 +37,17 @@ namespace RM_CMS.Modules.Dashboards.Api
         [Authorize(Policy = PolicyNames.TeamLeadOrAbove)]
         [ProducesResponseType(typeof(ApiResponse<TeamLeadDashboard>), StatusCodes.Status200OK)]
         public async Task<IActionResult> TeamLead() => Ok(await _teamLead.GetAsync());
+
+        /// <summary>
+        /// The signed-in pastor's dashboard: escalations that reached pastor level,
+        /// a per-team leaderboard across their scope, and volunteers at risk anywhere
+        /// in it. PastorOrAdmin, matching every other campus-wide read in this
+        /// application — an administrator previewing this is the same shape as an
+        /// administrator previewing a team lead's own dashboard.
+        /// </summary>
+        [HttpGet("pastor")]
+        [Authorize(Policy = PolicyNames.PastorOrAdmin)]
+        [ProducesResponseType(typeof(ApiResponse<PastorDashboard>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Pastor() => Ok(await _pastor.GetAsync());
     }
 }

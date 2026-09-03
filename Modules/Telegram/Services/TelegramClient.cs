@@ -49,8 +49,7 @@ namespace RM_CMS.Modules.Telegram.Services
         /// pastoral alerts. Telegram answering for the id proves the chat exists and
         /// that this bot can reach it.
         /// </summary>
-        Task<(bool Ok, string Detail, string? Username, string? DisplayName)> GetChatAsync(
-            long chatId, CancellationToken cancellationToken = default);
+        Task<ChatLookup> GetChatAsync(long chatId, CancellationToken cancellationToken = default);
 
         /// <summary>The configured bot username, for display. Never the token.</summary>
         string? BotUsername { get; }
@@ -60,6 +59,32 @@ namespace RM_CMS.Modules.Telegram.Services
         /// setup screen can say which half is missing. Only ever a boolean.
         /// </summary>
         bool HasToken { get; }
+    }
+
+    /// <summary>Why a chat lookup did or did not succeed.</summary>
+    public enum ChatLookupOutcome
+    {
+        Ok,
+
+        /// <summary>Telegram answered, and does not know that chat for this bot.</summary>
+        ChatNotFound,
+
+        /// <summary>Telegram rejected the token itself.</summary>
+        BadToken,
+
+        /// <summary>We never got an answer — DNS, firewall, proxy, or no connection.</summary>
+        Unreachable,
+
+        NotConfigured
+    }
+
+    public sealed record ChatLookup(
+        ChatLookupOutcome Outcome,
+        string Detail,
+        string? Username = null,
+        string? DisplayName = null)
+    {
+        public bool Ok => Outcome == ChatLookupOutcome.Ok;
     }
 
     public sealed class TelegramClient : ITelegramClient
@@ -80,7 +105,7 @@ namespace RM_CMS.Modules.Telegram.Services
 
         public bool IsConfigured => _options.IsConfigured;
 
-        public string? BotUsername => _options.BotUsername;
+        public string? BotUsername => _options.NormalizedBotUsername;
 
         /// <summary>True when a token is present. Never exposes the token itself.</summary>
         public bool HasToken => !string.IsNullOrWhiteSpace(_options.BotToken);
@@ -92,15 +117,30 @@ namespace RM_CMS.Modules.Telegram.Services
             return await PostAsync("getMe", "{}", cancellationToken);
         }
 
-        public async Task<(bool Ok, string Detail, string? Username, string? DisplayName)> GetChatAsync(
-            long chatId, CancellationToken cancellationToken = default)
+        public async Task<ChatLookup> GetChatAsync(long chatId, CancellationToken cancellationToken = default)
         {
-            if (!HasToken) return (false, "No bot token is configured.", null, null);
+            if (!HasToken)
+                return new ChatLookup(ChatLookupOutcome.NotConfigured, "No bot token is configured.");
 
             var payload = JsonSerializer.Serialize(new { chat_id = chatId });
             var (ok, detail) = await PostAsync("getChat", payload, cancellationToken);
 
-            if (!ok) return (false, detail, null, null);
+            // One retry, and only for a TRANSPORT failure (timeout, DNS, connection
+            // reset) — never for an answer Telegram actually gave. getChat is
+            // read-only, so retrying it duplicates nothing; the "sometimes it just
+            // times out" reports were single slow round-trips to api.telegram.org,
+            // not a real outage, and this alone clears most of them without the
+            // administrator seeing anything.
+            if (!ok && ClassifyFailure(detail) == ChatLookupOutcome.Unreachable)
+            {
+                _logger.LogInformation(
+                    "Telegram getChat for {ChatId} failed once; retrying.", chatId);
+
+                (ok, detail) = await PostAsync("getChat", payload, cancellationToken);
+            }
+
+            if (!ok)
+                return new ChatLookup(ClassifyFailure(detail), Describe(detail));
 
             // Pull the handle and name back out so the caller can show the
             // administrator WHO they are about to link, rather than asking them to
@@ -110,7 +150,7 @@ namespace RM_CMS.Modules.Telegram.Services
                 using var doc = JsonDocument.Parse(detail);
 
                 if (!doc.RootElement.TryGetProperty("result", out var result))
-                    return (true, detail, null, null);
+                    return new ChatLookup(ChatLookupOutcome.Ok, detail);
 
                 var username = result.TryGetProperty("username", out var u) ? u.GetString() : null;
 
@@ -121,18 +161,19 @@ namespace RM_CMS.Modules.Telegram.Services
                 var display = title ?? string.Join(' ',
                     new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)));
 
-                return (true, detail, username, string.IsNullOrWhiteSpace(display) ? null : display);
+                return new ChatLookup(ChatLookupOutcome.Ok, detail, username,
+                    string.IsNullOrWhiteSpace(display) ? null : display);
             }
             catch (JsonException)
             {
                 // Telegram answered, which is the part that matters. A shape we cannot
                 // parse costs the confirmation name, not the verification.
-                return (true, detail, null, null);
+                return new ChatLookup(ChatLookupOutcome.Ok, detail);
             }
         }
 
         public string BuildDeepLink(string startPayload) =>
-            $"https://t.me/{_options.BotUsername}?start={Uri.EscapeDataString(startPayload)}";
+            $"https://t.me/{_options.NormalizedBotUsername}?start={Uri.EscapeDataString(startPayload)}";
 
         public async Task<bool> SendMessageAsync(long chatId, string text, CancellationToken cancellationToken = default)
         {
@@ -217,6 +258,43 @@ namespace RM_CMS.Modules.Telegram.Services
 
                 return (false, "Could not reach Telegram.");
             }
+        }
+
+        /// <summary>
+        /// Sorts a failed call into what actually went wrong. Three very different
+        /// problems used to collapse into one message that blamed the chat id — being
+        /// unable to REACH Telegram is not the operator mistyping a number, and
+        /// neither is a revoked token.
+        /// </summary>
+        private static ChatLookupOutcome ClassifyFailure(string detail) =>
+            detail.Contains("Could not reach Telegram", StringComparison.OrdinalIgnoreCase)
+                ? ChatLookupOutcome.Unreachable
+            : detail.Contains("\"error_code\":401", StringComparison.OrdinalIgnoreCase) ||
+              detail.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase)
+                ? ChatLookupOutcome.BadToken
+                : ChatLookupOutcome.ChatNotFound;
+
+        /// <summary>
+        /// Telegram's own words when it gave any — "Bad Request: chat not found" says
+        /// far more than a generic failure, and it is what the operator needs to see.
+        /// </summary>
+        private static string Describe(string detail)
+        {
+            if (string.IsNullOrWhiteSpace(detail)) return "No detail was returned.";
+
+            try
+            {
+                using var doc = JsonDocument.Parse(detail);
+
+                if (doc.RootElement.TryGetProperty("description", out var d))
+                    return d.GetString() ?? detail;
+            }
+            catch (JsonException)
+            {
+                // Not JSON — the transport failed, and `detail` is already our sentence.
+            }
+
+            return detail;
         }
 
         /// <summary>

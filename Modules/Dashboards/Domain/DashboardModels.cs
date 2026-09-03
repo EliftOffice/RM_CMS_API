@@ -171,14 +171,50 @@ namespace RM_CMS.Modules.Dashboards.Domain
         public string CapacityBandCode { get; set; } = string.Empty;
         public string? CapacityBandLabel { get; set; }
 
+        /// <summary>
+        /// Which team they are on. Null on a team lead's own card is never seen — it
+        /// is always their own team — but the pastor dashboard flattens volunteers
+        /// across several teams into one list, and needs to say which one each
+        /// belongs to.
+        /// </summary>
+        public string? TeamName { get; set; }
+
         public int CurrentCaseLoad { get; set; }
         public int CapacityMaxPerWeek { get; set; }
 
         /// <summary>Open escalations raised by this volunteer, still unresolved.</summary>
         public int OpenEscalations { get; set; }
 
+        // ---- reachability ----
+        //
+        // A case handed to somebody who cannot sign in and cannot be messaged is not
+        // assigned, it is lost. Assignment refuses it, so the card must not present
+        // them as the obvious choice.
+
+        public bool HasLogin { get; set; }
+        public bool HasTelegram { get; set; }
+
+        public bool IsReachable => HasLogin && HasTelegram;
+
+        /// <summary>Why they cannot be given work. Empty when they can.</summary>
+        public IReadOnlyList<string> BlockingReasons()
+        {
+            var reasons = new List<string>();
+
+            if (!HasLogin) reasons.Add("no active sign-in");
+            if (!HasTelegram) reasons.Add("no verified Telegram");
+
+            return reasons;
+        }
+
         public int RemainingCapacity => Math.Max(0, CapacityMaxPerWeek - CurrentCaseLoad);
-        public bool HasSpareCapacity => RemainingCapacity > 0;
+
+        /// <summary>
+        /// Spare capacity they can actually USE. An unreachable volunteer has room on
+        /// paper and cannot be assigned, so reporting it as spare is what made the
+        /// dashboard point a lead at the one person who would be refused.
+        /// </summary>
+        public bool HasSpareCapacity => RemainingCapacity > 0 && IsReachable;
 
         // ---- completion trend ----
         //
@@ -254,5 +290,92 @@ namespace RM_CMS.Modules.Dashboards.Domain
         public const string Green = "GREEN";
         public const string Amber = "AMBER";
         public const string Red = "RED";
+    }
+
+    // =========================================================================
+    // Pastor dashboard
+    // =========================================================================
+
+    /// <summary>
+    /// What a pastor sees when they log in: oversight across every team in their
+    /// scope, not the operational detail of any one of them — that stays on the
+    /// team lead's own dashboard, which this links out to.
+    ///
+    /// Scope is resolved from the SIGNED-IN ACCOUNT's role grant, the same rule
+    /// <see cref="RM_CMS.Modules.Pipeline.Services.PipelineService"/> already uses: a
+    /// campus on the grant means that campus, no campus means the whole
+    /// organisation. It is never taken from a parameter.
+    /// </summary>
+    public sealed class PastorDashboard
+    {
+        /// <summary>"your campus" or "the whole organisation", for the header.</summary>
+        public string ScopeLabel { get; set; } = string.Empty;
+
+        public string? CampusName { get; set; }
+
+        public EscalationSummary Escalations { get; set; } = new();
+        public CaseSummary Cases { get; set; } = new();
+        public ContactSummary Contacts { get; set; } = new();
+        public NurtureSummary Nurture { get; set; } = new();
+
+        public IReadOnlyList<TeamHealthRow> Teams { get; set; } = Array.Empty<TeamHealthRow>();
+        public IReadOnlyList<HuddleComplianceRow> HuddleCompliance { get; set; } = Array.Empty<HuddleComplianceRow>();
+        public IReadOnlyList<AtRiskVolunteerRow> AtRiskVolunteers { get; set; } = Array.Empty<AtRiskVolunteerRow>();
+
+        public DateTime GeneratedAt { get; set; }
+    }
+
+    /// <summary>
+    /// One team's standing, for the leaderboard a pastor scans to find which team
+    /// needs them. Sorted worst-first by the caller — the numbers here are what
+    /// decide "worst".
+    /// </summary>
+    public sealed class TeamHealthRow
+    {
+        public string TeamId { get; set; } = string.Empty;
+        public string TeamName { get; set; } = string.Empty;
+        public string? LeadName { get; set; }
+        public int MemberCount { get; set; }
+
+        public int OpenEscalations { get; set; }
+        public int UnacknowledgedEscalations { get; set; }
+        public int OverdueContacts { get; set; }
+        public int AwaitingReviewCases { get; set; }
+
+        /// <summary>Volunteers on this team with a RED health flag right now.</summary>
+        public int AtRiskVolunteers { get; set; }
+    }
+
+    /// <summary>
+    /// Whether a team is actually holding its weekly huddle — the one check that
+    /// catches an under-escalation, and the one the MVP's version never ran in three
+    /// months of production. A pastor needs to know WHICH lead has stopped doing it,
+    /// not just an organisation-wide total.
+    /// </summary>
+    public sealed class HuddleComplianceRow
+    {
+        public string TeamId { get; set; } = string.Empty;
+        public string TeamName { get; set; } = string.Empty;
+        public string? LeadName { get; set; }
+
+        public int AssessedThisWindow { get; set; }
+        public int WaitingThisWindow { get; set; }
+
+        /// <summary>Unassessed contacts older than the current window — a backlog, not this week's list.</summary>
+        public int OlderBacklog { get; set; }
+    }
+
+    /// <summary>
+    /// One volunteer flagged RED (two consecutive falling weeks) somewhere in the
+    /// pastor's scope. A flat list across teams, not a per-team table — there are
+    /// usually few enough of these that naming them beats another count.
+    /// </summary>
+    public sealed class AtRiskVolunteerRow
+    {
+        public string VolunteerId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? TeamName { get; set; }
+        public int CurrentCaseLoad { get; set; }
+        public int CapacityMaxPerWeek { get; set; }
     }
 }

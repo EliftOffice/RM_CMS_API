@@ -269,21 +269,49 @@ namespace RM_CMS.Modules.Telegram.Services
                     "Set it up under Telegram first.");
             }
 
-            var (ok, detail, username, displayName) = await _client.GetChatAsync(chatId);
+            var lookup = await _client.GetChatAsync(chatId);
+            var verified = lookup.Ok;
 
-            if (!ok)
+            if (!lookup.Ok)
             {
-                // The usual cause is a chat that has never started the bot. Telegram
-                // cannot message such a chat at all, so linking it would produce a
-                // volunteer who looks reachable and is not.
                 _logger.LogWarning(
-                    "Telegram rejected chat {ChatId} during manual linking by {AccountId}: {Detail}",
-                    chatId, _current.AccountId, detail);
+                    "Telegram chat lookup for {ChatId} by {AccountId} returned {Outcome}: {Detail}",
+                    chatId, _current.AccountId, lookup.Outcome, lookup.Detail);
 
-                return Warn<TelegramLinkStatus>(
-                    "Telegram does not recognise that chat id, or the bot cannot reach it. " +
-                    "The person must have started a conversation with the bot at least once.");
+                // BadToken, NotConfigured and ChatNotFound are real problems with a
+                // real fix, and none of them get better by linking anyway: a bad token
+                // cannot send the test message either, and "chat not found" is
+                // Telegram actively saying this id does not exist for this bot.
+                if (lookup.Outcome != ChatLookupOutcome.Unreachable)
+                {
+                    return Warn<TelegramLinkStatus>(lookup.Outcome switch
+                    {
+                        ChatLookupOutcome.BadToken =>
+                            "Telegram rejected the bot token. It is wrong, or it was revoked in " +
+                            "BotFather. Check it under Telegram setup.",
+
+                        ChatLookupOutcome.NotConfigured =>
+                            "The Telegram bot is not configured, so the chat id cannot be checked.",
+
+                        // Telegram answered and does not know this chat for this bot.
+                        _ => $"Telegram does not recognise that chat id for this bot ({lookup.Detail}). " +
+                             "The person must open the bot and press Start at least once before " +
+                             "their chat id exists."
+                    });
+                }
+
+                // Unreachable falls through instead of refusing. GetChatAsync already
+                // retried once, so this is a second failure, not a single slow
+                // round-trip — and refusing here would trade a real, working link for
+                // a network problem on our own side. Nothing Telegram said is being
+                // overridden, because Telegram was never reached at all; the link is
+                // recorded on the administrator's word, which is the same trust level
+                // this whole path already runs on. A test message gives the missing
+                // proof a moment later instead of blocking the link entirely.
             }
+
+            var username = lookup.Username;
+            var displayName = lookup.DisplayName;
 
             var now = _clock.GetUtcNow().UtcDateTime;
             var actingUserId = await ActingUserIdAsync();
@@ -297,13 +325,28 @@ namespace RM_CMS.Modules.Telegram.Services
             // path with no proof of ownership, so it should be easy to find later.
             _logger.LogWarning(
                 "Telegram linked MANUALLY by admin {AccountId} for person {PersonId} " +
-                "to chat {ChatId} ({DisplayName}).",
-                _current.AccountId, personId.Value, chatId, displayName ?? "unnamed");
+                "to chat {ChatId} ({DisplayName}). Verified={Verified}.",
+                _current.AccountId, personId.Value, chatId, displayName ?? "unnamed", verified);
 
             var status = await GetStatusAsync(request.PersonId);
+            string message;
+            string? code = null;
 
-            var who = string.IsNullOrWhiteSpace(displayName) ? "that chat" : displayName;
-            var message = $"Linked to {who}.";
+            if (verified)
+            {
+                var who = string.IsNullOrWhiteSpace(displayName) ? "that chat" : displayName;
+                message = $"Linked to {who}.";
+            }
+            else
+            {
+                // No name to show, because Telegram was never asked. The message says
+                // that plainly rather than a "Linked to ..." line implying a
+                // confidence the server does not have.
+                code = ResponseCodes.TelegramLinkedUnverified;
+                message = $"Linked to chat {chatId}, but Telegram could not be reached to confirm " +
+                          "it exists. Send a test message now to check — if it does not arrive, " +
+                          "the chat id is wrong.";
+            }
 
             // Said plainly rather than buried: everyone on a shared chat id receives
             // each other's alerts, and that is not visible from anywhere else.
@@ -314,7 +357,9 @@ namespace RM_CMS.Modules.Telegram.Services
                     : $" {sharedWith} other people already use this chat id — all of them will receive each other's messages.";
             }
 
-            return Ok(status.Data, message + " Send a test message to confirm it arrives.");
+            if (verified) message += " Send a test message to confirm it arrives.";
+
+            return Ok(status.Data, message, code);
         }
 
         public async Task<ApiResponse<bool>> SendTestMessageAsync(string personPublicId)
@@ -392,7 +437,8 @@ namespace RM_CMS.Modules.Telegram.Services
         private static string Escape(string value) =>
             value.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 
-        private static ApiResponse<T> Ok<T>(T data, string message) => new(ResponseType.Success, message, data);
+        private static ApiResponse<T> Ok<T>(T data, string message, string? code = null) =>
+            new(ResponseType.Success, message, data, code);
         private static ApiResponse<T> Warn<T>(string message) => new(ResponseType.Warning, message, default!);
     }
 }

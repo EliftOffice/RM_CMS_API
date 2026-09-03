@@ -37,6 +37,14 @@ namespace RM_CMS.Utilities
         /// offer to record a separate person, or to open the existing record.
         /// </summary>
         public const string DuplicateContact = "duplicate_contact";
+
+        /// <summary>
+        /// A manual Telegram link was recorded, but Telegram could not be reached to
+        /// confirm the chat exists. Still a success — the link is stored the same as
+        /// any other manual link — but the caller should show it as provisional and
+        /// point at the test-message action rather than a plain green toast.
+        /// </summary>
+        public const string TelegramLinkedUnverified = "telegram_linked_unverified";
     }
 
     public enum ResponseType

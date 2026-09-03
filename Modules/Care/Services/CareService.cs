@@ -367,8 +367,24 @@ namespace RM_CMS.Modules.Care.Services
 
             var volunteer = await _volunteers.GetByIdAsync(volunteerKey.Value);
 
-            if (volunteer is null || !volunteer.IsAvailable)
-                return Warn<CaseDto>("That volunteer is not currently active.");
+            if (volunteer is null)
+                return Warn<CaseDto>("Unknown volunteer.");
+
+            if (!volunteer.IsAvailable)
+            {
+                // Say WHICH requirement is missing. "Not currently active" was flatly
+                // wrong for the commonest case: a volunteer whose status IS ACTIVE but
+                // who has no verified Telegram. The team lead reads that, checks the
+                // users screen, sees "Active", and has nowhere to go.
+                //
+                // BlockingReasons() has always produced the right wording; nothing
+                // called it.
+                var reasons = volunteer.BlockingReasons();
+
+                return Warn<CaseDto>(reasons.Count > 0
+                    ? $"{volunteer.FullName} cannot be given work yet. {string.Join(" ", reasons)}"
+                    : $"{volunteer.FullName} cannot be given work at the moment.");
+            }
 
             if (volunteer.CampusId != careCase.CampusId)
                 return Warn<CaseDto>("That volunteer serves a different campus.");

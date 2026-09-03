@@ -29,6 +29,7 @@
 
     var LOGIN_PAGE = '/templates/Volunteers/Login.html';
     var CHANGE_PASSWORD_PAGE = '/templates/Volunteers/ChangePassword.html';
+    var LINK_TELEGRAM_PAGE = '/templates/Volunteers/LinkTelegram.html';
 
     // Endpoints that must never trigger the refresh-and-retry loop.
     //
@@ -307,8 +308,57 @@
                 return false;
             }
 
-            return true;
+            return requireTelegramIfNeeded();
         });
+    }
+
+    /**
+     * The telegram.require_linking gate, checked on EVERY page rather than once at
+     * sign-in.
+     *
+     * It used to run only in the login handler, so the linking screen appeared and
+     * then the Back button went straight round it — the browser restored the previous
+     * page and nothing asked the question again. The server refuses those calls now;
+     * this is what turns that refusal into a redirect instead of a broken screen.
+     *
+     * Administrators are exempt, matching the server: they are the only role who can
+     * switch the setting off, and that screen must stay reachable.
+     */
+    /**
+     * The back-forward cache restores a page WITHOUT re-running its scripts, so a
+     * gate that only runs at load would be skipped entirely by a Back press. This is
+     * the one event that fires on such a restore.
+     *
+     * Registered once, and only re-checks on a genuine bfcache restore
+     * (event.persisted) — a normal load has already been through bootstrap.
+     */
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted && ACCESS_TOKEN) requireTelegramIfNeeded();
+    });
+
+    function requireTelegramIfNeeded() {
+        if (window.location.pathname.indexOf('LinkTelegram') !== -1) return true;
+        if (hasAnyRole(['ADMIN'])) return true;
+
+        return fetch(origin() + '/api/telegram/status', {
+            headers: { Authorization: 'Bearer ' + ACCESS_TOKEN }
+        })
+            .then(function (res) { return res.ok ? res.json() : null; })
+            .then(function (body) {
+                var status = (body && body.data) || {};
+
+                // Not configured means the organisation has no bot yet; blocking
+                // everyone out of the application over that would be worse than the
+                // gap it is trying to close.
+                if (!status.isRequired || !status.isConfigured || status.isLinked) return true;
+
+                sessionStorage.setItem('rm_post_login_target',
+                    window.location.pathname + window.location.search);
+
+                window.location.href = origin() + LINK_TELEGRAM_PAGE;
+                return false;
+            })
+            .catch(function () { return true; });   // never lock a page over a failed check
     }
 
     /**

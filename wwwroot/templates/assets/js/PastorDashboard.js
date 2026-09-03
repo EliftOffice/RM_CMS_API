@@ -1,627 +1,204 @@
-﻿
-$(document).ready(function () {
+/**
+ * Pastor dashboard — oversight across every team in scope.
+ *
+ * One call fills the page, exactly like the team lead dashboard: the server
+ * already knows who is asking and what campus (if any) their PASTOR grant
+ * names, so nothing here ever sends a team, campus or pastor id of its own.
+ */
+$(function () {
+
     loadDashboard();
-});
 
-function loadDashboard() {
-
-    $.ajax({
-        url: API_BASE_URL + "/pastors/dashboard",
-        method: "GET",
-        success: function (res) {
-
-            if (res.responseType === 0 && res.data) {
-
-                const data = res.data;
-
-                // HEADER
-                renderHeader();
-
-                // SYSTEM HEALTH
-                if (data.systemHealth) {
-                    renderSystemHealth(data.systemHealth);
+    function loadDashboard() {
+        $.ajax({
+            url: API_BASE_URL + '/dashboards/pastor',
+            method: 'GET',
+            success: function (res) {
+                if (!res || !res.data) {
+                    $('#alerts').html('<div class="alert alert-warning">No data</div>');
+                    return;
                 }
-                if (res.data.kpIs) {
-                    renderKPIs(res.data.kpIs);
-                }
-                if (res.data.teamLeadPerformance) {
-                    renderTeamLeads(res.data.teamLeadPerformance);
-                }
+                renderDashboard(res.data);
+            },
+            error: function (xhr) {
+                // 403 here means signed in but neither a pastor nor an administrator,
+                // which reads differently from the server simply being unreachable.
+                var message = (xhr && xhr.status === 403)
+                    ? 'You do not have pastor access.'
+                    : 'Error loading the dashboard.';
 
-                if (res.data.pipelineHealth) {
-                    renderPipeline(res.data.pipelineHealth);
-                }
-
-                if (res.data.escalations) {
-                    renderEscalations(res.data.escalations);
-                }
-
-                if (res.data.trends) {
-                    renderTrends(res.data.trends);
-                }
-
-                if (res.data.impact) {
-                    renderImpact(res.data.impact);
-                }
-
-                if (res.data.developmentPipeline) {
-                    renderDevelopmentPipeline(res.data.developmentPipeline);
-                }
-
-                if (res.data.alerts) {
-                    renderAlerts(res.data.alerts);
-                }
-
-
-            } else {
-                console.error("Invalid API response", res);
-                alert("Failed to load dashboard data");
+                $('#alerts').html('<div class="alert alert-danger">' + message + '</div>');
             }
-        },
-        error: function (xhr, status, error) {
-            console.error("API Error:", error);
-            alert("Something went wrong while loading dashboard");
-        }
-    });
-}
-
-// HEADER SECTION
-function renderHeader() {
-
-    const now = new Date();
-
-    const monthYear = now.toLocaleString('default', {
-        month: 'long',
-        year: 'numeric'
-    });
-
-    const time = now.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-
-    $("#headerMonth").text(monthYear);
-    $("#headerLastUpdated").text(`Last Updated: Today at ${time}`);
-}
-function renderSystemHealth(d) {
-
-    $("#activeVolunteers").text(getValue(d.activeVolunteers));
-    $("#activeTeamLeads").text(getValue(d.activeTeamLeads));
-    $("#visitors").text(getValue(d.visitorsMTD));
-    $("#completed").text(getValue(d.followUpsCompletedMTD));
-
-    $("#systemVNPS").text(formatVNPS(d.systemVNPS, d.vnpsStatus));
-    $("#retention").text(formatPercent(d.volunteerRetention));
-    $("#completion").text(formatPercent(d.completionRateMTD));
-    $("#avgResponse").text(formatDays(d.avgResponseTime));
-
-    // Overall Health
-    $("#overallHealthText").text(getValue(d.overallFlag, "N/A"));
-
-    setHealthDot(d.overallFlag);
-}
-function getValue(val, fallback = 0) {
-    return (val === null || val === undefined || val === "") ? fallback : val;
-}
-
-function formatPercent(val) {
-    if (val === null || val === undefined) return "0%";
-    return `${val}%`;
-}
-
-function formatDays(val) {
-    if (val === null || val === undefined) return "0 days";
-    return `${val} days`;
-}
-
-function formatVNPS(val, status) {
-    if (val === null || val === undefined) return "0";
-
-    if (!status) return `${val}`;
-    return `${val} (${status})`;
-}
-
-// DOT COLOR LOGIC
-function setHealthDot(status) {
-    let color = "#00ff88"; // default green
-
-    if (status === "Warning") color = "#ffcc00";
-    if (status === "Critical") color = "#ff4444";
-
-    $("#healthDot").css("background", color);
-}
-
-
-// KPI SECTION
-function renderKPIs(k) {
-
-    let rows = "";
-
-    rows += buildRow("Completion Rate", k.completionRate);
-    rows += buildRow("First Contact <48h", k.firstContact48h);
-    rows += buildRow("Escalation Rate", k.escalationRate);
-    rows += buildRow("Crisis Handled Safely", k.crisisHandledSafely);
-    rows += buildRow("Volunteer Retention", k.volunteerRetention);
-    rows += buildRow("System vNPS", k.systemVNPS, false); // not %
-
-    $("#kpiRows").html(rows);
-
-    $("#kpiOverall").html(
-        `Overall: ${getValue(k.onTrack, 0)}/6 metrics on target <span class="check">✔</span>`
-    );
-}
-function buildRow(title, item, isPercent = true) {
-
-    if (!item) item = {};
-
-    const current = formatValue(item.current, isPercent);
-    const target = item.target ?? "-";
-
-    const statusDot = getStatusDot(item.status);
-    const trend = getTrend(item.trend);
-
-    const showPercent = title !== "System vNPS";
-
-    return `
-    <div class="kpi-row">
-        <div>${title}</div>
-        <div>${current}</div>
-        <div>${target}${showPercent ? "%" : ""}</div>
-        <div>${statusDot}</div>
-        <div>${trend}</div>
-    </div>
-`;
-}
-function formatValue(val, isPercent) {
-    if (val === null || val === undefined) return "0";
-    return isPercent ? `${val}%` : val;
-}
-
-function getStatusDot(status) {
-    let color = "#00ff88"; // green
-
-    if (status === "Warning") color = "#ffcc00";
-    if (status === "Critical") color = "#ff4444";
-
-    return `<span class="dot" style="background:${color}"></span>`;
-}
-
-function getTrend(val) {
-
-    if (val === null || val === undefined) return "→";
-
-    if (val > 0) return `⬆ +${val}${Math.abs(val) <= 100 ? "%" : ""}`;
-    if (val < 0) return `⬇ ${val}${Math.abs(val) <= 100 ? "%" : ""}`;
-
-    return `→`;
-}
-
-
-
-// TEAM LEAD PERFORMANCE
-function renderTeamLeads(data) {
-
-    let rows = "";
-
-    data.forEach(tl => {
-        rows += buildTLRow(tl);
-    });
-
-    $("#teamLeadRows").html(rows);
-
-    renderAttention(data);
-}
-function buildTLRow(tl) {
-
-    return `
-        <div class="tl-row">
-            <div>${getValue(tl.teamLeadName, "-")}</div>
-            <div>${getValue(tl.teamSize)}</div>
-            <div>${formatPercent(tl.completionRate)}</div>
-            <div>${getValue(tl.teamVNPS)}</div>
-            <div>${formatPercent(tl.retentionRate)}</div>
-            <div class="flag">${getValue(tl.flag, "-")}</div>
-        </div>
-    `;
-}
-
-function getFlagDot(flag) {
-
-    let color = "#00ff88"; // green
-
-    if (flag === "Warning") color = "#ffcc00";
-    if (flag === "Critical") color = "#ff4444";
-
-    return `<span class="dot" style="background:${color}"></span>`;
-}
-
-function renderAttention(data) {
-
-    let html = "";
-
-    data.forEach(tl => {
-
-        if (tl.belowTargetCount >= 2) {
-            html += `<div>- ${tl.teamLeadName} - Below target on ${tl.belowTargetCount} metrics (needs support)</div>`;
-        }
-        else if (tl.belowTargetCount === 1) {
-            html += `<div>- ${tl.teamLeadName} - Slightly below target (monitor)</div>`;
-        }
-
-    });
-
-    if (html) {
-        $("#attentionSection").html(`
-            <div class="attention-title">⚠ Attention Needed:</div>
-            ${html}
-        `);
-    } else {
-        $("#attentionSection").html("");
-    }
-}
-
-// PIPELINE HEALTH
-function renderPipeline(data) {
-
-    if (!data || !data.stages) return;
-
-    let rows = "";
-
-    data.stages.forEach(s => {
-        rows += buildPipelineRow(s);
-    });
-
-    $("#pipelineRows").html(rows);
-
-    renderPipelineSummary(data);
-}
-function buildPipelineRow(s) {
-
-    return `
-        <div class="pl-row">
-            <div>${formatStageName(s.followUpStatus)}</div>
-            <div>${getValue(s.count)}</div>
-            <div>${formatPercent(s.percentage)}</div>
-            <div>${formatDaysOrDash(s.avgDaysInStage)}</div>
-        </div>
-    `;
-}
-function renderPipelineSummary(data) {
-
-    let html = "";
-
-    html += `
-        <div class="health-line">
-            <span class="dot" style="background:#00ff88"></span>
-            Healthy Pipeline: ${getValue(data.successRate)}% successful contact rate
-        </div>
-    `;
-
-    $("#pipelineSummary").html(html);
-}
-function formatDaysOrDash(val) {
-    if (val === null || val === undefined) return "-";
-    return `${val} days`;
-}
-function formatStageName(status) {
-
-    if (!status) return "-";
-
-    return status
-        .toLowerCase()
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, c => c.toUpperCase());
-}
-
-
-// ================= ESCALATIONS SECTION =================
-function renderEscalations(data) {
-
-    if (!data || !data.summary) {
-        $("#escalationContent").html("No escalation data");
-        return;
-    }
-
-    const s = data.summary;
-
-    let html = "";
-
-    // ================= THIS MONTH =================
-    html += `
-        <div class="escalation-block">
-            <div class="escalation-title">This Month:</div>
-            <div class="escalation-item">- Total Escalations: ${getValue(s.totalEscalations)}</div>
-            <div class="escalation-item">- Standard (Needs Follow-Up): ${getValue(s.standardCount)}</div>
-            <div class="escalation-item">- Urgent: ${getValue(s.urgentCount)}</div>
-            <div class="escalation-item">- Emergency (Crisis): ${getValue(s.emergencyCount)}</div>
-        </div>
-    `;
-
-    // ================= RESOLUTION TIME (NOW DYNAMIC) =================
-    html += `
-        <div class="escalation-block">
-            <div class="escalation-title">Resolution Time:</div>
-            <div class="escalation-item">
-                - Standard: Avg ${formatDaysSafe(s.avgResolutionStandard)} (target <2 days) ${getCheck(s.avgResolutionStandard, 2)}
-            </div>
-            <div class="escalation-item">
-                - Urgent: Avg ${formatDaysSafe(s.avgResolutionUrgent)} (target <1 day) ${getCheck(s.avgResolutionUrgent, 1)}
-            </div>
-            <div class="escalation-item">
-                - Emergency: Immediate handling expected ${getEmergencyCheck(s.pendingEmergency)}
-            </div>
-        </div>
-    `;
-
-    // ================= PENDING =================
-    html += `
-        <div class="escalation-block">
-            <div class="escalation-title">Pending Escalations:</div>
-            <div class="escalation-item">- Standard: ${getValue(s.pendingStandard)}</div>
-            <div class="escalation-item">- Urgent: ${getValue(s.pendingUrgent)}</div>
-            <div class="escalation-item">- Emergency: ${getValue(s.pendingEmergency)}</div>
-        </div>
-    `;
-
-    // ================= TOP REASONS =================
-    if (data.topReasons && data.topReasons.length > 0) {
-
-        html += `<div class="escalation-block">
-                    <div class="escalation-title">Top Escalation Reasons:</div>`;
-
-        data.topReasons.forEach((r, i) => {
-            html += `<div class="escalation-item">
-                        ${i + 1}. ${r.reason} (${r.count} cases)
-                     </div>`;
-        });
-
-        html += `</div>`;
-    }
-
-    // ================= INSIGHT =================
-    html += `
-        <div class="insight">
-            💡 Insight: Monitor escalation patterns and provide support where needed
-        </div>
-    `;
-
-    $("#escalationContent").html(html);
-}
-function formatDaysSafe(val) {
-    if (val === null || val === undefined) return "-";
-    return `${val.toFixed(1)} days`;
-}
-
-function getCheck(actual, target) {
-    if (actual === null || actual === undefined) return "";
-    return actual <= target ? `<span class="check">✔</span>` : `⚠`;
-}
-
-function getEmergencyCheck(pending) {
-    return pending === 0 ? `<span class="check">✔</span>` : `⚠`;
-}
-
-// ================= TREND SECTION =================
-function renderTrends(data) {
-
-    if (!data || data.length === 0) {
-        $("#trendRows").html("No trend data");
-        return;
-    }
-
-    renderTrendHeader(data);
-    renderTrendRows(data);
-    renderTrendInsights(data);
-}
-function renderTrendHeader(data) {
-
-    let header = `<div>Metric</div>`;
-
-    data.forEach(m => {
-        header += `<div>${m.monthName}</div>`;
-    });
-
-    header += `<div>Trend</div>`;
-
-    $("#trendHeader").html(header);
-}
-function renderTrendRows(data) {
-
-    let html = "";
-
-    html += buildTrendRow("First-Time Visitors", data.map(x => x.visitors));
-    html += buildTrendRow("Completion Rate", data.map(x => x.completionRate), true);
-    html += buildTrendRow("System vNPS", data.map(x => x.vnps));
-    html += buildTrendRow("Volunteer Count", data.map(x => x.volunteerCount));
-    html += buildTrendRow("Crisis Cases", data.map(x => x.crisisCount));
-    html += buildTrendRow("Volunteer Turnover", data.map(x => x.turnoverCount));
-
-    $("#trendRows").html(html);
-}
-function buildTrendRow(title, values, isPercent = false) {
-
-    let row = `<div class="trend-row">`;
-
-    row += `<div>${title}</div>`;
-
-    values.forEach(v => {
-        row += `<div>${formatTrendValue(v, isPercent)}</div>`;
-    });
-
-    row += `<div>${calculateTrend(values)}</div>`;
-
-    row += `</div>`;
-
-    return row;
-}
-function formatTrendValue(val, isPercent) {
-    if (val === null || val === undefined) return "-";
-    return isPercent ? `${Math.round(val)}%` : val;
-}
-function calculateTrend(values) {
-
-    if (!values || values.length < 2) return "→";
-
-    const first = values[0] || 0;
-    const last = values[values.length - 1] || 0;
-
-    if (last > first) return "⬆ Improving";
-    if (last < first) return "⬇ Declining";
-    return "→ Stable";
-}
-function renderTrendInsights(data) {
-
-    let html = "";
-
-    const last = data[data.length - 1];
-
-    // Positive insights
-    html += `<div>🎉 Positive Trends:</div>`;
-
-    if (last.visitors > 0) {
-        html += `<div>- Visitor activity present</div>`;
-    }
-
-    if (last.turnoverCount === 0) {
-        html += `<div>- Zero volunteer turnover</div>`;
-    }
-
-    if (last.vnps !== null) {
-        html += `<div>- vNPS data available</div>`;
-    }
-
-    // Warning
-    html += `<div class="trend-warning">⚠ Watch:</div>`;
-
-    if (last.visitors > 0) {
-        html += `<div>- Monitor growth for scaling needs</div>`;
-    } else {
-        html += `<div>- No visitor activity recorded</div>`;
-    }
-
-    $("#trendInsights").html(html);
-}
-
-
-// ================= IMPACT SECTION =================
-function renderImpact(data) {
-
-    if (!data) {
-        $("#impactContent").html("No impact data");
-        return;
-    }
-
-    let html = "";
-
-    // ================= THIS MONTH =================
-    html += `
-        <div class="impact-block">
-            <div class="impact-title">This Month:</div>
-
-            <div class="impact-item">✔ ${getValue(data.totalConversations)} follow-up conversations completed</div>
-            <div class="impact-item">✔ ${getValue(data.smallGroupConnections)} people connected to small groups</div>
-            <div class="impact-item">✔ ${getValue(data.prayerCount)} people received prayer</div>
-            <div class="impact-item">✔ ${getValue(data.benevolenceCount)} people connected to benevolence</div>
-            <div class="impact-item">✔ ${getValue(data.counselingCount)} people scheduled counseling</div>
-            <div class="impact-item">✔ ${getValue(data.serveConnections)} people connected to serve teams</div>
-        </div>
-    `;
-
-    // ================= QUARTER (DERIVED - OPTIONAL) =================
-    html += `
-        <div class="impact-block">
-            <div class="impact-title">Quarter-to-Date:</div>
-
-            <div class="impact-item">✔ ${getValue(data.totalConversations)} total contacts</div>
-            <div class="impact-item">✔ Engagement activity recorded</div>
-            <div class="impact-item">✔ Community connections in progress</div>
-        </div>
-    `;
-
-    $("#impactContent").html(html);
-}
-
-
-// ================= DEVELOPMENT PIPELINE =================
-function renderDevelopmentPipeline(data) {
-
-    if (!data) {
-        $("#dpRows").html("No pipeline data");
-        return;
-    }
-
-    let html = "";
-
-    html += buildDPRow("Level 0 (In Training)", data.level0, "New volunteers onboarding");
-    html += buildDPRow("Level 1 (Active)", data.level1Active, "Currently serving");
-    html += buildDPRow("Level 1 (Care Path)", data.level1CarePath, "Support / recovery");
-    html += buildDPRow("Ready for Level 2 Promotion", data.promotionReady, "Eligible for promotion");
-    html += buildDPRow("Level 2 (Prayer Ministry)", data.level2, "Advanced roles");
-
-    $("#dpRows").html(html);
-
-    renderDPSummary(data);
-}
-function buildDPRow(stage, count, note) {
-
-    return `
-        <div class="dp-row">
-            <div>${stage}</div>
-            <div>${getValue(count)}</div>
-            <div>${note}</div>
-        </div>
-    `;
-}
-function renderDPSummary(data) {
-
-    let summary = "";
-
-    if (data.promotionReady > 0) {
-        summary = `<span class="dot"></span> Strong bench of promotion-ready volunteers`;
-    } else if (data.level1Active > 0) {
-        summary = `<span class="dot" style="background:#ffcc00"></span> Stable pipeline`;
-    } else {
-        summary = `<span class="dot" style="background:#ff4444"></span> Pipeline needs attention`;
-    }
-
-    $("#dpSummary").html(`Pipeline Health: ${summary}`);
-}
-
-// ================= ALERTS SECTION =================
-function renderAlerts(data) {
-
-    if (!data) {
-        $("#alertsContent").html("No alerts");
-        return;
-    }
-
-    let html = "";
-
-    html += buildAlertBlock("URGENT (This Week)", data.urgent);
-    html += buildAlertBlock("IMPORTANT (This Month)", data.important);
-    html += buildAlertBlock("STRATEGIC (Next Quarter)", data.strategic);
-
-    $("#alertsContent").html(html);
-}
-function buildAlertBlock(title, items) {
-
-    let html = `<div class="alert-block">
-                    <div class="alert-title">${title}:</div>`;
-
-    if (!items || items.length === 0) {
-        html += `<div class="alert-item">- No alerts</div>`;
-    } else {
-        items.forEach(a => {
-            html += `
-                <div class="alert-item">
-                    - ${getValue(a.message)}
-                </div>
-                ${a.action ? `<div class="alert-action">→ Action: ${a.action}</div>` : ""}
-            `;
         });
     }
 
-    html += `</div>`;
+    function renderDashboard(data) {
+        var esc = data.escalations || {};
+        var cases = data.cases || {};
+        var contacts = data.contacts || {};
+        var nurture = data.nurture || {};
+        var teams = data.teams || [];
+        var huddle = data.huddleCompliance || [];
+        var atRisk = data.atRiskVolunteers || [];
 
-    return html;
-}
+        var subtitle = data.scopeLabel === 'your campus' && data.campusName
+            ? 'Your campus — ' + data.campusName
+            : (data.scopeLabel || '');
+
+        $('#dashboardSubtitle').text(subtitle);
+        if (window.PastorShell) PastorShell.setSubtitle(subtitle);
+
+        // ── Overview ─────────────────────────────────────────────────────────
+        $('#overviewGrid').html(
+            '<div>Awaiting Assignment: <strong>' + (cases.awaitingAssignment || 0) + '</strong></div>' +
+            '<div>In Progress: <strong>' + (cases.inProgress || 0) + '</strong></div>' +
+            '<div>Escalated: <strong>' + (cases.escalated || 0) + '</strong></div>' +
+            '<div>Awaiting Review: <strong>' + (cases.awaitingReview || 0) + '</strong></div>' +
+            '<div>Contacts Due Today: <strong>' + (contacts.dueToday || 0) + '</strong></div>' +
+            '<div>Contacts Overdue: <strong>' + (contacts.overdue || 0) + '</strong></div>' +
+            '<div>Missed (7 days): <strong>' + (contacts.missedLast7Days || 0) + '</strong></div>' +
+            '<div>Nurture Active: <strong>' + (nurture.active || 0) + '</strong></div>' +
+            '<div>Nurture Overdue: <strong>' + (nurture.overdue || 0) + '</strong></div>' +
+            '<div>Nurture Paused: <strong>' + (nurture.paused || 0) + '</strong></div>'
+        );
+
+        // ── Teams — worst first (already sorted by the server) ─────────────────
+        var teamRows = teams.map(function (t) {
+            return '<tr>' +
+                '<td>' + escapeHtml(t.teamName) + '</td>' +
+                '<td>' + escapeHtml(t.leadName || '—') + '</td>' +
+                '<td>' + t.memberCount + '</td>' +
+                '<td>' + badgeIfPositive(t.unacknowledgedEscalations, 'bg-danger') + '</td>' +
+                '<td>' + (t.openEscalations || 0) + '</td>' +
+                '<td>' + (t.overdueContacts || 0) + '</td>' +
+                '<td>' + (t.awaitingReviewCases || 0) + '</td>' +
+                '<td>' + badgeIfPositive(t.atRiskVolunteers, 'bg-warning text-dark') + '</td>' +
+            '</tr>';
+        }).join('');
+
+        $('#teamTable tbody').html(
+            teamRows || '<tr><td colspan="8" class="text-muted">No teams in scope.</td></tr>');
+
+        // ── Huddle compliance ────────────────────────────────────────────────
+        var huddleRows = huddle.map(function (h) {
+            return '<tr>' +
+                '<td>' + escapeHtml(h.teamName) + '</td>' +
+                '<td>' + escapeHtml(h.leadName || '—') + '</td>' +
+                '<td>' + (h.assessedThisWindow || 0) + '</td>' +
+                '<td>' + badgeIfPositive(h.waitingThisWindow, 'bg-warning text-dark') + '</td>' +
+                '<td>' + badgeIfPositive(h.olderBacklog, 'bg-danger') + '</td>' +
+            '</tr>';
+        }).join('');
+
+        $('#huddleTable tbody').html(
+            huddleRows || '<tr><td colspan="5" class="text-muted">No teams in scope.</td></tr>');
+
+        // ── Attention Needed ─────────────────────────────────────────────────
+        var attention = [];
+
+        if (esc.unacknowledged > 0) {
+            attention.push({
+                who: 'Escalations',
+                message: esc.unacknowledged + ' reached you and still need acknowledging' +
+                    (esc.oldestUnacknowledgedHours
+                        ? ' (oldest ' + Math.round(esc.oldestUnacknowledgedHours) + 'h)'
+                        : ''),
+                priority: 'High'
+            });
+        }
+
+        if (atRisk.length > 0) {
+            attention.push({
+                who: 'Volunteers',
+                message: atRisk.length + ' at risk across your teams',
+                priority: 'Medium'
+            });
+        }
+
+        if (cases.awaitingReview > 0) {
+            attention.push({
+                who: 'Review',
+                message: cases.awaitingReview + ' case(s) awaiting review',
+                priority: 'Medium'
+            });
+        }
+
+        if (contacts.overdue > 0) {
+            attention.push({
+                who: 'Follow-ups',
+                message: contacts.overdue + ' overdue',
+                priority: 'Medium'
+            });
+        }
+
+        $('#attentionList').html(attention.length
+            ? attention.map(function (a) {
+                return '<li class="list-group-item">' + a.who + ' - ' + a.message +
+                       '<span class="badge bg-secondary ms-2">' + a.priority + '</span></li>';
+              }).join('')
+            : '<li class="list-group-item text-muted">' +
+              (teams.length ? 'Nothing needs your attention right now.' : 'There are no teams in your scope yet.') +
+              '</li>');
+
+        // ── Escalations that reached pastor level ───────────────────────────
+        var urgent = esc.urgent || [];
+
+        var escalationsHtml = urgent.map(function (e) {
+            var icon = (e.tier === 'EMERGENCY' || e.requiresProtocol)
+                ? '<div class="blink-siren">🚨</div>'
+                : '⚠️';
+
+            var waited = e.waitingHours >= 24
+                ? Math.round(e.waitingHours / 24) + 'd'
+                : Math.round(e.waitingHours) + 'h';
+
+            return '<div class="escalation-item" data-id="' + e.publicId + '">' +
+                icon + ' ' + escapeHtml(e.personName || 'Unknown') +
+                ' <span class="text-muted">(' + waited + ')</span>' +
+                '</div>';
+        }).join('');
+
+        $('#pastorEscalations').html(
+            escalationsHtml || '<p class="text-muted mb-0">No escalations are waiting on you.</p>');
+
+        // ── At-risk volunteers ───────────────────────────────────────────────
+        var atRiskHtml = atRisk.map(function (v) {
+            return '<div class="at-risk-item">' +
+                '<span class="at-risk-name">' + escapeHtml(v.name) +
+                    (v.teamName ? ' <span class="text-muted">· ' + escapeHtml(v.teamName) + '</span>' : '') +
+                '</span>' +
+                '<span class="at-risk-meta">' + v.currentCaseLoad + ' / ' + v.capacityMaxPerWeek + '</span>' +
+            '</div>';
+        }).join('');
+
+        $('#atRiskList').html(
+            atRiskHtml || '<p class="text-muted mb-0">No volunteers are flagged at risk.</p>');
+
+        $('#alerts').empty();
+    }
+
+    function badgeIfPositive(count, cssClass) {
+        count = count || 0;
+        return count > 0
+            ? '<span class="badge ' + cssClass + '">' + count + '</span>'
+            : String(count);
+    }
+
+    /** Names come from user data and land in HTML, so they are escaped. */
+    function escapeHtml(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    /**
+     * Real navigation, not an iframe or modal — the application sends
+     * X-Frame-Options: DENY and CSP frame-ancestors 'none', so a framed detail
+     * screen would just show "refused to connect". See teamlead.js for the
+     * same call on the equivalent screen.
+     */
+    $(document).on('click', '.escalation-item', function () {
+        var id = $(this).data('id');
+        window.location.href = '../TeamLeads/Escalations.html?id=' + encodeURIComponent(id);
+    });
+});
