@@ -96,7 +96,7 @@ namespace RM_CMS.Modules.Identity.Services
                 {
                     _logger.LogError(
                         "Bootstrap administrator NOT created: no active campus exists. " +
-                        "Apply Database/Schema/schema.sql, which seeds one.");
+                        "Apply docs/architecture/schema.sql, which seeds one.");
                     return;
                 }
 

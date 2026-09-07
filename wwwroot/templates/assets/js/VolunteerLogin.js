@@ -106,7 +106,12 @@ $(document).ready(function () {
             .done(function (res) {
                 var status = (res && res.data) || {};
 
-                if (status.isLinked || !status.isConfigured) {
+                // Matches auth.js's own requireTelegramIfNeeded exactly: not required,
+                // not configured, or already linked all mean "do not show this screen".
+                // This used to skip only the last two, so with the organisation-wide
+                // setting turned OFF every fresh sign-in was still routed through
+                // LinkTelegram.html once — the one thing the setting exists to prevent.
+                if (!status.isRequired || !status.isConfigured || status.isLinked) {
                     window.location.href = target;
                     return;
                 }

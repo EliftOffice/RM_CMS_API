@@ -20,7 +20,7 @@ namespace RM_CMS.Utilities
                 return new ObjectResult(new ApiResponse<T>(
                     ResponseType.Error,
                     "Response is null",
-                    default
+                    default!
                 ))
                 {
                     StatusCode = StatusCodes.Status500InternalServerError
@@ -35,7 +35,5 @@ namespace RM_CMS.Utilities
                 _ => new ObjectResult(response) { StatusCode = StatusCodes.Status500InternalServerError }
             };
         }
-
-      
     }
 }

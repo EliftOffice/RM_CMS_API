@@ -580,21 +580,6 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.Modules.People.Services.IPeopleService,
                                        RM_CMS.Modules.People.Services.PeopleService>();
 
-            // ---- Legacy Peoples BLL/DAL ----
-            // Still registered because Volunteers and CornJobs depend on it. Both
-            // query tables that no longer exist, so they are broken at runtime until
-            // they are rewritten; this only keeps the build green in the meantime.
-            builder.Services.AddScoped<RM_CMS.BLL.Peoples.IPeoplesBLL, RM_CMS.BLL.Peoples.PeoplesBLL>();
-            builder.Services.AddScoped<RM_CMS.DAL.Peoples.IPeoplesDAL, RM_CMS.DAL.Peoples.PeoplesDAL>();
-
-            // ---- Followups ----
-            builder.Services.AddScoped<RM_CMS.BLL.Followups.IFollowupsBLL, RM_CMS.BLL.Followups.FollowupsBLL>();
-            builder.Services.AddScoped<RM_CMS.DAL.Followups.IFollowupsDAL, RM_CMS.DAL.Followups.FollowupsDAL>();
-
-            // ---- Escalations ----
-            builder.Services.AddScoped<RM_CMS.BLL.Followups.IEscalationsBLL, RM_CMS.BLL.Followups.EscalationsBLL>();
-            builder.Services.AddScoped<RM_CMS.DAL.Followups.IEscalationsDAL, RM_CMS.DAL.Followups.EscalationsDAL>();
-
             // ---- Care module (new architecture) ----
             builder.Services.AddScoped<RM_CMS.Modules.Care.Data.ICareCaseRepository,
                                        RM_CMS.Modules.Care.Data.CareCaseRepository>();
@@ -715,31 +700,6 @@ namespace RM_CMS
                                        RM_CMS.Modules.CheckIns.Data.CheckInRepository>();
             builder.Services.AddScoped<RM_CMS.Modules.CheckIns.Services.ICheckInService,
                                        RM_CMS.Modules.CheckIns.Services.CheckInService>();
-
-            // ---- Legacy Volunteers BLL/DAL ----
-            // Still referenced by Followups, Nurture and Peoples. All query tables that
-            // no longer exist, so they are broken at runtime until rewritten; this only
-            // keeps the build green. Its Telegram sending is now a no-op — delivery
-            // belongs to the Notifications module.
-            builder.Services.AddScoped<RM_CMS.BLL.Volunteers.IVolunteersBLL, RM_CMS.BLL.Volunteers.VolunteersBLL>();
-            builder.Services.AddScoped<RM_CMS.DAL.Volunteers.IVolunteersDAL, RM_CMS.DAL.Volunteers.VolunteersDAL>();
-
-            // ---- Team Leads ----
-            builder.Services.AddScoped<RM_CMS.DAL.TeamLeads.ITeamLeadDashBoardDAL, RM_CMS.DAL.TeamLeads.TeamLeadDashBoardDAL>();
-            builder.Services.AddScoped<RM_CMS.BLL.TeamLeads.ITeamLeadDashBoardBLL, RM_CMS.BLL.TeamLeads.TeamLeadDashBoardBLL>();
-
-            // ---- Pastors ----
-            builder.Services.AddScoped<RM_CMS.DAL.Pastors.IPastorDashboardDAL, RM_CMS.DAL.Pastors.PastorDashboardDAL>();
-            builder.Services.AddScoped<RM_CMS.BLL.Pastors.IPastorDashboardBLL, RM_CMS.BLL.Pastors.PastorDashBoardBLL>();
-
-
-            // ---- Nurture ----
-            builder.Services.AddScoped<RM_CMS.DAL.Nurture.INurtureDAL, RM_CMS.DAL.Nurture.NurtureDAL>();
-            builder.Services.AddScoped<RM_CMS.BLL.Nurture.INurtureBLL, RM_CMS.BLL.Nurture.NurtureBLL>();
-
-            // ---- Admin / system config ----
-            builder.Services.AddScoped<RM_CMS.DAL.Admin.ISystemConfigRepository, RM_CMS.DAL.Admin.SystemConfigRepository>();
-            builder.Services.AddScoped<RM_CMS.BLL.Admin.ISystemConfigService, RM_CMS.BLL.Admin.SystemConfigService>();
 
             Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
         }

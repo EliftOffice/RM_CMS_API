@@ -48,6 +48,9 @@ $(function () {
         $('#dashboardSubtitle').text(subtitle);
         if (window.PastorShell) PastorShell.setSubtitle(subtitle);
 
+        // So a stale open tab is obvious — the one thing GeneratedAt exists for.
+        $('#generatedAt').text(data.generatedAt ? 'Updated ' + formatTime(data.generatedAt) : '');
+
         // ── Overview ─────────────────────────────────────────────────────────
         $('#overviewGrid').html(
             '<div>Awaiting Assignment: <strong>' + (cases.awaitingAssignment || 0) + '</strong></div>' +
@@ -78,6 +81,31 @@ $(function () {
 
         $('#teamTable tbody').html(
             teamRows || '<tr><td colspan="8" class="text-muted">No teams in scope.</td></tr>');
+
+        // ── Cases awaiting review ────────────────────────────────────────────
+        var reviewItems = cases.awaitingReviewItems || [];
+
+        if (reviewItems.length) {
+            $('#reviewTable tbody').html(reviewItems.map(function (r) {
+                var waiting = (r.waitingDays === null || r.waitingDays === undefined)
+                    ? '—'
+                    : Math.round(r.waitingDays) + 'd';
+
+                return '<tr>' +
+                    '<td>' + escapeHtml(r.personName || '—') + '</td>' +
+                    '<td>' + escapeHtml(r.volunteerName || '—') + '</td>' +
+                    '<td>' + escapeHtml(r.referenceCode || '—') + '</td>' +
+                    '<td>' + waiting + '</td>' +
+                '</tr>';
+            }).join(''));
+
+            $('#reviewCard').show();
+        } else {
+            $('#reviewCard').hide();
+        }
+
+        // ── Nurture in progress ──────────────────────────────────────────────
+        renderNurture(nurture);
 
         // ── Huddle compliance ────────────────────────────────────────────────
         var huddleRows = huddle.map(function (h) {
@@ -175,6 +203,47 @@ $(function () {
             atRiskHtml || '<p class="text-muted mb-0">No volunteers are flagged at risk.</p>');
 
         $('#alerts').empty();
+    }
+
+    /**
+     * Journeys quietly in progress, and how far each has reached — the one
+     * thing about nurture the overview counts do not already answer. Mirrors
+     * teamlead.js's own renderNurture, minus the "view in pipeline" link: a
+     * pastor's copy of this card is read-only oversight, not a queue they work.
+     */
+    function renderNurture(n) {
+        var items = n.items || [];
+
+        if (!items.length) { $('#nurtureCard').hide(); return; }
+
+        $('#nurtureCard').show();
+
+        $('#nurtureList').html(items.map(function (i) {
+            var pct = i.planStepCount > 0
+                ? Math.round((i.currentStepNumber / i.planStepCount) * 100)
+                : 0;
+
+            var flag = i.isPaused
+                ? ' <span class="badge bg-danger">paused</span>'
+                : (i.daysOverdue ? ' <span class="badge bg-warning text-dark">' +
+                                   i.daysOverdue + 'd late</span>' : '');
+
+            return '<div class="nurture-item">' +
+                '<div class="nurture-item-head">' +
+                    '<span class="nurture-item-name">' + escapeHtml(i.personName) + flag + '</span>' +
+                    '<span class="nurture-item-progress">' + escapeHtml(i.progress) + '</span>' +
+                '</div>' +
+                '<div class="nurture-item-bar"><div style="width:' + pct + '%;"></div></div>' +
+                (i.volunteerName
+                    ? '<div class="nurture-item-volunteer">' + escapeHtml(i.volunteerName) + '</div>'
+                    : '') +
+            '</div>';
+        }).join(''));
+    }
+
+    function formatTime(value) {
+        var d = new Date(value);
+        return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     function badgeIfPositive(count, cssClass) {

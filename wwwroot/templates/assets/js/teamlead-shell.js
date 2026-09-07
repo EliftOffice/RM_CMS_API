@@ -34,6 +34,36 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    /** True for a pastor who does not also lead a team of their own. */
+    function isPastorNotLead() {
+        var roles = (window.RmAuth && RmAuth.roleCodes()) || [];
+        return roles.indexOf('TEAM_LEAD') === -1 && roles.indexOf('PASTOR') !== -1;
+    }
+
+    /** Whichever dashboard actually belongs to the signed-in account. */
+    function dashboardHref() {
+        return isPastorNotLead() ? (ROOT + '/Pastor/Dashboard.html') : (ROOT + '/TeamLeads/TeamLeadDashboard.html');
+    }
+
+    /**
+     * Escalations.html and CheckIns.html each carry a "Back to dashboard" link
+     * and a Cancel button, both hardcoded to TeamLeadDashboard.html because
+     * every visitor to this shell used to be a team lead. Now a pastor reaches
+     * these same screens from their own dashboard's nav, and following either
+     * link sent them into a team lead's dashboard that is not theirs — scoped
+     * to a team they do not lead, showing them someone else's queue.
+     *
+     * Rewritten here, once the signed-in account's role is actually known,
+     * rather than in each page's own script: any screen that loads this shell
+     * and links back to "the dashboard" gets the fix for free.
+     */
+    function fixDashboardLinks() {
+        var href = dashboardHref();
+
+        document.querySelectorAll('a[href="TeamLeadDashboard.html"], a[href$="/TeamLeadDashboard.html"]')
+            .forEach(function (a) { a.setAttribute('href', href); });
+    }
+
     /**
      * Renders the header into #tlShell.
      *
@@ -104,12 +134,25 @@
         if (el) el.textContent = text || '';
     }
 
-    window.TeamLeadShell = { render: render, setSubtitle: setSubtitle, nav: NAV };
+    window.TeamLeadShell = {
+        render: render,
+        setSubtitle: setSubtitle,
+        nav: NAV,
+        dashboardHref: dashboardHref
+    };
 
     // Render as soon as the DOM is ready, so the chrome is never the slow part.
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function () { render({}); });
     } else {
         render({});
+    }
+
+    // The role is not known yet at the render above — RmAuth's own bootstrap is
+    // still in flight. ensureToken() resolves once it is (or resolves instantly
+    // if some earlier call on the page already settled it), so the rewrite
+    // lands as soon as it honestly can rather than guessing.
+    if (window.RmAuth && RmAuth.ensureToken) {
+        RmAuth.ensureToken().then(fixDashboardLinks);
     }
 })(window);

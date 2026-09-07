@@ -73,6 +73,37 @@
 
         #dashboardSubtitle { font-size: 0.85rem; color: var(--muted); }
 
+        .generated-at { font-size: 0.72rem; color: #9ca3af; margin-top: 2px; }
+
+        .nurture-item { padding: 7px 0; border-bottom: 1px solid #f1f2f4; }
+        .nurture-item:last-child { border-bottom: none; }
+
+        .nurture-item-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: baseline;
+        }
+
+        .nurture-item-name { font-weight: 600; font-size: 0.82rem; }
+        .nurture-item-progress { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+
+        .nurture-item-bar {
+            height: 4px;
+            background: var(--border);
+            border-radius: 999px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+            .nurture-item-bar > div {
+                height: 100%;
+                background: var(--primary);
+                border-radius: 999px;
+            }
+
+        .nurture-item-volunteer { font-size: 0.7rem; color: var(--muted); margin-top: 3px; }
+
         #alerts .alert { border-radius: var(--radius); font-size: 0.875rem; margin-bottom: 16px; }
         #alerts .alert-warning { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
         #alerts .alert-danger { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
@@ -241,6 +272,7 @@
         <div class="dash-title-wrap">
             <h2 id="dashboardTitle">PASTOR DASHBOARD</h2>
             <div id="dashboardSubtitle"></div>
+            <div id="generatedAt" class="generated-at"></div>
         </div>
 
         <div id="alerts"></div>
@@ -257,6 +289,38 @@
                     </div>
                     <div class="card-body">
                         <div id="overviewGrid"></div>
+                    </div>
+                </div>
+
+                <div class="card" id="reviewCard" style="display:none;">
+                    <div class="card-header-strip">
+                        <div class="card-strip-icon">🔎</div>
+                        <h3 class="card-strip-title">Cases awaiting review</h3>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        <div style="overflow-x:auto;">
+                            <table class="table table-sm" id="reviewTable">
+                                <thead>
+                                    <tr>
+                                        <th>Person</th>
+                                        <th>Volunteer</th>
+                                        <th>Reference</th>
+                                        <th>Waiting</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="nurtureCard" style="display:none;">
+                    <div class="card-header-strip">
+                        <div class="card-strip-icon">🌱</div>
+                        <h3 class="card-strip-title">Nurture in progress</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="nurtureList"></div>
                     </div>
                 </div>
 
