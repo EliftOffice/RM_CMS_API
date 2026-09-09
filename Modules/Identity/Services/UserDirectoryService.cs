@@ -210,6 +210,24 @@ namespace RM_CMS.Modules.Identity.Services
             if (!string.IsNullOrWhiteSpace(request.PersonId))
             {
                 personPublicId = request.PersonId!;
+
+                // Attaching a role to somebody already on file. Their area is
+                // recorded here too when one was given, because the person picker
+                // shows a name and a masked number and nothing else — the
+                // administrator has no way to tell whether their area is already on
+                // record, and silently dropping what they typed would leave a
+                // volunteer with no area for no visible reason.
+                if (!string.IsNullOrWhiteSpace(request.AreaId) ||
+                    !string.IsNullOrWhiteSpace(request.AreaName))
+                {
+                    var filed = await _people.SetAreaAsync(personPublicId, request.AreaId, request.AreaName);
+
+                    // Not fatal. The role is the point of this request; a rejected
+                    // area is reported as a note so the administrator can fix it on
+                    // the person's own record rather than losing the whole creation.
+                    if (filed.ResponseType != ResponseType.Success)
+                        result.Notes.Add($"Area not recorded: {filed.Message}");
+                }
             }
             else
             {
@@ -235,6 +253,8 @@ namespace RM_CMS.Modules.Identity.Services
                     GivenName = request.GivenName!,
                     FamilyName = request.FamilyName,
                     CampusId = request.CampusId,
+                    AreaId = request.AreaId,
+                    AreaName = request.AreaName,
                     Contacts = contacts
                 });
 

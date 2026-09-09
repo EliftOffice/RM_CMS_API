@@ -83,6 +83,21 @@ namespace RM_CMS.Modules.Identity.Api
         [StringLength(26)] public string? LeadsTeamId { get; set; }
 
         /// <summary>
+        /// The area this person lives in, as a public id already picked from the
+        /// list. Lands on the PERSON record, not the volunteer one — a person lives
+        /// in one place whether or not they also serve, and putting it on the
+        /// volunteer would mean the same fact recorded twice with nothing keeping
+        /// the two in step.
+        /// </summary>
+        [StringLength(26)] public string? AreaId { get; set; }
+
+        /// <summary>
+        /// The area as typed. Created when nothing on file matches, then this person
+        /// is filed against it.
+        /// </summary>
+        [StringLength(100)] public string? AreaName { get; set; }
+
+        /// <summary>
         /// When they began serving. Volunteers only — it lands on the volunteer
         /// record, and defaults to today when omitted. Backdating matters because
         /// length of service is what a pastor reads when reviewing a team.

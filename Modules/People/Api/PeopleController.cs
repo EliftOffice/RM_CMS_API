@@ -93,6 +93,26 @@ namespace RM_CMS.Modules.People.Api
             if (!ModelState.IsValid)
                 return ValidationProblem(ModelState);
 
+            // Somebody local must have an area. They are followed up in person, and
+            // the area is what decides which volunteer is near enough to take them;
+            // a blank one leaves the case matchable to nobody in particular.
+            //
+            // The rule is HERE and not in PeopleService because it belongs to intake,
+            // not to the person model. Creating a user goes through the service
+            // directly with no address at all — an administrator adding a pastor is
+            // not recording where they live, and enforcing this there would block
+            // that for no reason.
+            if (request.IsLocal &&
+                string.IsNullOrWhiteSpace(request.AreaId) &&
+                string.IsNullOrWhiteSpace(request.AreaName))
+            {
+                return HttpResponseHelper.CreateHttpResponse(new ApiResponse<PersonDto>(
+                    ResponseType.Warning,
+                    "Enter the area they live in, or uncheck 'lives locally' and record " +
+                    "their address instead.",
+                    default!));
+            }
+
             return HttpResponseHelper.CreateHttpResponse(await _people.CreateAsync(request));
         }
 

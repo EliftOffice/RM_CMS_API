@@ -43,6 +43,17 @@
             href: '/templates/Admin/campuses.html',
             roles: ['ADMIN']
         },
+        {
+            // Data entry operators are listed because an administrator CAN grant
+            // them this screen (area.manage_by_data_entry) — they are the people
+            // typing area names all day, so they see a misspelling first. As with
+            // Teams, the link showing is not the grant: the page asks
+            // /api/areas/access on load and replaces itself with an explanation
+            // when nothing is granted.
+            label: 'Areas',
+            href: '/templates/Admin/areas.html',
+            roles: ['ADMIN', 'DATA_ENTRY']
+        },
         { label: 'Accounts', href: '/templates/Admin/accounts.html', roles: ['ADMIN'] },
         { label: 'Settings', href: '/templates/Admin/siteadmin.html', roles: ['ADMIN'] },
         { label: 'Telegram', href: '/templates/Admin/telegram.html', roles: ['ADMIN'] }

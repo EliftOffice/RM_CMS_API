@@ -11,8 +11,9 @@
  *   POST /api/people           -> create the person
  *   POST /api/cases            -> open a case so a volunteer follows up  (optional)
  *   GET  /api/people/lookup    -> warn about an existing record before saving
+ *   GET  /api/areas/options    -> the area type-ahead (via AreaPicker)
  *
- * Requires auth.js, toast.js and admin-shell.js.
+ * Requires auth.js, toast.js, admin-shell.js and area-picker.js.
  */
 (function () {
     'use strict';
@@ -20,6 +21,7 @@
     var ROLES = ['ADMIN', 'PASTOR', 'TEAM_LEAD', 'VOLUNTEER', 'DATA_ENTRY'];
 
     var form, saveBtn, clearBtn, dupNotice, formError, statusHint, sessionList;
+    var areaPicker;
     var recorded = [];
 
     // Set when the API refuses a save because someone shares the contact number.
@@ -53,6 +55,7 @@
         loadCampuses();
         setToday();
         wireFollowUpToggle();
+        wireResidence();
 
         form.addEventListener('submit', onSubmit);
         clearBtn.addEventListener('click', function () { resetForm(true); });
@@ -143,6 +146,13 @@
                 // One choice is not a choice. Leave it hidden and let the server
                 // default to the operator's own campus.
                 document.getElementById('campusField').hidden = list.length < 2;
+
+                // Areas belong to a campus, so a chosen area stops being valid the
+                // moment the campus changes — the server refuses one from elsewhere.
+                // Clearing it makes that visible now rather than at save time.
+                document.getElementById('campus').addEventListener('change', function () {
+                    if (areaPicker) areaPicker.clear();
+                });
             })
             .catch(function () {
                 // Non-fatal: without the picker the server still files the visitor at
@@ -156,6 +166,60 @@
         return String(value == null ? '' : value)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    /**
+     * "Lives locally" decides which half of the address section is on screen.
+     *
+     * Checked — the normal case — the only question is which area, and it is
+     * required: a local visitor is followed up in person, and the area is what
+     * decides which volunteer can take them. Unchecked, the screen falls back to
+     * exactly the fields it has always had, because an out-of-town address is a
+     * one-off that no volunteer will be matched against.
+     *
+     * The hidden half is not merely hidden. Its values are cleared and the picker
+     * is reset, so a full address typed before the box was unticked cannot be
+     * submitted invisibly.
+     */
+    function wireResidence() {
+        var toggle = document.getElementById('isLocal');
+        var localBlock = document.getElementById('localBlock');
+        var awayBlock = document.getElementById('awayBlock');
+
+        areaPicker = AreaPicker.attach({
+            input: 'areaName',
+            results: 'areaResults',
+
+            // Read fresh each time: changing the campus changes which areas exist,
+            // and an area from another campus is one the server refuses.
+            campusId: function () {
+                return document.getElementById('campusField').hidden
+                    ? ''
+                    : document.getElementById('campus').value;
+            },
+
+            onChange: function () { clearFieldError(document.getElementById('areaName')); }
+        });
+
+        function sync() {
+            var local = toggle.checked;
+
+            localBlock.hidden = !local;
+            awayBlock.hidden = local;
+
+            if (local) {
+                document.getElementById('addressLine').value = '';
+                document.getElementById('locality').value = '';
+                document.getElementById('postalCode').value = '';
+            } else if (areaPicker) {
+                areaPicker.clear();
+            }
+
+            clearFieldError(document.getElementById('areaName'));
+        }
+
+        toggle.addEventListener('change', sync);
+        sync();
     }
 
     function wireFollowUpToggle() {
@@ -373,6 +437,13 @@
     // ---------------------------------------------------------------- helpers
 
     function readForm() {
+        var isLocal = document.getElementById('isLocal').checked;
+
+        // Only the visible half is read. The other half was cleared when the box
+        // was toggled, but reading it anyway would make that clearing the only
+        // thing standing between a hidden value and the request.
+        var area = (isLocal && areaPicker) ? areaPicker.value() : { id: null, name: '' };
+
         return {
             givenName:        value('givenName'),
             familyName:       value('familyName'),
@@ -380,15 +451,17 @@
             gender:           value('gender'),
             mobile:           value('mobile'),
             email:            value('email'),
-            addressLine:      value('addressLine'),
-            locality:         value('locality'),
-            postalCode:       value('postalCode'),
+            addressLine:      isLocal ? '' : value('addressLine'),
+            locality:         isLocal ? '' : value('locality'),
+            areaId:           area.id,
+            areaName:         area.name,
+            postalCode:       isLocal ? '' : value('postalCode'),
             notes:            value('notes'),
             connectionSource: value('connectionSource'),
             firstVisitOn:     value('firstVisitOn'),
             priority:         value('priority'),
             campusId:         value('campus'),
-            isLocal:          document.getElementById('isLocal').checked,
+            isLocal:          isLocal,
             startFollowUp:    document.getElementById('startFollowUp').checked
         };
     }
@@ -411,6 +484,14 @@
         if (p.addressLine) request.addressLine = p.addressLine;
         if (p.locality)    request.locality = p.locality;
         if (p.postalCode)  request.postalCode = p.postalCode;
+
+        // Both are sent. The id is what was picked from the list; the name is what
+        // is in the box. The server prefers the id and falls back to the name,
+        // creating the area when nothing matches — that find-or-create is deliberately
+        // NOT done here as a separate call, because two operators typing the same new
+        // area at once would race and one of them would get a failure instead of a save.
+        if (p.areaId)      request.areaId = p.areaId;
+        if (p.areaName)    request.areaName = p.areaName;
         if (p.notes)       request.notes = p.notes;
 
         // Omitted when the picker is hidden, which lets the server fall back to the
@@ -439,6 +520,16 @@
 
         if (p.email && p.email.indexOf('@') === -1) {
             return { field: 'email', message: 'That does not look like a valid email address.' };
+        }
+
+        // Required only for someone local. They are followed up in person, and the
+        // area is what decides which volunteer is close enough to take them — a
+        // blank one leaves the case matchable to nobody in particular.
+        if (p.isLocal && !p.areaName) {
+            return {
+                field: 'areaName',
+                message: 'Enter the area they live in. Type it in full if it is not on the list yet.'
+            };
         }
 
         return null;
@@ -517,6 +608,13 @@
         document.getElementById('isLocal').checked = true;
         document.getElementById('startFollowUp').checked = true;
         document.getElementById('priorityField').hidden = false;
+
+        // form.reset() empties the area input but knows nothing about the id the
+        // picker is holding, which would then be sent with the NEXT visitor.
+        if (areaPicker) areaPicker.clear();
+
+        document.getElementById('localBlock').hidden = false;
+        document.getElementById('awayBlock').hidden = true;
 
         // The operator is usually entering a batch from the same service, so the
         // visit date carries over rather than being retyped every time.

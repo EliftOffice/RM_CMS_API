@@ -288,6 +288,62 @@ body {
 .pw-rules li.ok::marker { content: '✓ '; }
 .pw-rules li.server { color: var(--ink-muted); font-style: italic; }
 
+/* ---------------------------------------------------------------- pickers
+
+   A text box that behaves like a dropdown: the operator types, the matches
+   drop below it, and typing something that matches nothing is a legitimate
+   answer rather than an error. Used by the person search on add-user and by
+   the area picker on both add-user and intake.
+
+   Lives here rather than in each page's own <style> block because the area
+   picker has to look and behave the same on the two screens that write to the
+   same list — a "new area" row that reads differently in two places is how
+   the same neighbourhood ends up entered twice.
+   ---------------------------------------------------------------------- */
+.picker-wrap { position: relative; }
+
+.picker-results {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    margin-top: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+/* Floating, so the fields below do not jump down as matches appear and go —
+   a form that reflows under the cursor is hard to type into. Only applied
+   inside .picker-wrap, so the existing in-flow person picker is untouched. */
+.picker-wrap .picker-results {
+    position: absolute;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    margin-top: 2px;
+    box-shadow: 0 8px 20px rgba(17, 24, 39, .12);
+}
+
+.picker-item {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    font-size: 13.5px;
+}
+
+.picker-item:last-child { border-bottom: none; }
+.picker-item:hover,
+.picker-item-on { background: var(--canvas); }
+.picker-item .sub { color: var(--ink-muted); font-size: 12px; }
+
+/* The "nothing matched — this will be added" row. Marked out because it is a
+   different kind of answer from the ones above it: it creates something. */
+.picker-item-new {
+    color: var(--ink-muted);
+    border-top: 1px solid var(--line);
+}
+
+.picker-item-new strong { color: var(--ink); }
+
 /* ═══════════════════════════════════════════════════════════════════════
    NARROW VIEWPORTS
 

@@ -14,6 +14,7 @@
     <script src="../assets/js/auth.js"></script>
     <script src="../assets/js/admin-shell.js"></script>
     <script src="../assets/js/mobile-input.js"></script>
+    <script src="../assets/js/area-picker.js"></script>
     <script src="../assets/js/people-entry.js" defer></script>
 
     <style>
@@ -209,23 +210,10 @@
 
                         <p class="section-title">Where they live</p>
 
-                        <div class="field">
-                            <label class="label" for="addressLine">Address</label>
-                            <input class="input" id="addressLine" name="addressLine" maxlength="200">
-                        </div>
-
-                        <div class="field-row">
-                            <div class="field">
-                                <label class="label" for="locality">Area / locality</label>
-                                <input class="input" id="locality" name="locality" maxlength="100">
-                            </div>
-
-                            <div class="field">
-                                <label class="label" for="postalCode">Postal code</label>
-                                <input class="input" id="postalCode" name="postalCode" maxlength="20">
-                            </div>
-                        </div>
-
+                        <!-- The checkbox comes FIRST here, before the fields it
+                             decides. It used to sit underneath them, which meant the
+                             operator filled in a full out-of-town address and only
+                             then met the question that made most of it irrelevant. -->
                         <div class="field">
                             <label class="check">
                                 <input type="checkbox" id="isLocal" checked>
@@ -235,6 +223,54 @@
                                     followed up differently.
                                 </span>
                             </label>
+                        </div>
+
+                        <!-- Someone local: the area is all that is asked for, and it
+                             is required.
+
+                             A local visitor is followed up by a volunteer who goes to
+                             see them, so which neighbourhood they are in decides who
+                             can take them. A house number does not, and asking for
+                             one at a welcome desk is how the field ends up blank or
+                             wrong. The area is picked from the list everyone else
+                             uses; typing a new one adds it. -->
+                        <div id="localBlock">
+                            <div class="field picker-wrap">
+                                <label class="label" for="areaName">
+                                    Area <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <input class="input" id="areaName" name="areaName" maxlength="100"
+                                       placeholder="Start typing, e.g. Kurnool Road"
+                                       aria-describedby="areaHint">
+                                <div class="picker-results" id="areaResults" hidden></div>
+                                <p class="hint" id="areaHint">
+                                    Pick the matching area. If it is not on the list yet, type it
+                                    in full and it will be added.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Someone from out of town: exactly the fields this screen
+                             has always asked for. Their locality is a one-off and is
+                             NOT added to the shared area list, which is meant to hold
+                             the neighbourhoods volunteers actually serve. -->
+                        <div id="awayBlock" hidden>
+                            <div class="field">
+                                <label class="label" for="addressLine">Address</label>
+                                <input class="input" id="addressLine" name="addressLine" maxlength="200">
+                            </div>
+
+                            <div class="field-row">
+                                <div class="field">
+                                    <label class="label" for="locality">Area / locality</label>
+                                    <input class="input" id="locality" name="locality" maxlength="100">
+                                </div>
+
+                                <div class="field">
+                                    <label class="label" for="postalCode">Postal code</label>
+                                    <input class="input" id="postalCode" name="postalCode" maxlength="20">
+                                </div>
+                            </div>
                         </div>
 
                         <p class="section-title">About the visit</p>

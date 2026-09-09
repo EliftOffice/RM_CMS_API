@@ -644,6 +644,16 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.Modules.Campuses.Services.ICampusService,
                                        RM_CMS.Modules.Campuses.Services.CampusService>();
 
+            // ---- Areas module ----
+            // The controlled locality list behind the area picker on the intake and
+            // add-user screens. Registered before People because PeopleService takes
+            // IAreaService to do the find-or-create when an operator types an area
+            // that does not exist yet.
+            builder.Services.AddScoped<RM_CMS.Modules.Areas.Data.IAreaRepository,
+                                       RM_CMS.Modules.Areas.Data.AreaRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Areas.Services.IAreaService,
+                                       RM_CMS.Modules.Areas.Services.AreaService>();
+
             // ---- Jobs module (new architecture) ----
             // Replaces the legacy CornJobs slice. Triggered by an external cron over
             // the JobRunner policy — there is no in-process scheduler, so a second

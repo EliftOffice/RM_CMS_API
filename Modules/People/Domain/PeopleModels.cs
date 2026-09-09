@@ -31,7 +31,19 @@ namespace RM_CMS.Modules.People.Domain
         public string? HouseholdType { get; set; }
 
         public string? AddressLine { get; set; }
+
+        /// <summary>
+        /// Free text, as typed. Written for somebody from OUT OF TOWN, where the
+        /// locality is a one-off and not worth adding to the shared list. For anyone
+        /// local it is <see cref="AreaId"/> that carries the locality.
+        /// </summary>
         public string? Locality { get; set; }
+
+        /// <summary>The controlled locality, from <c>area</c>. Null when none was chosen.</summary>
+        public long? AreaId { get; set; }
+        public string? AreaPublicId { get; set; }
+        public string? AreaName { get; set; }
+
         public string? PostalCode { get; set; }
 
         /// <summary>

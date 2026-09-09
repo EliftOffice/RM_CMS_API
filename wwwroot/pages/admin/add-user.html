@@ -16,6 +16,7 @@
     <script src="../assets/js/admin-shell.js"></script>
     <script src="../assets/js/password-policy.js"></script>
     <script src="../assets/js/mobile-input.js"></script>
+    <script src="../assets/js/area-picker.js"></script>
 
     <style>
         .form-card { max-width: 640px; }
@@ -75,18 +76,10 @@
         .band-text strong { display: block; }
         .band-text .sub { color: var(--ink-muted); font-size: 12px; }
 
-        .picker-results {
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
-            margin-top: 6px;
-            max-height: 220px;
-            overflow-y: auto;
-        }
-
-        .picker-item { padding: 9px 12px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 13.5px; }
-        .picker-item:last-child { border-bottom: none; }
-        .picker-item:hover { background: var(--canvas); }
-        .picker-item .sub { color: var(--ink-muted); font-size: 12px; }
+        /* .picker-results / .picker-item moved to admin.css: the area picker on
+           this screen and the one on the intake screen write to the SAME list, and
+           a control that looks different in the two places is how the same
+           neighbourhood gets entered twice. */
 
         .chosen {
             display: flex; justify-content: space-between; align-items: center; gap: 12px;
@@ -208,6 +201,21 @@
                     <p class="hint">
                         Which site they serve. A volunteer is only ever assigned visitors
                         from their own campus, and a team lead only sees that campus.
+                    </p>
+                </div>
+
+                <!-- Areas belong to a campus, so this sits after the campus
+                     picker: the list offered depends on what is selected above. -->
+                <div class="field picker-wrap" id="areaField" hidden>
+                    <label class="label" for="areaName">Area</label>
+                    <input class="input" id="areaName" maxlength="100" autocomplete="off"
+                           placeholder="Start typing, e.g. Kurnool Road"
+                           aria-describedby="areaHint">
+                    <div class="picker-results" id="areaResults" hidden></div>
+                    <p class="hint" id="areaHint">
+                        Where this volunteer lives. Pick the matching area, or type a new one
+                        in full and it will be added. It is recorded against the person, and
+                        is the same list the visitor intake screen uses.
                     </p>
                 </div>
 

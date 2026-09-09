@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Areas — RM_CMS</title>
+
+    <link rel="icon" href="../assets/Images/favicon.ico">
+    <link rel="stylesheet" href="../assets/css/admin.css">
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../assets/js/api-config.js"></script>
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/toast.js"></script>
+    <script src="../assets/js/admin-shell.js"></script>
+    <script src="../assets/js/areas.js"></script>
+
+    <style>
+        /* Who is filed against an area, and therefore what disappears from the
+           picker when it is retired. */
+        .filed {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 10px;
+            font-size: 12.5px;
+            color: var(--ink-muted);
+        }
+
+        .filed b { color: var(--ink); font-weight: 600; }
+        .filed .zero { opacity: .45; }
+
+        .why {
+            font-size: 12.5px;
+            line-height: 1.55;
+            color: var(--ink-muted);
+            margin: 2px 0 0;
+        }
+
+        /* The locked page. Same shape as the teams screen's, because it is the
+           same situation: the link is visible to a role that CAN be granted this
+           and has not been. A link that explains itself beats one that is simply
+           absent. */
+        .locked {
+            max-width: 560px;
+            margin: 60px auto;
+            text-align: center;
+        }
+
+        .grant-key {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12.5px;
+            background: #f3f4f6;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 2px 6px;
+        }
+
+        .scope-note { margin-bottom: 14px; }
+    </style>
+</head>
+<body>
+    <div id="adminShell"></div>
+
+    <!-- Shown when the caller holds no grant. -->
+    <main class="page" id="lockedBody" hidden>
+        <div class="card locked">
+            <div class="card-body">
+                <h1 class="page-title">Areas</h1>
+                <p class="page-sub" id="lockedWhy"></p>
+            </div>
+        </div>
+    </main>
+
+    <main class="page" id="pageBody" hidden>
+
+        <div class="page-head">
+            <div>
+                <h1 class="page-title">Areas</h1>
+                <p class="page-sub">
+                    The localities people are filed against. The same list is offered when
+                    recording a visitor and when adding a volunteer, which is what lets a
+                    visitor be matched to a volunteer who lives near them.
+                </p>
+            </div>
+            <button type="button" class="btn btn-primary" id="newBtn">New area</button>
+        </div>
+
+        <div id="scopeNote"></div>
+
+        <div class="card">
+            <div class="card-head">
+                <span class="card-title">All areas</span>
+                <div class="toolbar">
+                    <input class="input" type="search" id="search" placeholder="Filter by name">
+                    <select class="select" id="statusFilter">
+                        <option value="all">Include retired</option>
+                        <option value="active">Active only</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="table" id="areaTable">
+                    <thead>
+                        <tr>
+                            <th>Area</th>
+                            <th class="campus-col">Campus</th>
+                            <th>Filed here</th>
+                            <th>Status</th>
+                            <th class="cell-actions">&nbsp;</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" class="empty">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- ── Create / edit ─────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" id="editModal">
+        <div class="modal">
+            <div class="modal-head">
+                <span class="card-title" id="editTitle">Edit area</span>
+                <button type="button" class="btn btn-sm" data-close>Close</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="field">
+                    <label class="label" for="fName">Area name</label>
+                    <input type="text" class="input" id="fName" maxlength="100" autocomplete="off"
+                           placeholder="Kurnool Road">
+                    <div class="hint">
+                        Written the way people say it. Capitals and extra spaces are ignored
+                        when checking for a duplicate, so 'kurnool  road' is the same area.
+                    </div>
+                </div>
+
+                <div class="field" id="campusField" hidden>
+                    <label class="label" for="fCampus">Campus</label>
+                    <select class="input" id="fCampus"></select>
+                    <div class="hint" id="campusHint">
+                        An area belongs to one site. It cannot be moved afterwards — that
+                        would re-file everybody who lives there.
+                    </div>
+                </div>
+
+                <div class="field" id="activeField">
+                    <label class="label">
+                        <input type="checkbox" id="fActive"> Active
+                    </label>
+                    <div class="hint">
+                        A retired area stops being offered when recording someone. People
+                        already filed against it keep it.
+                    </div>
+                    <p class="why" id="retireWhy" hidden></p>
+                </div>
+
+                <div class="notice notice-warn" id="editNotice" hidden></div>
+            </div>
+
+            <div class="modal-foot">
+                <button type="button" class="btn" data-close>Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

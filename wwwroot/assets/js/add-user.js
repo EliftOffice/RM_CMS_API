@@ -4,6 +4,7 @@
  *   GET  /api/people/picker?q=      attach to somebody already on file
  *   GET  /api/volunteers/reference  capacity bands
  *   GET  /api/teams                 team placement
+ *   GET  /api/areas/options?q=      the area type-ahead (via AreaPicker)
  *   POST /api/admin/users           create
  *
  * The "existing person" path matters as much as the new-person one: attaching access
@@ -29,6 +30,7 @@ $(function () {
     var state = { person: null, bands: [], teams: [], campuses: [] };
     var esc = AdminShell.escapeHtml;
     var searchTimer = null;
+    var areaPicker = null;
 
     AdminShell.boot({
         roles: ['ADMIN'],
@@ -43,11 +45,20 @@ $(function () {
         renderRoles();
         loadReference();
         attachMobile();
+        attachArea();
         attachPolicy();
 
         $('input[name="mode"]').on('change', syncMode);
         $('#roleOptions').on('change', 'input[name="role"]', syncRole);
-        $('#campusId').on('change', renderTeams);
+
+        $('#campusId').on('change', function () {
+            renderTeams();
+
+            // An area belongs to one campus, so a chosen area stops being valid the
+            // moment the campus changes. The server refuses one from elsewhere;
+            // clearing it says so now instead of at save time.
+            if (areaPicker) areaPicker.clear();
+        });
 
         $('#personSearch').on('input', onSearch);
         $('#clearPerson').on('click', clearPerson);
@@ -145,6 +156,27 @@ $(function () {
     }
 
     /**
+     * The area the volunteer lives in.
+     *
+     * The same picker, against the same list, as the visitor intake screen — that
+     * is the point of it. A volunteer and the visitor two streets away have to land
+     * on one area row, or "who lives near this person" has no answer.
+     *
+     * It is recorded on the PERSON, not on the volunteer record: somebody lives in
+     * one place whether or not they also serve, and a second copy on the volunteer
+     * row would be a fact with nothing keeping the two versions in step.
+     */
+    function attachArea() {
+        areaPicker = AreaPicker.attach({
+            input: 'areaName',
+            results: 'areaResults',
+            campusId: function () {
+                return $('#campusField').prop('hidden') ? '' : $('#campusId').val();
+            }
+        });
+    }
+
+    /**
      * Teams belonging to the selected campus, and only those.
      *
      * A volunteer is only ever assigned visitors from their own campus, and a team
@@ -210,6 +242,17 @@ $(function () {
 
         $('#bandField').prop('hidden', role !== 'VOLUNTEER');
         $('#teamField').prop('hidden', role !== 'VOLUNTEER' && role !== 'TEAM_LEAD');
+
+        // Volunteers only. Everyone else lives somewhere too, but nothing reads it:
+        // the area exists to put a volunteer and the visitors near them on the same
+        // row, and an administrator's neighbourhood is not part of any matching.
+        var wasHidden = $('#areaField').prop('hidden');
+        $('#areaField').prop('hidden', role !== 'VOLUNTEER');
+
+        // Hidden fields must not be submitted. Clearing on the way out means a name
+        // typed for a volunteer cannot be filed against a person the administrator
+        // then decided to make an administrator instead.
+        if (!wasHidden && role !== 'VOLUNTEER' && areaPicker) areaPicker.clear();
 
         // Start date lives on the volunteer record, so it only means anything for a
         // role that creates one.
@@ -323,6 +366,19 @@ $(function () {
             if (!band) return fail('Choose how much they can take on each week.');
             body.capacityBandCode = band;
 
+            // Optional here, unlike on the intake screen. A visitor with no area
+            // cannot be matched to anyone, so that screen insists; a volunteer with
+            // no area is merely one the area is not known for yet, and blocking
+            // their creation over it would be worse than recording it later.
+            //
+            // Both fields go up: the id is what was picked from the list, the name
+            // is what is in the box. The server prefers the id and falls back to the
+            // name, creating the area when nothing matches.
+            var area = areaPicker ? areaPicker.value() : { id: null, name: '' };
+
+            if (area.id)   body.areaId = area.id;
+            if (area.name) body.areaName = area.name;
+
             // Omitted means today, which the volunteer service applies.
             var started = $('#startedOn').val();
             if (started) body.startedOn = started;
@@ -365,6 +421,12 @@ $(function () {
 
                 showToast(res.message, 'success');
 
+                // The server reports partial outcomes as notes rather than failing
+                // the whole creation — an area it could not record, for instance.
+                // A success toast alone would hide that.
+                var notes = (res.data && res.data.notes) || [];
+                var problems = notes.filter(function (n) { return /^Area not recorded/.test(n); });
+
                 if (res.data && res.data.generatedPassword) {
                     $('#credentialFor').text('For ' + (res.data.user.username || 'this account'));
                     $('#credentialValue').text(res.data.generatedPassword);
@@ -372,6 +434,13 @@ $(function () {
                 }
 
                 resetForm();
+
+                // AFTER the reset, which clears #formError. Shown last so the one
+                // thing that did not work survives on screen.
+                if (problems.length) {
+                    $('#formError').text(problems.join(' ')).prop('hidden', false);
+                    showToast(problems[0], 'warning');
+                }
             })
             .fail(function (xhr) {
                 busy(false);
@@ -434,6 +503,11 @@ $(function () {
     function resetForm() {
         $('#userForm')[0].reset();
         clearPerson();
+
+        // reset() empties the area input but knows nothing about the id the picker
+        // holds, which would otherwise be sent with the NEXT user.
+        if (areaPicker) areaPicker.clear();
+
         $('#formError').prop('hidden', true);
         syncMode();
         syncRole();

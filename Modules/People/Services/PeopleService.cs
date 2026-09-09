@@ -1,3 +1,4 @@
+using RM_CMS.Modules.Areas.Services;
 using RM_CMS.Modules.Identity.Data;
 using RM_CMS.Modules.Identity.Domain;
 using RM_CMS.Modules.Identity.Services;
@@ -23,6 +24,14 @@ namespace RM_CMS.Modules.People.Services
 
         Task<ApiResponse<PersonDto>> UpdateAsync(string publicId, UpdatePersonRequest request);
 
+        /// <summary>
+        /// Files an EXISTING person against an area, creating it when the typed name
+        /// matches nothing. Used when an administrator gives somebody already on file
+        /// a volunteer role and records their area at the same time — every other
+        /// field of theirs stays exactly as it was.
+        /// </summary>
+        Task<ApiResponse<PersonDto>> SetAreaAsync(string publicId, string? areaId, string? areaName);
+
         Task<ApiResponse<IReadOnlyList<PersonMatchDto>>> LookupAsync(string term);
         Task<ApiResponse<IReadOnlyList<PersonMatchDto>>> PickerAsync(string term);
 
@@ -45,6 +54,7 @@ namespace RM_CMS.Modules.People.Services
         private const string NotFound = "Person not found.";
 
         private readonly IPersonRepository _people;
+        private readonly IAreaService _areas;
         private readonly ICurrentIdentity _current;
         private readonly IUserAccountRepository _accounts;
         private readonly TimeProvider _clock;
@@ -52,12 +62,14 @@ namespace RM_CMS.Modules.People.Services
 
         public PeopleService(
             IPersonRepository people,
+            IAreaService areas,
             ICurrentIdentity current,
             IUserAccountRepository accounts,
             TimeProvider clock,
             ILogger<PeopleService> logger)
         {
             _people = people;
+            _areas = areas;
             _current = current;
             _accounts = accounts;
             _clock = clock;
@@ -251,6 +263,18 @@ namespace RM_CMS.Modules.People.Services
                 if (!_current.CanAccessCampus(campusPublicId))
                     return Warn<PersonDto>("You cannot record a person for that campus.");
 
+                var actingUserId = await ActingUserIdAsync();
+
+                // ---- area ----
+                // Resolved BEFORE the person is written, so a bad area name refuses
+                // the whole intake rather than saving somebody with the locality
+                // silently dropped. A brand-new area is created here; that is the
+                // "no match found, so save the area first" step.
+                var area = await _areas.ResolveAsync(
+                    request.AreaId, request.AreaName, campusKey, campusPublicId, actingUserId);
+
+                if (area.Failed) return Warn<PersonDto>(area.Problem!);
+
                 var person = new Person
                 {
                     PublicId = Ulid.NewUlid(),
@@ -262,13 +286,13 @@ namespace RM_CMS.Modules.People.Services
                     HouseholdType = Clean(request.HouseholdType),
                     AddressLine = Clean(request.AddressLine),
                     Locality = Clean(request.Locality),
+                    AreaId = area.AreaId,
                     PostalCode = Clean(request.PostalCode),
                     IsLocal = request.IsLocal,
                     LifecycleStatus = PersonLifecycle.Visitor,
                     Notes = Clean(request.Notes)
                 };
 
-                var actingUserId = await ActingUserIdAsync();
                 var id = await _people.CreateAsync(person, contacts, actingUserId);
 
                 _logger.LogInformation("Person {PublicId} recorded by {Account}", person.PublicId, _current.AccountId);
@@ -318,20 +342,72 @@ namespace RM_CMS.Modules.People.Services
             person.AgeBand = Clean(request.AgeBand);
             person.Gender = Clean(request.Gender);
             person.HouseholdType = Clean(request.HouseholdType);
+            var actingUserId = await ActingUserIdAsync();
+
+            // An area the caller did not name leaves the existing one alone, the same
+            // way an omitted campus does. Clearing it is a separate act: send an empty
+            // areaName with no areaId.
+            var area = await _areas.ResolveAsync(
+                request.AreaId, request.AreaName, campusKey, campusPublicId, actingUserId);
+
+            if (area.Failed) return Warn<PersonDto>(area.Problem!);
+
             person.AddressLine = Clean(request.AddressLine);
             person.Locality = Clean(request.Locality);
+            person.AreaId = area.AreaId;
             person.PostalCode = Clean(request.PostalCode);
             person.IsLocal = request.IsLocal;
             person.Notes = Clean(request.Notes);
             person.RowVersion = request.RowVersion;
 
-            var updated = await _people.UpdateAsync(person, await ActingUserIdAsync());
+            var updated = await _people.UpdateAsync(person, actingUserId);
 
             if (!updated)
                 return Warn<PersonDto>("This record was changed by someone else. Reload and try again.");
 
             var fresh = await _people.GetByIdAsync(person.Id);
             return Ok(ToDto(fresh!), "Person updated");
+        }
+
+        /// <summary>
+        /// Files an existing person against an area and changes nothing else.
+        ///
+        /// Separate from <see cref="UpdateAsync"/> because the caller — the add-user
+        /// screen, attaching a role to somebody already on file — holds none of that
+        /// person's other fields and no row version for them. Reading the record here
+        /// and writing it straight back keeps the concurrency guard honest: the write
+        /// still carries a version, and a save that lost a race to a real edit is
+        /// reported rather than silently overwriting it.
+        /// </summary>
+        public async Task<ApiResponse<PersonDto>> SetAreaAsync(string publicId, string? areaId, string? areaName)
+        {
+            var person = await _people.GetByPublicIdAsync(publicId);
+
+            if (person is null || !CanAccess(person))
+                return Warn<PersonDto>(NotFound);
+
+            var actingUserId = await ActingUserIdAsync();
+
+            var area = await _areas.ResolveAsync(
+                areaId, areaName, person.CampusId, person.CampusPublicId, actingUserId);
+
+            if (area.Failed) return Warn<PersonDto>(area.Problem!);
+
+            // Nothing was asked for. Not an error, and not a reason to clear what
+            // they already have — the screen simply left the field empty.
+            if (area.AreaId is null) return Ok(ToDto(person), "No area recorded.");
+
+            if (area.AreaId == person.AreaId) return Ok(ToDto(person), "Area unchanged.");
+
+            person.AreaId = area.AreaId;
+
+            var updated = await _people.UpdateAsync(person, actingUserId);
+
+            if (!updated)
+                return Warn<PersonDto>("This record was changed by someone else. Reload and try again.");
+
+            var fresh = await _people.GetByIdAsync(person.Id);
+            return Ok(ToDto(fresh!), "Area recorded.");
         }
 
         public async Task<ApiResponse<bool>> SetDoNotContactAsync(string publicId, DoNotContactRequest request)
@@ -585,6 +661,8 @@ namespace RM_CMS.Modules.People.Services
             HouseholdType = p.HouseholdType,
             AddressLine = p.AddressLine,
             Locality = p.Locality,
+            AreaId = p.AreaPublicId,
+            AreaName = p.AreaName,
             PostalCode = p.PostalCode,
             IsLocal = p.IsLocal,
             LifecycleStatus = p.LifecycleStatus,

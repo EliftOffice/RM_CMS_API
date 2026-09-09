@@ -84,6 +84,9 @@ namespace RM_CMS.Modules.People.Data
                 p.household_type      AS HouseholdType,
                 p.address_line        AS AddressLine,
                 p.locality            AS Locality,
+                p.area_id             AS AreaId,
+                ar.public_id          AS AreaPublicId,
+                ar.name               AS AreaName,
                 p.postal_code         AS PostalCode,
                 p.is_local            AS IsLocal,
                 p.lifecycle_status    AS LifecycleStatus,
@@ -97,7 +100,8 @@ namespace RM_CMS.Modules.People.Data
                 p.updated_at          AS UpdatedAt,
                 p.row_version         AS RowVersion
             FROM person p
-            LEFT JOIN campus c ON c.id = p.campus_id";
+            LEFT JOIN campus c ON c.id = p.campus_id
+            LEFT JOIN area   ar ON ar.id = p.area_id";
 
         private const string SelectContacts = @"
             SELECT  id               AS Id,
@@ -268,12 +272,12 @@ namespace RM_CMS.Modules.People.Data
                 INSERT INTO person
                     (public_id, reference_code, campus_id, given_name, family_name,
                      date_of_birth, age_band, gender, household_type,
-                     address_line, locality, postal_code, is_local,
+                     address_line, locality, area_id, postal_code, is_local,
                      lifecycle_status, notes, created_by, updated_by)
                 VALUES
                     (@PublicId, @ReferenceCode, @CampusId, @GivenName, @FamilyName,
                      @DateOfBirth, @AgeBand, @Gender, @HouseholdType,
-                     @AddressLine, @Locality, @PostalCode, @IsLocal,
+                     @AddressLine, @Locality, @AreaId, @PostalCode, @IsLocal,
                      @LifecycleStatus, @Notes, @ActingUserId, @ActingUserId);
                 SELECT LAST_INSERT_ID();";
 
@@ -300,6 +304,7 @@ namespace RM_CMS.Modules.People.Data
                     person.HouseholdType,
                     person.AddressLine,
                     person.Locality,
+                    person.AreaId,
                     person.PostalCode,
                     person.IsLocal,
                     person.LifecycleStatus,
@@ -333,6 +338,7 @@ namespace RM_CMS.Modules.People.Data
                     household_type = @HouseholdType,
                     address_line   = @AddressLine,
                     locality       = @Locality,
+                    area_id        = @AreaId,
                     postal_code    = @PostalCode,
                     is_local       = @IsLocal,
                     notes          = @Notes,
@@ -354,6 +360,7 @@ namespace RM_CMS.Modules.People.Data
                 person.HouseholdType,
                 person.AddressLine,
                 person.Locality,
+                person.AreaId,
                 person.PostalCode,
                 person.IsLocal,
                 person.Notes,

@@ -28,7 +28,27 @@ namespace RM_CMS.Modules.People.Api
         [StringLength(40)] public string? HouseholdType { get; set; }
 
         [StringLength(200)] public string? AddressLine { get; set; }
+
+        /// <summary>
+        /// Free text, for somebody from out of town. Anyone local gets an
+        /// <see cref="AreaId"/> or <see cref="AreaName"/> instead.
+        /// </summary>
         [StringLength(100)] public string? Locality { get; set; }
+
+        /// <summary>
+        /// The area they live in, as a public id already chosen from the picker.
+        /// Wins over <see cref="AreaName"/> when both arrive.
+        /// </summary>
+        [StringLength(26)] public string? AreaId { get; set; }
+
+        /// <summary>
+        /// The area they live in, as typed. When nothing on file matches, the area
+        /// is created and then this person is filed against it — that find-or-create
+        /// happens on the server so two operators typing the same new neighbourhood
+        /// at once end up with one area, not two.
+        /// </summary>
+        [StringLength(100)] public string? AreaName { get; set; }
+
         [StringLength(20)]  public string? PostalCode { get; set; }
 
         public bool IsLocal { get; set; } = true;
@@ -63,6 +83,21 @@ namespace RM_CMS.Modules.People.Api
         [StringLength(40)] public string? HouseholdType { get; set; }
         [StringLength(200)] public string? AddressLine { get; set; }
         [StringLength(100)] public string? Locality { get; set; }
+
+        /// <summary>
+        /// The area they live in, as a public id already chosen from the picker.
+        /// Wins over <see cref="AreaName"/> when both arrive.
+        /// </summary>
+        [StringLength(26)] public string? AreaId { get; set; }
+
+        /// <summary>
+        /// The area they live in, as typed. When nothing on file matches, the area
+        /// is created and then this person is filed against it — that find-or-create
+        /// happens on the server so two operators typing the same new neighbourhood
+        /// at once end up with one area, not two.
+        /// </summary>
+        [StringLength(100)] public string? AreaName { get; set; }
+
         [StringLength(20)]  public string? PostalCode { get; set; }
 
         public bool IsLocal { get; set; } = true;
@@ -132,6 +167,11 @@ namespace RM_CMS.Modules.People.Api
 
         public string? AddressLine { get; set; }
         public string? Locality { get; set; }
+
+        /// <summary>Public id of the area they live in. Null when none was recorded.</summary>
+        public string? AreaId { get; set; }
+        public string? AreaName { get; set; }
+
         public string? PostalCode { get; set; }
         public bool IsLocal { get; set; }
 
