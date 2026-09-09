@@ -27,9 +27,9 @@
     var EXPIRES_AT = 0;           // epoch ms
     var refreshPromise = null;    // de-duplicates concurrent refreshes
 
-    var LOGIN_PAGE = '/templates/Volunteers/Login.html';
-    var CHANGE_PASSWORD_PAGE = '/templates/Volunteers/ChangePassword.html';
-    var LINK_TELEGRAM_PAGE = '/templates/Volunteers/LinkTelegram.html';
+    var LOGIN_PAGE = '/pages/auth/login.html';
+    var CHANGE_PASSWORD_PAGE = '/pages/auth/change-password.html';
+    var LINK_TELEGRAM_PAGE = '/pages/auth/link-telegram.html';
 
     // Endpoints that must never trigger the refresh-and-retry loop.
     //

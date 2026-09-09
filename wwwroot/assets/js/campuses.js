@@ -25,7 +25,7 @@ $(function () {
 
     AdminShell.boot({
         roles: ['ADMIN'],
-        active: { href: '/templates/Admin/campuses.html', area: 'Admin' }
+        active: { href: '/pages/admin/campuses.html', area: 'Admin' }
     }).then(function (ok) {
         if (!ok) return;
         $('#pageBody').prop('hidden', false);

@@ -4,17 +4,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>People pipeline - RM CMS</title>
-    <link rel="icon" href="../assets/Images/favicon.ico">
-    <link href="../assets/css/teamlead-shell.css" rel="stylesheet">
-    <link href="../assets/css/toast.css" rel="stylesheet">
+    <link rel="icon" href="/assets/img/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
+    <link href="/assets/css/team-lead-shell.css" rel="stylesheet">
+    <link href="/assets/css/toast.css" rel="stylesheet">
     <script>window.TL_PAGE = 'pipeline';</script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="../assets/js/api-config.js"></script>
+    <script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
+    <script src="/assets/js/api-config.js"></script>
     <!-- auth.js: attaches the bearer token to every API call -->
-    <script src="../assets/js/auth.js"></script>
-    <script src="../assets/js/toast.js"></script>
-    <script src="../assets/js/teamlead-shell.js"></script>
-    <script src="../assets/js/pipeline.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/toast.js"></script>
+    <script src="/assets/js/team-lead-shell.js"></script>
+    <script src="/assets/js/pipeline.js"></script>
 
     <style>
         /* ── The funnel ──────────────────────────────────────────────────────
@@ -112,7 +114,7 @@
     <div class="tl-body">
 
         <h1 class="tl-page-title">People pipeline</h1>
-        <p class="tl-page-sub" id="scopeLine">Everyone on file and where their journey has reached.</p>
+        <p class="tl-page-sub" id="scopeLine">Every visitor and where their journey has reached. Staff are not shown.</p>
 
         <!-- ── Funnel ── -->
         <div class="funnel" id="funnel"></div>
@@ -155,10 +157,11 @@
                                 <th>Volunteer</th>
                                 <th>Nurture</th>
                                 <th>Last contact</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="6" class="tl-empty">Loading…</td></tr>
+                            <tr><td colspan="7" class="tl-empty">Loading…</td></tr>
                         </tbody>
                     </table>
                 </div>

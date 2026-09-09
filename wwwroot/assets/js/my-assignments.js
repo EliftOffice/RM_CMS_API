@@ -527,7 +527,7 @@ $(document).ready(function () {
 
     $(document).on('click', '.logout-btn, #logoutBtn', function () {
         if (window.RmAuth && RmAuth.logout) { RmAuth.logout(); return; }
-        window.location.href = 'Login.html';
+        window.location.href = '/pages/auth/login.html';
     });
 
     // ══════════════════════════════════════════

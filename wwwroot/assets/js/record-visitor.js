@@ -33,7 +33,7 @@
         AdminShell
             .boot({
                 roles: ROLES,
-                active: { href: '/templates/Peoples/PeopleEntry.html', area: 'Intake' }
+                active: { href: '/pages/intake/record-visitor.html', area: 'Intake' }
             })
             .then(function (ok) {
                 if (!ok) return;    // boot already redirected to the login page

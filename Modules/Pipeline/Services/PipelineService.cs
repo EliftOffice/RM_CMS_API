@@ -28,6 +28,13 @@ namespace RM_CMS.Modules.Pipeline.Services
     {
         Task<ApiResponse<PipelineResultDto>> SearchAsync(
             int page, int pageSize, string? search, string? stage, string? status, bool includeUnstarted);
+
+        /// <summary>
+        /// One visitor's whole history — profile, every case, and a merged timeline.
+        /// Scoped the same way the list is, so a team lead cannot read somebody their
+        /// teams have never held a case for.
+        /// </summary>
+        Task<ApiResponse<VisitorJourney>> GetJourneyAsync(string personId);
     }
 
     public sealed class PipelineService : IPipelineService
@@ -95,6 +102,33 @@ namespace RM_CMS.Modules.Pipeline.Services
             };
 
             return Ok(result, $"{total} {(total == 1 ? "person" : "people")} in {scope.Label}.");
+        }
+
+        public async Task<ApiResponse<VisitorJourney>> GetJourneyAsync(string personId)
+        {
+            var scope = await ResolveScopeAsync();
+
+            if (scope is null) return WarnJourney("You are not signed in.");
+
+            var visitor = await _pipeline.GetVisitorAsync(personId, scope.TeamIds, scope.CampusId);
+
+            // One message for "no such person", "they are staff, not a visitor" and
+            // "outside your scope". Telling them apart would confirm that a record
+            // exists to somebody who is not allowed to see it.
+            if (visitor is null) return WarnJourney("That visitor was not found.");
+
+            var today = _clock.GetUtcNow().UtcDateTime;
+
+            var journey = new VisitorJourney
+            {
+                Profile = visitor.Value.Profile,
+                Stats = await _pipeline.GetStatsAsync(visitor.Value.Id, today),
+                Cases = (await _pipeline.GetCasesAsync(visitor.Value.Id)).ToList(),
+                Events = (await _pipeline.GetEventsAsync(visitor.Value.Id)).ToList()
+            };
+
+            return new ApiResponse<VisitorJourney>(
+                ResponseType.Success, $"{journey.Profile.FullName}'s history.", journey);
         }
 
         // ==================================================================
@@ -177,6 +211,9 @@ namespace RM_CMS.Modules.Pipeline.Services
             new(ResponseType.Success, message, data);
 
         private static ApiResponse<PipelineResultDto> Warn(string message) =>
+            new(ResponseType.Warning, message, default!);
+
+        private static ApiResponse<VisitorJourney> WarnJourney(string message) =>
             new(ResponseType.Warning, message, default!);
     }
 }

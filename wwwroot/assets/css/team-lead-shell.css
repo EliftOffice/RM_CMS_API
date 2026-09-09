@@ -375,3 +375,14 @@ body {
 
     .tl-save, .tl-secondary { width: 100%; }
 }
+
+/* Row actions. Right-aligned and never wrapped, so the button stays put as the
+   columns beside it change width with the data. */
+.tl-table td.cell-actions { text-align: right; white-space: nowrap; }
+
+.tl-table td.cell-actions .tl-secondary {
+    padding: 4px 12px;
+    font-size: 12px;
+    text-decoration: none;
+    display: inline-block;
+}

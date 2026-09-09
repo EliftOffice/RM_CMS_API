@@ -266,11 +266,17 @@ namespace RM_CMS.Modules.Identity.Data
 
         public async Task<bool> GrantRoleAsync(long userAccountId, string roleCode, long? campusId, long? grantedBy)
         {
-            // INSERT IGNORE against the (user_account_id, role_code) primary key: a
-            // promotion applied twice must not fail, it must simply already be true.
+            // ON DUPLICATE KEY rather than INSERT IGNORE. Both make a repeated grant a
+            // no-op against the (user_account_id, role_code) key, which is what this
+            // needs — but IGNORE also downgrades a FOREIGN KEY violation to a warning,
+            // so a role_code with no app_role row was skipped in silence and the caller
+            // was told the grant had worked. That produced an active account with no
+            // role at all, which then fails at the login screen with "no assigned role"
+            // and no trace of why.
             const string sql = @"
-                INSERT IGNORE INTO user_role (user_account_id, role_code, campus_id, granted_by)
-                VALUES (@AccountId, @RoleCode, @CampusId, @GrantedBy);";
+                INSERT INTO user_role (user_account_id, role_code, campus_id, granted_by)
+                VALUES (@AccountId, @RoleCode, @CampusId, @GrantedBy)
+                ON DUPLICATE KEY UPDATE user_account_id = user_account_id;";
 
             using var connection = _dbFactory.GetConnection();
 

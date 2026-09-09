@@ -39,7 +39,7 @@ separate test bot with BotFather.
 | Build | The root [`Dockerfile`](../../Dockerfile) — SDK 8.0 build stage, ASP.NET 8.0 runtime stage |
 | Listens on | **8080** (the .NET 8 runtime image default; `EXPOSE 8080` in the Dockerfile) |
 | Health check | **`GET /health`** — anonymous, rate-limit exempt, returns `{"status":"ok"}` |
-| Landing page | `GET /` serves the sign-in shell (`templates/Volunteers/Login.html`) |
+| Landing page | `GET /` serves the sign-in shell (`pages/auth/login.html`) |
 | Database | MySQL 8+ (developed against 9.1). Not created or migrated by the app — you load the schema yourself, see §3 |
 | Scheduler | **None in-process.** Jobs run only when something calls them — see §6 |
 

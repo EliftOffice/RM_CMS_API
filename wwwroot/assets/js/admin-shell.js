@@ -16,14 +16,14 @@
     var NAV = [
         {
             label: 'Record a visitor',
-            href: '/templates/Peoples/PeopleEntry.html',
+            href: '/pages/intake/record-visitor.html',
             roles: ['ADMIN', 'PASTOR', 'TEAM_LEAD', 'VOLUNTEER', 'DATA_ENTRY']
         },
         // 'Add volunteer' used to sit here. It has been folded into Add a user,
         // which does the same enrolment plus the sign-in decision in one pass —
         // two screens that both created volunteers was the source of volunteers
         // enrolled without a login, who can never be assigned anything.
-        { label: 'Users', href: '/templates/Admin/users.html', roles: ['ADMIN'] },
+        { label: 'Users', href: '/pages/admin/users.html', roles: ['ADMIN'] },
         {
             // Pastors and team leads are listed because an administrator CAN grant
             // them this screen (team.manage_by_pastor / team.manage_by_team_lead).
@@ -32,7 +32,7 @@
             // Hiding it until granted would need the nav to read settings on every
             // page, and a link that explains itself beats one that is simply absent.
             label: 'Teams',
-            href: '/templates/Admin/teams.html',
+            href: '/pages/admin/teams.html',
             roles: ['ADMIN', 'PASTOR', 'TEAM_LEAD']
         },
         {
@@ -40,7 +40,7 @@
             // creates a tenancy boundary, and retiring one decides whose records
             // stop being reachable — neither is a pastor's call.
             label: 'Campuses',
-            href: '/templates/Admin/campuses.html',
+            href: '/pages/admin/campuses.html',
             roles: ['ADMIN']
         },
         {
@@ -51,12 +51,20 @@
             // /api/areas/access on load and replaces itself with an explanation
             // when nothing is granted.
             label: 'Areas',
-            href: '/templates/Admin/areas.html',
+            href: '/pages/admin/areas.html',
             roles: ['ADMIN', 'DATA_ENTRY']
         },
-        { label: 'Accounts', href: '/templates/Admin/accounts.html', roles: ['ADMIN'] },
-        { label: 'Settings', href: '/templates/Admin/siteadmin.html', roles: ['ADMIN'] },
-        { label: 'Telegram', href: '/templates/Admin/telegram.html', roles: ['ADMIN'] }
+        {
+            // The website coordinator's only screen, and an administrator's view of
+            // what the public site is collecting. Nothing else in the nav renders for
+            // a WEB_COORDINATOR, which is correct: everything else 403s for them.
+            label: 'Website',
+            href: '/pages/admin/web-enquiries.html',
+            roles: ['ADMIN', 'WEB_COORDINATOR']
+        },
+        { label: 'Accounts', href: '/pages/admin/accounts.html', roles: ['ADMIN'] },
+        { label: 'Settings', href: '/pages/admin/settings.html', roles: ['ADMIN'] },
+        { label: 'Telegram', href: '/pages/admin/telegram.html', roles: ['ADMIN'] }
     ];
 
     function escapeHtml(value) {

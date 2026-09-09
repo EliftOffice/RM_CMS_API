@@ -1,8 +1,8 @@
 /* ============================================================================
    Pastor shell — renders the shared header on every pastor screen.
 
-   Mirrors teamlead-shell.js: same #tlShell mount point and the same
-   teamlead-shell.css classes, because a pastor's own screens (escalations,
+   Mirrors team-lead-shell.js: same #tlShell mount point and the same
+   team-lead-shell.css classes, because a pastor's own screens (escalations,
    check-ins, the people pipeline) are already styled with that palette — a
    second, differently-branded header for the one screen that is genuinely
    theirs (the dashboard) would make the pastor's own cluster of pages look
@@ -14,7 +14,7 @@
 (function (window) {
     'use strict';
 
-    var ROOT = '/templates';
+    // Page paths are absolute — see the note in team-lead-shell.js.
 
     /**
      * The pastor's menu.
@@ -30,11 +30,11 @@
      * on, which reads better than a nav item that silently disappears.
      */
     var NAV = [
-        { key: 'dashboard',   label: 'Dashboard',   href: ROOT + '/Pastor/Dashboard.html' },
-        { key: 'escalations', label: 'Escalations', href: ROOT + '/TeamLeads/Escalations.html' },
-        { key: 'checkins',    label: 'Check-ins',   href: ROOT + '/TeamLeads/CheckIns.html' },
-        { key: 'pipeline',    label: 'People',      href: ROOT + '/Peoples/Pipeline.html' },
-        { key: 'teams',       label: 'Teams',       href: ROOT + '/Admin/teams.html' }
+        { key: 'dashboard',   label: 'Dashboard',   href: '/pages/dashboard/pastor.html' },
+        { key: 'escalations', label: 'Escalations', href: '/pages/care/escalations.html' },
+        { key: 'checkins',    label: 'Check-ins',   href: '/pages/care/check-ins.html' },
+        { key: 'pipeline',    label: 'People',      href: '/pages/care/pipeline.html' },
+        { key: 'teams',       label: 'Teams',       href: '/pages/admin/teams.html' }
     ];
 
     function escapeHtml(value) {
@@ -70,7 +70,7 @@
         mount.innerHTML =
             '<div class="tl-brand">' +
                 '<div class="tl-logo">' +
-                    '<img src="' + ROOT + '/assets/Images/logo.jpeg" alt="RM" ' +
+                    '<img src="/assets/img/logo.jpeg" alt="RM" ' +
                          'onerror="this.style.display=\'none\';this.parentElement.textContent=\'R\'">' +
                 '</div>' +
                 '<div class="tl-titles">' +
@@ -91,7 +91,7 @@
 
                 if (window.RmAuth && RmAuth.logout) { RmAuth.logout(); return; }
 
-                window.location.href = ROOT + '/Volunteers/Login.html';
+                window.location.href = '/pages/auth/login.html';
             });
         }
     }

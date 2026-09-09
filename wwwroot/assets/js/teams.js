@@ -38,7 +38,7 @@ $(function () {
     // actually do; this only stops the page booting for a volunteer.
     AdminShell.boot({
         roles: ['ADMIN', 'PASTOR', 'TEAM_LEAD'],
-        active: { href: '/templates/Admin/teams.html', area: 'Admin' }
+        active: { href: '/pages/admin/teams.html', area: 'Admin' }
     }).then(function (ok) {
         if (!ok) return;
         loadAccess();

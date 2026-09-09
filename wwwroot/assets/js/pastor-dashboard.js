@@ -268,6 +268,6 @@ $(function () {
      */
     $(document).on('click', '.escalation-item', function () {
         var id = $(this).data('id');
-        window.location.href = '../TeamLeads/Escalations.html?id=' + encodeURIComponent(id);
+        window.location.href = '/pages/care/escalations.html?id=' + encodeURIComponent(id);
     });
 });

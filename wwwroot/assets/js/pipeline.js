@@ -5,6 +5,12 @@
 // answers "where is everybody", which is the question you ask to find out whether
 // the funnel is working rather than whether today is busy.
 //
+// VISITORS ONLY. Staff are person rows too, so the server excludes anyone with a
+// login or a volunteer record — without that, every volunteer and pastor appeared
+// here as somebody who had "not started", which is not a stage, it is a category
+// error. Somebody who becomes staff drops off this screen; their case, if they
+// still have one, stays on the dashboard and the assignment screens.
+//
 // SCOPE IS NOT A PARAMETER. What you see is decided by the server from your role —
 // a team lead gets their own teams, a pastor their campus, an administrator
 // everything. There is nothing here to edit to see more.
@@ -16,11 +22,23 @@ $(function () {
 
     // The dashboard's nurture card links here with ?stage=NURTURE, so arriving
     // from it lands on the filtered view rather than the whole list.
-    var initialStage = new URLSearchParams(window.location.search).get('stage');
+    // Also restores what the history page sent back, so returning from a visitor
+    // lands on the page and filters the caller left.
+    var params = new URLSearchParams(window.location.search);
+    var initialStage = params.get('stage');
 
     if (initialStage) {
         state.stage = initialStage.toUpperCase();
         $('#stageFilter').val(state.stage);
+    }
+
+    if (params.get('search')) {
+        state.search = params.get('search');
+        $('#search').val(state.search);
+    }
+
+    if (params.get('page')) {
+        state.page = Math.max(1, parseInt(params.get('page'), 10) || 1);
     }
 
     load();
@@ -87,7 +105,8 @@ $(function () {
                 }
 
                 $('#scopeLine').text(
-                    'Everyone in ' + d.scope + ' and where their journey has reached.');
+                    'Every visitor in ' + d.scope + ' and where their journey has reached. ' +
+                    'Staff are not shown.');
 
                 if (window.TeamLeadShell) TeamLeadShell.setSubtitle(d.scope);
 
@@ -186,8 +205,31 @@ $(function () {
                 '</td>' +
                 '<td>' + progress + '</td>' +
                 '<td>' + lastContact + age + '</td>' +
+                '<td class="cell-actions">' +
+                    '<a class="tl-secondary btn-history" href="' + esc(historyHref(r)) + '">History</a>' +
+                '</td>' +
             '</tr>';
         }).join(''));
+    }
+
+    /**
+     * A link, not a click handler: middle-click and "open in new tab" are the
+     * obvious things to do from a list, and a button breaks both.
+     *
+     * The current filters ride along in `back`, so returning from the history lands
+     * on the same filtered page rather than the top of an unfiltered list.
+     */
+    function historyHref(row) {
+        var back = new URLSearchParams();
+
+        if (state.search) back.set('search', state.search);
+        if (state.stage) back.set('stage', state.stage);
+        if (state.page > 1) back.set('page', state.page);
+
+        var params = new URLSearchParams({ person: row.personId });
+        if (back.toString()) params.set('back', back.toString());
+
+        return '/pages/care/visitor-journey.html?' + params.toString();
     }
 
     function renderPager(d) {
@@ -209,7 +251,7 @@ $(function () {
     // ------------------------------------------------------------------
     function setEmpty(message) {
         $('#pipelineTable tbody').html(
-            '<tr><td colspan="6" class="tl-empty">' + esc(message) + '</td></tr>');
+            '<tr><td colspan="7" class="tl-empty">' + esc(message) + '</td></tr>');
         $('#pager').empty();
     }
 

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Visitor history - RM CMS</title>
+    <link rel="icon" href="/assets/img/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
+    <link href="/assets/css/team-lead-shell.css" rel="stylesheet">
+    <link href="/assets/css/toast.css" rel="stylesheet">
+    <script>window.TL_PAGE = 'pipeline';</script>
+    <script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
+    <script src="/assets/js/api-config.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/toast.js"></script>
+    <script src="/assets/js/team-lead-shell.js"></script>
+    <script src="/assets/js/visitor-journey.js"></script>
+
+    <style>
+        /* ── Header: who they are, and the one thing that must be read first ── */
+        .vj-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+
+        .vj-name { font-size: 1.5rem; font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+        .vj-ref { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); }
+
+        /* Consent. Full width and first, because everything else on this page is an
+           invitation to pick up the phone. */
+        .vj-dnc {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            font-size: 13.5px;
+        }
+
+            .vj-dnc span { display: block; font-weight: 400; margin-top: 3px; }
+
+        /* ── Stat strip ── */
+        .vj-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .vj-stat {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+        }
+
+        .vj-stat-value { font-size: 20px; font-weight: 700; line-height: 1.15; }
+        .vj-stat-label { font-size: 11px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+        .vj-stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .vj-stat.is-bad .vj-stat-value { color: #b91c1c; }
+
+        /* ── Two columns: details beside the story ── */
+        .vj-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .vj-grid { grid-template-columns: minmax(0, 1fr); }
+        }
+
+        /* ── Detail list ── */
+        .vj-dl { margin: 0; font-size: 13.5px; }
+
+        .vj-dl div {
+            display: flex;
+            gap: 10px;
+            padding: 7px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+            .vj-dl div:last-child { border-bottom: none; }
+
+        .vj-dl dt { flex: 0 0 108px; color: var(--muted); font-size: 12.5px; }
+        .vj-dl dd { margin: 0; flex: 1; min-width: 0; word-break: break-word; }
+
+        /* ── Cases ── */
+        .vj-case {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+
+            .vj-case:last-child { margin-bottom: 0; }
+            .vj-case.is-open { border-color: var(--primary); background: var(--primary-light); }
+
+        .vj-case-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+        .vj-case-meta { font-size: 12.5px; color: var(--muted); }
+
+        /* ── The timeline ──────────────────────────────────────────────────────
+           A single rail down the left with a dot per event. The rail is what
+           makes it read as one story rather than a list of rows. */
+        .vj-timeline { position: relative; padding-left: 26px; }
+
+            .vj-timeline::before {
+                content: '';
+                position: absolute;
+                left: 7px;
+                top: 6px;
+                bottom: 6px;
+                width: 2px;
+                background: var(--border);
+            }
+
+        .vj-event { position: relative; padding: 0 0 18px; }
+
+            .vj-event:last-child { padding-bottom: 0; }
+
+            .vj-event::before {
+                content: '';
+                position: absolute;
+                left: -23px;
+                top: 4px;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                background: var(--muted);
+                border: 2px solid var(--white);
+                box-shadow: 0 0 0 2px var(--border);
+            }
+
+            .vj-event.tone-POSITIVE::before { background: var(--success); box-shadow: 0 0 0 2px #bbf7d0; }
+            .vj-event.tone-NEGATIVE::before { background: var(--warning); box-shadow: 0 0 0 2px #fde68a; }
+            .vj-event.tone-ALERT::before { background: var(--danger); box-shadow: 0 0 0 2px #fecaca; }
+
+        .vj-event-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+        .vj-event-title { font-weight: 600; font-size: 13.5px; }
+        .vj-event-when { font-size: 12px; color: var(--muted); }
+        .vj-event-actor { font-size: 12px; color: var(--muted); }
+
+        .vj-event-detail {
+            font-size: 13px;
+            color: var(--text);
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-top: 6px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .vj-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
+        .vj-chip {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        /* Filter buttons above the timeline. */
+        .vj-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        .vj-filter {
+            font-family: var(--font);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 11px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--white);
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+            .vj-filter:hover { border-color: var(--primary); }
+            .vj-filter.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="tlShell"></div>
+
+    <div class="tl-body">
+
+        <a class="tl-back" href="/pages/care/pipeline.html" id="backLink">&#8592; Back to pipeline</a>
+
+        <div id="notice"></div>
+
+        <div id="journey" hidden>
+
+            <div class="vj-dnc" id="dncBanner" hidden></div>
+
+            <div class="vj-head">
+                <div>
+                    <h1 class="vj-name" id="personName"></h1>
+                    <div class="vj-ref" id="personRef"></div>
+                </div>
+                <div style="margin-left:auto;" id="headBadges"></div>
+            </div>
+
+            <div class="vj-stats" id="stats"></div>
+
+            <div class="vj-grid">
+
+                <!-- ── Left: who they are ── -->
+                <div>
+                    <div class="tl-card" style="margin-bottom:16px;">
+                        <div class="tl-card-head">
+                            <div class="tl-card-icon">&#128100;</div>
+                            <h2 class="tl-card-title">Details</h2>
+                        </div>
+                        <div class="tl-card-body">
+                            <dl class="vj-dl" id="details"></dl>
+                        </div>
+                    </div>
+
+                    <div class="tl-card">
+                        <div class="tl-card-head">
+                            <div class="tl-card-icon">&#128193;</div>
+                            <h2 class="tl-card-title">Follow-ups</h2>
+                            <span class="tl-card-note" id="caseCount"></span>
+                        </div>
+                        <div class="tl-card-body" id="cases"></div>
+                    </div>
+                </div>
+
+                <!-- ── Right: the story ── -->
+                <div class="tl-card">
+                    <div class="tl-card-head">
+                        <div class="tl-card-icon">&#128220;</div>
+                        <h2 class="tl-card-title">History</h2>
+                        <span class="tl-card-note" id="eventCount"></span>
+                    </div>
+                    <div class="tl-card-body">
+                        <div class="vj-filters" id="filters" style="margin-bottom:16px;"></div>
+                        <div class="vj-timeline" id="timeline"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

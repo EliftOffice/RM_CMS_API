@@ -7,7 +7,7 @@ consolidation — paths below are relative to this file's new location, `docs/da
 
 | Path | Status | Use |
 |---|---|---|
-| **[`../architecture/schema.sql`](../architecture/schema.sql)** | ✅ **Source of truth** | The live production schema (34 tables). All new work targets this. |
+| **[`../architecture/schema.sql`](../architecture/schema.sql)** | ✅ **Source of truth** | The live production schema (35 tables). All new work targets this. |
 | [`../architecture/CONVENTIONS.md`](../architecture/CONVENTIONS.md) | ✅ Active | The rules `schema.sql` follows, and the rules the application rewrite must follow. |
 | [`archive/mvp_schema_pre_rewrite.sql`](archive/mvp_schema_pre_rewrite.sql) | 🗄️ **Reference only — do not modify** | The consolidated pre-rewrite MVP schema (22 tables, plural names, varchar business keys). Retained to understand the old system and to map data across when repopulating. Not a migration source in its own right — `migrations/001_mvp_to_v2.sql` is. |
 
@@ -39,6 +39,7 @@ order, all in [`migrations/`](migrations/):
 | `002_huddle_assessment.sql` | Additive, idempotent — adds the Team Huddle escalation-assessment columns to `care_interaction` plus its `app_setting` rows. |
 | `003_team_management_access.sql` | Additive, idempotent — adds the `team.manage_by_pastor` / `team.manage_by_team_lead` grant settings (both default `false`). |
 | `004_clear_placeholder_telegram.sql` | Not a schema migration — a data-hygiene script. Run once after `001` against real migrated data: disconnects any `TELEGRAM` contact rows that share a single chat id (a leftover test chat from migration), which otherwise routes every affected person's alerts to one chat and falsely satisfies the volunteer-reachability check. |
+| `005_areas.sql` | Additive, idempotent — adds the `area` table and `person.area_id`, the `area.manage_by_data_entry` grant setting (default `false`), and backfills one area per distinct `person.locality` per campus so the picker is not empty on day one. |
 
 See [`../testing/manual/README.md`](../testing/manual/README.md) for the exact reset-to-baseline commands.
 

@@ -72,7 +72,7 @@ $(document).ready(function () {
                 if (result.mustChangePassword) {
                     showToast('Please set a new password to continue', 'warning');
                     setTimeout(function () {
-                        window.location.href = '../../templates/Volunteers/ChangePassword.html';
+                        window.location.href = '../../pages/auth/change-password.html';
                     }, 600);
                     return;
                 }
@@ -110,7 +110,7 @@ $(document).ready(function () {
                 // not configured, or already linked all mean "do not show this screen".
                 // This used to skip only the last two, so with the organisation-wide
                 // setting turned OFF every fresh sign-in was still routed through
-                // LinkTelegram.html once — the one thing the setting exists to prevent.
+                // link-telegram.html once — the one thing the setting exists to prevent.
                 if (!status.isRequired || !status.isConfigured || status.isLinked) {
                     window.location.href = target;
                     return;
@@ -119,7 +119,7 @@ $(document).ready(function () {
                 // Remembered so the linking page can hand control straight to the page
                 // this account would otherwise have landed on.
                 sessionStorage.setItem('rm_post_login_target', target);
-                window.location.href = '/templates/Volunteers/LinkTelegram.html';
+                window.location.href = '/pages/auth/link-telegram.html';
             })
             .fail(function () { window.location.href = target; });
     }
@@ -160,9 +160,9 @@ $(document).ready(function () {
     function landingPageFor(account) {
         if (!account) { showToast('Unable to load your profile', 'error'); return null; }
 
-        // Role codes are ADMIN / PASTOR / TEAM_LEAD / VOLUNTEER / DATA_ENTRY, and
-        // arrive as grants ({ roleCode, campusId }) because a role can be scoped
-        // to a campus. RmAuth.roleCodes() flattens that.
+        // Role codes are ADMIN / PASTOR / TEAM_LEAD / VOLUNTEER / DATA_ENTRY /
+        // WEB_COORDINATOR, and arrive as grants ({ roleCode, campusId }) because a
+        // role can be scoped to a campus. RmAuth.roleCodes() flattens that.
         var roles = RmAuth.roleCodes();
         var volunteerId = RmAuth.pick(account, 'volunteerId');
         var teamId = RmAuth.pick(account, 'teamId');
@@ -170,17 +170,20 @@ $(document).ready(function () {
 
         // Highest privilege wins.
         if (roles.indexOf('ADMIN') !== -1) {
-            target = '../../templates/Admin/accounts.html';
+            target = '/pages/admin/accounts.html';
         } else if (roles.indexOf('PASTOR') !== -1) {
-            target = '../../templates/Pastor/Dashboard.html';
+            target = '/pages/dashboard/pastor.html';
         } else if (roles.indexOf('TEAM_LEAD') !== -1) {
-            target = '../../templates/TeamLeads/TeamLeadDashboard.html'
+            target = '/pages/dashboard/team-lead.html'
                    + (teamId ? '?teamid=' + encodeURIComponent(teamId) : '');
         } else if (roles.indexOf('VOLUNTEER') !== -1) {
-            target = '../../templates/Volunteers/Assignments.html'
+            target = '/pages/care/my-assignments.html'
                    + (volunteerId ? '?volunteerid=' + encodeURIComponent(volunteerId) : '');
         } else if (roles.indexOf('DATA_ENTRY') !== -1) {
-            target = '../../templates/Peoples/PeopleEntry.html';
+            target = '/pages/intake/record-visitor.html';
+        } else if (roles.indexOf('WEB_COORDINATOR') !== -1) {
+            // Their whole job is this one queue. Anything else they open is a 403.
+            target = '/pages/admin/web-enquiries.html';
         } else {
             showToast('Your account has no assigned role. Contact an administrator.', 'error');
             return null;

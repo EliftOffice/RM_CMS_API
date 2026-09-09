@@ -25,6 +25,10 @@ $(function () {
         { code: 'TEAM_LEAD',   label: 'Team Leads' },
         { code: 'PASTOR',      label: 'Pastors' },
         { code: 'DATA_ENTRY',  label: 'Data Entry' },
+        // Not "Website": the shell nav already has a link by that name pointing at
+        // the enquiry queue, and two controls with one label on the same screen is
+        // a coin toss.
+        { code: 'WEB_COORDINATOR', label: 'Coordinators' },
         { code: 'ADMIN',       label: 'Admins' }
     ];
 
@@ -33,7 +37,8 @@ $(function () {
         PASTOR: 'Pastor',
         TEAM_LEAD: 'Team Lead',
         VOLUNTEER: 'Volunteer',
-        DATA_ENTRY: 'Data Entry Operator'
+        DATA_ENTRY: 'Data Entry Operator',
+        WEB_COORDINATOR: 'Website Coordinator'
     };
 
     var state = {
@@ -69,7 +74,7 @@ $(function () {
 
     AdminShell.boot({
         roles: ['ADMIN'],
-        active: { href: '/templates/Admin/users.html', area: 'Admin' }
+        active: { href: '/pages/admin/users.html', area: 'Admin' }
     }).then(function (ok) {
         if (!ok) return;
         $('#pageBody').prop('hidden', false);

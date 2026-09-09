@@ -17,7 +17,7 @@
    Rather than reject those, the field strips them as they are typed — the
    operator reading a number off a card should not have to retype it.
 
-   No jQuery: people-entry.js is plain DOM and add-user.js is jQuery, and this
+   No jQuery: record-visitor.js is plain DOM and add-user.js is jQuery, and this
    has to work in both.
    ========================================================================== */
 (function (window, document) {

@@ -1,8 +1,8 @@
 # 2 · Volunteer assignments
 
-**Screen:** `wwwroot/templates/Volunteers/Assignments.html`
-**Script:** `wwwroot/templates/assets/js/Assignments.js`
-**URL:** `http://localhost:5043/templates/Volunteers/Assignments.html`
+**Screen:** `wwwroot/pages/care/my-assignments.html`
+**Script:** `wwwroot/assets/js/my-assignments.js`
+**URL:** `http://localhost:5043/pages/care/my-assignments.html`
 
 ---
 

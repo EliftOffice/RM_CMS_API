@@ -56,18 +56,6 @@ namespace RM_CMS.Middleware
         private static bool IsHtmlResponse(HttpContext context) =>
             context.Response.ContentType?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true;
 
-        /// <summary>
-        /// CDNs the existing pages already load jQuery, Bootstrap and icon fonts from.
-        /// These are listed explicitly so the policy matches reality — a CSP that blocks
-        /// the app's own scripts gets switched off, which is worse than a narrow allow-list.
-        ///
-        /// FOLLOW-UP: vendor these locally (or add Subresource Integrity hashes). Executing
-        /// third-party script from a CDN is a supply-chain risk that CSP cannot mitigate.
-        /// </summary>
-        private const string ScriptCdns = "https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com";
-        private const string StyleCdns = "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com";
-        private const string FontCdns = "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com";
-
         private string BuildCsp()
         {
             // NOTE ON 'unsafe-inline':
@@ -88,9 +76,17 @@ namespace RM_CMS.Middleware
                 "form-action 'self'",
 
                 "img-src 'self' data:",
-                $"font-src 'self' data: {FontCdns}",
-                $"style-src 'self' 'unsafe-inline' {StyleCdns}",
-                $"script-src 'self' 'unsafe-inline' {ScriptCdns}",
+
+                // No CDN allow-list. jQuery and Bootstrap used to be loaded from
+                // cdn.jsdelivr.net and code.jquery.com, which meant script-src had to
+                // permit whatever those hosts chose to serve — a supply-chain hole CSP
+                // cannot close, because the policy's job is to name trusted origins and
+                // a compromised CDN is still that origin. They are vendored under
+                // wwwroot/assets/vendor/ now, verified against the publishers' own SRI
+                // hashes, so 'self' is the whole story.
+                "font-src 'self' data:",
+                "style-src 'self' 'unsafe-inline'",
+                "script-src 'self' 'unsafe-inline'",
 
                 // XHR/fetch may only reach this origin — an injected script cannot
                 // exfiltrate data to an attacker-controlled endpoint.

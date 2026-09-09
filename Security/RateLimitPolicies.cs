@@ -12,6 +12,12 @@ namespace RM_CMS.Security
         /// <summary>Password changes, account administration, notification broadcasts.</summary>
         public const string Sensitive = "rl-sensitive";
 
+        /// <summary>
+        /// The public website's form endpoint — the only anonymous write in the
+        /// application, and the only one a stranger can reach without a token.
+        /// </summary>
+        public const string PublicForm = "rl-public-form";
+
         /// <summary>Default ceiling applied to the whole API.</summary>
         public const string Global = "rl-global";
     }

@@ -16,12 +16,12 @@ $(document).ready(function () {
 
     var selected = null;   // the case being assigned: { id, rowVersion, personName }
 
-    $('#back_tl').attr('href', '../TeamLeads/TeamLeadDashboard.html');
+    $('#back_tl').attr('href', '/pages/dashboard/team-lead.html');
 
     $('#signOutBtn').on('click', function (e) {
         e.preventDefault();
         if (window.RmAuth && RmAuth.logout) { RmAuth.logout(); return; }
-        window.location.href = '../Volunteers/Login.html';
+        window.location.href = '/pages/auth/login.html';
     });
 
     loadCases();

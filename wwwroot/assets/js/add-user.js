@@ -17,6 +17,8 @@ $(function () {
     var ROLES = [
         { code: 'DATA_ENTRY', label: 'Data Entry Operator',
           hint: 'Records visitors at intake. No access to cases or volunteers.' },
+        { code: 'WEB_COORDINATOR', label: 'Website Coordinator',
+          hint: 'Reviews enquiries submitted through the public website. No other access.' },
         { code: 'VOLUNTEER',  label: 'Volunteer',
           hint: 'Follows up with people. Needs a weekly capacity.' },
         { code: 'TEAM_LEAD',  label: 'Team Lead',
@@ -34,7 +36,7 @@ $(function () {
 
     AdminShell.boot({
         roles: ['ADMIN'],
-        active: { href: '/templates/Admin/users.html', area: 'Admin' }
+        active: { href: '/pages/admin/users.html', area: 'Admin' }
     }).then(function (ok) {
         if (!ok) return;
         $('#pageBody').prop('hidden', false);
@@ -71,10 +73,13 @@ $(function () {
     }
 
     function renderRoles() {
-        $('#roleOptions').html(ROLES.map(function (r, i) {
+        // Volunteer is pre-selected because it is far and away the most common. This
+        // used to be the index of the second entry, which silently moved the default
+        // onto whatever was inserted above it — matching on the CODE cannot drift.
+        $('#roleOptions').html(ROLES.map(function (r) {
             return '<label class="role-pick">' +
                      '<input type="radio" name="role" value="' + esc(r.code) + '"' +
-                       (i === 1 ? ' checked' : '') + '>' +
+                       (r.code === 'VOLUNTEER' ? ' checked' : '') + '>' +
                      '<span><strong>' + esc(r.label) + '</strong>' +
                        '<span class="sub">' + esc(r.hint) + '</span></span>' +
                    '</label>';

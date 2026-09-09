@@ -308,6 +308,14 @@ namespace RM_CMS
                               RoleCodes.Admin, RoleCodes.Pastor, RoleCodes.TeamLead,
                               RoleCodes.Volunteer, RoleCodes.DataEntry));
 
+                // The website enquiry list. Narrow on purpose: this is unfiltered public
+                // input, and everyone who can open it can read whatever the internet
+                // typed into a form.
+                options.AddPolicy(PolicyNames.CanReviewWebEnquiries, policy =>
+                    policy.RequireAuthenticatedUser()
+                          .RequireClaim(ClaimNames.Role,
+                              RoleCodes.Admin, RoleCodes.WebCoordinator));
+
                 // Scheduled jobs: an Admin token OR the scheduler's service key. Note the
                 // absence of RequireAuthenticatedUser — the machine caller has no identity.
                 options.AddPolicy(PolicyNames.JobRunner, policy =>
@@ -432,6 +440,27 @@ namespace RM_CMS
                             QueueLimit = 0
                         }));
 
+                // The public website's form. Anonymous and reachable by anyone, so it
+                // gets its own bucket rather than sharing the global one — a bot
+                // hammering the prayer form must not be able to exhaust the budget
+                // that signed-in staff are also drawing from.
+                //
+                // Partitioned on the forwarded address, because behind Coolify's proxy
+                // the connection address is the proxy for every visitor alike. The
+                // header is spoofable, which only ever splits an attacker across more
+                // buckets; the service applies a second per-fingerprint throttle that
+                // a spoofed header does not escape.
+                options.AddPolicy(RateLimitPolicies.PublicForm, context =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        PublicFormPartitionKey(context),
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 12,
+                            Window = TimeSpan.FromMinutes(5),
+                            QueueLimit = 0,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                        }));
+
                 // Global ceiling for everything else.
                 options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
                     RateLimitPartition.GetTokenBucketLimiter(
@@ -455,6 +484,24 @@ namespace RM_CMS
             return !string.IsNullOrWhiteSpace(userId)
                 ? $"user:{userId}"
                 : $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        }
+
+        /// <summary>
+        /// Partition key for the public form. Prefers X-Forwarded-For so visitors are
+        /// told apart behind a reverse proxy; falls back to the connection address.
+        /// Never used for authorization — see the note on the policy.
+        /// </summary>
+        private static string PublicFormPartitionKey(HttpContext context)
+        {
+            var forwarded = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(forwarded))
+            {
+                var first = forwarded.Split(',')[0].Trim();
+                if (first.Length is > 0 and <= 64) return $"web:{first}";
+            }
+
+            return $"web:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
         }
 
         /// <summary>Partition key for the login endpoint: IP plus the username being tried.</summary>
@@ -654,6 +701,15 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.Modules.Areas.Services.IAreaService,
                                        RM_CMS.Modules.Areas.Services.AreaService>();
 
+            // ---- Web enquiries module ----
+            // Everything the public website collects, held apart from the pastoral
+            // records until a coordinator decides what it becomes. The submit endpoint
+            // is the only anonymous write in the application.
+            builder.Services.AddScoped<RM_CMS.Modules.WebEnquiries.Data.IWebEnquiryRepository,
+                                       RM_CMS.Modules.WebEnquiries.Data.WebEnquiryRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.WebEnquiries.Services.IWebEnquiryService,
+                                       RM_CMS.Modules.WebEnquiries.Services.WebEnquiryService>();
+
             // ---- Jobs module (new architecture) ----
             // Replaces the legacy CornJobs slice. Triggered by an external cron over
             // the JobRunner policy — there is no in-process scheduler, so a second
@@ -808,7 +864,7 @@ namespace RM_CMS
                 context.Response.Headers.CacheControl = "no-store";
 
                 await context.Response.SendFileAsync(
-                    Path.Combine(app.Environment.ContentRootPath, "wwwroot", "templates", "Volunteers", "Login.html"));
+                    Path.Combine(app.Environment.ContentRootPath, "wwwroot", "pages", "auth", "login.html"));
             })
             .AllowAnonymous();
 

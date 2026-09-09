@@ -5,7 +5,7 @@ How to exercise everything that is actually built, as of **2026-08-15** (branch
 
 > **Since this was written (as of 2026-09-07):** the scope table in §0 and §11 "What you
 > cannot test yet" are now out of date on two points — the Pastor dashboard is built and
-> verified (`GET /api/dashboards/pastor`, `wwwroot/templates/Pastor/Dashboard.html`), and
+> verified (`GET /api/dashboards/pastor`, `wwwroot/pages/dashboard/pastor.html`), and
 > the row listing Followups/Escalations(legacy)/Nurture/TeamLeads/CheckIn/Pastors/Users/
 > SystemConfig/CornJobs/Telegram as "⛔ broken" is moot — that entire old layer has since
 > been deleted outright rather than left broken-but-registered. "16 of 17 frontend pages
@@ -30,7 +30,7 @@ old code is still registered and queries tables that no longer exist.
 | **Jobs** — `api/jobs/*` | ✅ migrated | Yes — verified end-to-end |
 | **Notifications** | ⚠️ queue only | Partly — rows are queued, **nothing sends them** |
 | Followups, Escalations (legacy), Nurture, TeamLeads, CheckIn, Pastors, Users, SystemConfig, CornJobs, Telegram | ⛔ broken | **No** — they query dropped tables and fail at runtime |
-| Frontend pages | ⛔ 16 of 17 dead | Only `Admin/accounts.html` and login work |
+| Frontend pages | ⛔ 16 of 17 dead | Only `admin/accounts.html` and login work |
 
 > **A green build proves nothing here.** The project compiles with most of the
 > application non-functional. Only a live run against the database tells you anything.
@@ -285,7 +285,7 @@ contact is the failure with real consequences.
 
 ## 4.4 Visitor intake screen — ✅ verified 2026-08-15
 
-`wwwroot/templates/Peoples/PeopleEntry.html` + `assets/js/people-entry.js`.
+`wwwroot/pages/intake/record-visitor.html` + `assets/js/record-visitor.js`.
 Sign in as a DATA_ENTRY account; login routes there automatically.
 
 The screen is a capture form, not a console, because the role genuinely cannot browse.
@@ -306,7 +306,7 @@ Verified boundary:
 | I6 | Server refuses a duplicate | **Nothing is saved**; the button becomes "Save anyway" | ✅ |
 | I7 | Explicit override | "Save anyway" resubmits with `allowDuplicate` and records a separate person | ✅ P0015 |
 | I8 | Editing clears the warning | Any edit resets the override, so it cannot be carried into a different visitor | ✅ |
-| I9 | DATA_ENTRY cannot reach Accounts | Navigating to `Admin/accounts.html` redirects back to intake | ✅ |
+| I9 | DATA_ENTRY cannot reach Accounts | Navigating to `admin/accounts.html` redirects back to intake | ✅ |
 | I10 | Missing first name / mobile | Inline error, field marked `aria-invalid`, focus moved | — |
 | I11 | Follow-up unchecked | Person saved, **no** case opened | — |
 | I12 | Case fails after person saved | Reported as a **partial success**, not "nothing saved" — otherwise the operator enters the visitor twice | — |
@@ -315,11 +315,9 @@ Verified boundary:
 > `9876512345`) plus their cases, created through the UI during verification. Harmless in
 > the dev dataset — delete if you want a clean slate.
 
----
-
 ## 4.5 User management — ✅ verified 2026-08-15
 
-`Admin/users.html` (role tabs) and `Admin/add-user.html`. Admin only.
+`admin/users.html` (role tabs) and `admin/add-user.html`. Admin only.
 
 **The model.** "User" is not a table. Identity lives on `person`, access on
 `user_account` (1:1, `ux_user_account_person`), authority on `user_role` rows, and the
@@ -363,7 +361,7 @@ FROM person p HAVING accounts > 1 OR volunteer_recs > 1;
 
 ## 4.6 Settings screen — ✅ verified 2026-08-15
 
-`Admin/siteadmin.html`. Admin only. Replaces the dead `/api/systemconfig` and
+`admin/settings.html`. Admin only. Replaces the dead `/api/systemconfig` and
 `/api/cornjobs/*` calls that made the old screen appear broken.
 
 | # | Test | Expect | Status |
@@ -392,7 +390,7 @@ S7 is the one worth keeping: a half-applied rule set is a state nobody chose.
 
 ## 4.7 Volunteer assignments screen — ✅ verified 2026-08-15
 
-`Volunteers/Assignments.html`. The screen volunteers use daily.
+`care/my-assignments.html`. The screen volunteers use daily.
 
 **The markup is unchanged** — volunteers are trained on this layout, so every element,
 label, badge and button caption is exactly as it was. Only the data layer moved:
@@ -554,6 +552,79 @@ whether each secret is PRESENT and never what it is.
 > was proved by posting the exact payload shape Telegram sends to the real endpoint,
 > with the real secret, against the real database. The one untested link is Telegram's
 > own delivery.
+
+---
+
+## 4.9 Areas — ✅ verified 2026-09-07
+
+`Modules/Areas`, `admin/areas.html` + `assets/js/areas.js`, and the shared
+`assets/js/area-picker.js` used by BOTH the intake and add-user screens.
+
+**What it is.** A controlled locality list, campus-scoped like `team`. It replaces
+free-text typing of the same neighbourhood: `person.locality` is still there and is still
+written for someone from out of town, but anyone local gets `person.area_id`. The point is
+that a volunteer and a visitor two streets away land on the SAME row, which is what makes
+"who lives near this person" answerable at all.
+
+**The find-or-create is on the server, not in the browser.** The picker sends the id it
+holds AND the text in the box; `AreaService.ResolveAsync` prefers the id, falls back to
+the name, and creates the area when nothing matches. Doing it as two calls from the client
+would race — two operators typing the same new area at once, one of them getting a
+duplicate-key failure instead of a save.
+
+Verified against `cms_api_db` with the real dataset. Every fixture below was removed
+afterwards and the row counts returned to baseline (178 people / 49 accounts / 35
+volunteers / 1 area).
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| A1 | Migration `005_areas.sql` | `area` + `person.area_id` created; one area backfilled per distinct `person.locality` per campus | ✅ 1 area, 2 people filed |
+| A2 | Re-run the migration | No error, no duplicate rows, the grant setting not reset | ✅ |
+| A3 | `GET /api/areas/options?q=` | Active areas at the caller's campus, id and name only — never the counts | ✅ |
+| A4 | Type-ahead is whitespace/case blind | `kurnool road` finds `Kurnool Road` | ✅ |
+| A5 | Create from management | `'  Kurnool   Road  '` stored as `Kurnool Road` | ✅ |
+| A6 | Duplicate refused | `kurnool road` → "'Kurnool Road' already exists at this campus." | ✅ |
+| A7 | Rename onto another name | Refused with a sentence, not a duplicate-key 500 | ✅ |
+| A8 | Stale `rowVersion` | "This record was changed by someone else." | ✅ |
+| A9 | Retire an area in use | Allowed, and the message names how many people still hold it | ✅ |
+| A10 | Retired area leaves the picker | `options` returns it no longer | ✅ |
+| A11 | Re-typing a retired name | Reuses that row — does NOT create a second, and does NOT silently reactivate it | ✅ |
+| A12 | Campus scoping | The picker at Pernamitta offers none of Ongole's areas; changing the campus clears the field | ✅ |
+
+### 4.9.1 The intake screen's "Where they live"
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| A13 | "Lives locally" ticked (the default) | ONLY the Area field is shown; address / locality / postal code are hidden | ✅ |
+| A14 | Area is required when local | Browser refuses, and so does `POST /api/people` — the rule is on the intake **controller**, not in `PeopleService`, because creating a user goes through the service with no address at all | ✅ |
+| A15 | New area typed | Area created, then the person filed against it, in one request | ✅ |
+| A16 | Same area typed differently | Second person gets the SAME `area_id`; no second row | ✅ |
+| A17 | "Lives locally" unticked | Address / locality / postal code return, exactly as before areas existed; no area recorded | ✅ |
+| A18 | Toggling clears the hidden half | A full address typed before unticking cannot be submitted invisibly, and vice versa | ✅ |
+| A19 | Unknown `areaId` | "That area no longer exists. Choose or type it again." | ✅ |
+
+### 4.9.2 The add-user screen
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| A20 | Area field shown for VOLUNTEER only | Hidden and **cleared** when the role changes to anything else | ✅ |
+| A21 | New volunteer with a new area | Area created; `area_id` lands on the PERSON row, not the volunteer row | ✅ |
+| A22 | Existing person given a volunteer role | Their area is recorded; nothing else on their record changes | ✅ |
+| A23 | A rejected area does not fail the creation | Reported as a note on `UserChangeResultDto`, surfaced on the screen after the reset | — |
+
+### 4.9.3 The management grant
+
+An administrator always manages areas. A DATA_ENTRY operator does so only when
+`area.manage_by_data_entry` is on — the same shape as `team.manage_by_*`.
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| A24 | Setting appears in the admin panel | Rendered automatically under a new "Area" group — the settings screen is generic | ✅ |
+| A25 | DATA_ENTRY, grant OFF | `/api/areas/access` → `scope: NONE`; list and create refused, naming the setting | ✅ |
+| A26 | DATA_ENTRY, grant ON | `scope: OWNCAMPUSONLY`; list and create succeed | ✅ |
+| A27 | Reading the picker is never gated | `options` works for DATA_ENTRY with the grant off — typing a new area is part of recording a visitor, not management | ✅ |
+| A28 | Granted operator is campus-bound | `canSeeAllCampuses: false`; the list and any create are forced to their own campus whatever they send | ✅ |
+| A29 | The nav link explains itself | Shown to ADMIN and DATA_ENTRY; with no grant the page replaces itself with the reason and names the setting | ✅ |
 
 ---
 
@@ -850,10 +921,10 @@ why they are not in `app_setting`:
 ## 8.5 Team lead dashboard — ✅ verified 2026-08-24
 
 `GET /api/dashboards/team-lead`, rendered into the **existing**
-`wwwroot/templates/TeamLeads/TeamLeadDashboard.html`.
+`wwwroot/pages/dashboard/team-lead.html`.
 
 **The UI is unchanged on purpose.** Team leads already work in this screen, so only the
-data layer moved: `teamlead.js` now makes one call to the new endpoint instead of four to
+data layer moved: `team-lead-dashboard.js` now makes one call to the new endpoint instead of four to
 routes that no longer exist. Same Bootstrap 5.3 + inline `<style>`, same `#085c40` green,
 same `.page-header`, same six cards, same header buttons. Verified in the browser: the
 page loads **no** `admin.css`.
@@ -913,7 +984,7 @@ broken; two are fixed and one has no backend to fix it against.
 | D23 | Safeguarding block hidden | absent for `GENERAL_CONCERN` | ✅ verified |
 | D24 | Safeguarding block shown | present for `SELF_HARM_RISK`, and resolve is refused until confirmed | ✅ verified |
 
-**Manual assignment** — `Peoples/ManualAssignments.html`
+**Manual assignment** — `care/assign-cases.html`
 
 | # | Test | Expect | Status |
 |---|---|---|---|
@@ -960,7 +1031,7 @@ Posted to the removed `/TeamLeadDashBoards/save-team-lead`. Now two calls:
 `POST /api/admin/users` (person + login + TEAM_LEAD role), then `POST /api/teams`
 carrying **Max Volunteers** — which belongs to the team in v2 (`team.max_members`),
 not to the person. Both need ADMIN, and a 403 says so plainly rather than showing a
-raw error. The duplicate copy of this handler inside `teamlead.js` was removed.
+raw error. The duplicate copy of this handler inside `team-lead-dashboard.js` was removed.
 
 ### Cards with no data behind them
 
@@ -979,7 +1050,7 @@ Range** now reads `<band> | <load> / <max>`.
 ## 8.6 Team Huddle — ✅ verified 2026-08-25
 
 `GET /api/huddle`, `POST /api/huddle/verdicts`, `POST /api/jobs/huddle-reminder`,
-and the modal on `TeamLeadDashboard.html`.
+and the modal on `dashboard/team-lead.html`.
 
 **What it is:** the weekly meeting (Saturday — `huddle.day_of_week` = 6, carried over
 from the MVP's `system_config.team_hurdle`) where the lead reviews the week's contacts
@@ -1034,6 +1105,185 @@ quoted any of it would broadcast exactly what should not leave the room.
 > returned every unassessed contact ever, unpaginated; and each row needed its own
 > Update click and confirmation dialog. Both are fixed above. **If it goes unused again,
 > that is a signal about the practice, not the screen.**
+
+---
+
+## 8.6 People pipeline — visitors only, and the visitor history — ✅ verified 2026-09-07
+
+`Modules/Pipeline`, `pages/care/pipeline.html` + `assets/js/pipeline.js`, and the new
+`pages/care/visitor-journey.html` + `assets/js/visitor-journey.js`.
+
+### The bug that was fixed
+
+The pipeline listed **every `person` row**. Staff are person rows too, so all 54
+volunteers, team leads, pastors and intake operators appeared in a funnel about visitors
+— 30% of 178 rows — nearly all of them counted under "Not started", which is not a stage
+they were ever on.
+
+The exclusion (`VisitorsOnly` in `PipelineRepository`) is a login OR a volunteer record,
+the same definition `CampusRepository` already used, so "visitors" now means the same
+number on both screens. It is applied to the **list, the count and the summary** — leaving
+it off any one of the three would make the funnel disagree with the table under it.
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| P1 | Total after the fix | 178 → **124**, matching `SELECT COUNT(*) … NOT EXISTS(user_account) AND NOT EXISTS(volunteer)` | ✅ |
+| P2 | No staff in the payload | Every returned `personId` cross-checked against the database: **0 staff** | ✅ |
+| P3 | No visitor lost | All 124 real visitors present | ✅ |
+| P4 | Funnel agrees with the list | `summary.totalPeople` == `totalCount` == 124 | ✅ |
+| P5 | Staff with an open case | Drops off this screen. Their case is still on the dashboard and assignment screens, which read `care_case` — one such row exists in the live data | ✅ |
+
+### The visitor history
+
+`GET /api/pipeline/{personId}` — person-centric on purpose. `GET /api/cases/{id}` answers
+one case; somebody who visited, went quiet and came back has two, and reading them
+separately loses the shape of the relationship. Returns the profile, every case, per-person
+stats, and one merged timeline of contacts, escalations, assignments and notes.
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| P6 | Timeline merges every source | Contacts, escalations, assignments, case opened/closed and notes in one list, newest first | ✅ 16 events on a real record |
+| P7 | Notes from BOTH sources | Case notes and person-level notes; a person note outlives the case it was never attached to | ✅ fixture |
+| P8 | Private notes excluded | `is_private = 1` never appears — surfacing them would change what "private" meant after the fact | ✅ by query |
+| P9 | Do-not-contact banner | Red, full width, above everything else | ✅ fixture |
+| P10 | Empty record | "No follow-up was ever opened", stats read `—` / `never` rather than `0` | ✅ fixture |
+| P11 | Timeline filters | Contacts / Concerns / Notes / Assignments; kinds with no events are not offered | ✅ |
+| P12 | Back preserves the list | Stage, search and page ride along in `?back=` and are restored | ✅ |
+| P13 | Staff refused | Same "That visitor was not found." as a missing person — no enumeration | ✅ |
+| P14 | Unknown ULID | Same message | ✅ |
+| P15 | Malformed id | 400 | ✅ |
+| P16 | Unauthenticated | 401 | ✅ |
+| P17 | Team lead scope | The `EXISTS(care_case … team_id IN @TeamIds)` clause partitions the 124 into 25 in-scope / 99 refused for a real lead | ✅ |
+
+### A data problem this surfaced
+
+**43 `care_interaction` rows have `made_contact` disagreeing with their outcome's
+`care_outcome.contact_made`** — e.g. `made_contact = 1` on a `NO_ANSWER`. A migration
+artifact. It rendered as "Spoke with them" tagged "No answer" on the same line, and made
+one visitor's success rate read 100% when it was 86%.
+
+The timeline and the stats both now derive "did we reach them" from
+`COALESCE(o.contact_made, i.made_contact)` — the outcome is the definition of what
+happened, the flag is only the fallback. **The underlying rows were not corrected**, and
+anything else reading `made_contact` directly still sees the inconsistent value. Worth a
+one-off reconciliation.
+
+---
+
+## 8.7 Website enquiries — ✅ verified 2026-09-08
+
+`Modules/WebEnquiries`, migration `006_web_enquiries.sql`, `pages/admin/web-enquiries.html`.
+
+The public website's only way in, and the queue a **Website Coordinator** works. Submissions
+land in `web_enquiry` as untrusted input — they are **not** pastoral records until a person
+decides they are. See [`../deployment/WEBSITE.md`](../deployment/WEBSITE.md).
+
+### Public submission — `POST /api/public/enquiries` (anonymous)
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| E1 | BSG registration with the site's real fields | 200, `responseType 0`, reference `W0001` | ✅ |
+| E2 | Prayer request with no name or contact | Accepted — anonymous prayer is allowed on purpose | ✅ |
+| E3 | Empty prayer request | Refused, "Please write your request before sending." | ✅ |
+| E4 | Registration with no name | Refused | ✅ |
+| E5 | Registration with a bad mobile | Refused with the 10-digit rule | ✅ |
+| E6 | `+91 98765 43211` | Accepted; stored as typed, normalised to `9876543211` | ✅ |
+| E7 | Bad email | Refused | ✅ |
+| E8 | Unknown `formType` | Refused **without echoing the valid values** — an unknown type is a bug or a probe, and listing them helps the probe more | ✅ |
+| E9 | Honeypot filled | **Accepted** and flagged; hidden from the default queue. Rejecting it would tell the bot which field to leave blank | ✅ |
+| E10 | 16 rapid submissions from one IP | 1-10 accepted, 11-12 throttled (200 + `responseType 1`), 13+ `429` from the rate limiter | ✅ |
+| E11 | Reference codes | `W0001`…`W0004`, generated inside the insert transaction | ✅ |
+
+### The coordinator queue
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| E12 | Unauthenticated `GET /api/web-enquiries` | 401 | ✅ |
+| E13 | `WEB_COORDINATOR` reads the queue | 200 | ✅ |
+| E14 | Same account on `/api/people`, `/api/pipeline`, `/api/volunteers`, `/api/admin/users`, `/api/admin/settings` | **403 on all five** — the role is confined to this one queue | ✅ |
+| E15 | Sign-in lands them on the queue | `/pages/admin/web-enquiries.html`; nav shows only "Website" | ✅ |
+| E16 | Spam hidden by default | 3 of 4 listed; the summary still counts all 4 | ✅ |
+| E17 | Mobile matching an existing person | `matchingPeople: 1` surfaced before any decision | ✅ |
+| E18 | `IN_REVIEW` with no note | Allowed — picking something up needs no explanation | ✅ |
+| E19 | `ACTIONED` with no note | Refused, "Add a short note saying what was done." | ✅ |
+| E20 | Stale `rowVersion` | Refused as a concurrent edit | ✅ |
+| E21 | Back to `NEW` | Refused | ✅ |
+| E22 | Unknown status | Refused | ✅ |
+| E23 | Role creation through Add a user | Grants `WEB_COORDINATOR`; sits off the pastoral ladder (rank 15, beside DATA_ENTRY) | ✅ |
+
+All fixtures removed afterwards — `web_enquiry` back to 0 rows, `person` back to the 178
+baseline, the test coordinator account deleted.
+
+### Bug found and fixed on 2026-09-08 — a role grant could fail in silence
+
+Reported as "undefined role" when creating a Website Coordinator. Three faults in a chain:
+
+1. **`schema.sql` did not seed `WEB_COORDINATOR`.** It was added to migration `006` but not
+   to the full schema — and a fresh database is built from `schema.sql`, which is exactly
+   what `deployment/COOLIFY.md` tells you to load. So any new deployment had the code and
+   the screens but no `app_role` row.
+2. **`user_role.role_code` has a foreign key to `app_role.code`**, so the grant violated it.
+3. **The insert was `INSERT IGNORE`**, and MySQL downgrades a foreign-key violation under
+   `IGNORE` to a warning. The grant was skipped in silence, `ExecuteAsync` returned 0, and
+   the caller was told it had worked.
+
+The result was an **active account with no roles at all**, reported as a success — which
+then fails at the login screen with "your account has no assigned role" and nothing
+anywhere explaining why.
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| E24 | Reproduce: no `app_role` row, create the user | Old code: `responseType 0`, "is now Website Coordinator", account active, **0 `user_role` rows** | ✅ reproduced |
+| E25 | Same, after changing `INSERT IGNORE` → `ON DUPLICATE KEY UPDATE` | Refused: "Unable to create the account." No account created | ✅ |
+| E26 | With the role seeded | Created, `roles: ['WEB_COORDINATOR']`, and the account signs in carrying it | ✅ |
+| E27 | Repeated grant still idempotent | `ON DUPLICATE KEY UPDATE user_account_id = user_account_id` — a no-op, which is what `IGNORE` was there for | ✅ |
+
+`INSERT IGNORE` was replaced at **all three** `user_role` insert sites, so this class of
+silent failure is closed for every role, not only the new one.
+
+**Left alone:** a failed user creation still leaves the `person` row behind, because the
+person is created first through `IPeopleService` and the account failure does not roll it
+back. Pre-existing, out of scope here, worth a look later.
+
+Also fixed, found while investigating: `WEB_COORDINATOR` was missing from the label maps in
+`users.js` and `accounts.js` (it rendered as the raw code), had no filter tab on the Users
+screen, and its insertion into the `add-user.js` list had silently moved the pre-selected
+default off Volunteer — that default now matches on the role code rather than an array
+index, so it cannot drift again.
+
+### Wired to the React site — ✅ verified 2026-09-08
+
+`C:\RM_Website_React` (React 19 + Vite + TS) submits through `src/lib/forms.ts`. Run
+end-to-end against the local CMS with the site on `:5173` and the API on `:5055`.
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| E28 | CORS preflight from the site's origin | `204` with `Access-Control-Allow-Origin` for `http://localhost:5173` | ✅ |
+| E29 | Prayer form at `/prayer` | Lands as `PRAYER_REQUEST` with name, mobile and `sourcePage: /prayer` | ✅ |
+| E30 | BSG form at `/bsg` | `MINISTRY_REGISTRATION` with city, street, landmark, referrer, `extra.ministry` | ✅ |
+| E31 | Join-team form at `/ministries/worship-team` | `TEAM_REGISTRATION` with `extra.team` and `extra.teamName` | ✅ |
+| E32 | Visit form at `/contact` | `PLAN_VISIT` with `extra.visiting` and `extra.partySize` | ✅ |
+| E33 | Non-ASCII survives the round trip | `partySize: "3–4 people"` — en-dash intact through JSON, MySQL and back | ✅ |
+| E34 | A refusal is not shown as success | Site was pointed at a server that did not yet know `TEAM_REGISTRATION`; the form surfaced the refusal instead of its success state | ✅ |
+| E35 | `npm run lint`, `typecheck`, `build` | All clean | ✅ |
+
+`TEAM_REGISTRATION` was added to `WebFormTypes` for the site's "join a serving team" flow,
+which is a different intention from a Bible Study Group registration — one is asking to be
+cared for, the other is offering to serve — so they are separate form types rather than one
+with a flag.
+
+**E34 is worth keeping.** It happened by accident: the API was running a build that predated
+`TEAM_REGISTRATION`, so the submission was refused. The site showed the refusal, which is
+exactly what `src/lib/forms.ts` was rewritten to do — the original checked `response.ok`
+alone and would have shown "your request has been received" for a rejected prayer request.
+
+All test submissions deleted afterwards; `web_enquiry` back to 0 rows.
+
+### Not built yet
+
+What happens *after* a coordinator reads an enquiry is a workflow still being decided, so
+no conversion action exists. `web_enquiry.linked_person_id` is in place, surfaced through
+the API and shown on the screen, ready for it.
 
 ---
 

@@ -36,7 +36,7 @@ $(function () {
 
     AdminShell.boot({
         roles: ['ADMIN'],
-        active: { href: '/templates/Admin/siteadmin.html', area: 'Admin' }
+        active: { href: '/pages/admin/settings.html', area: 'Admin' }
     }).then(function (ok) {
         if (!ok) return;
         $('#pageBody').prop('hidden', false);

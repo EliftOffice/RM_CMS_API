@@ -13,7 +13,9 @@
 (function (window) {
     'use strict';
 
-    var ROOT = '/templates';
+    // Page paths are absolute. They used to be built from a ROOT base, which
+    // hid them from a project-wide search — when the pages moved, every link
+    // here survived the rename untouched and silently pointed at nothing.
 
     /**
      * The team lead's menu.
@@ -23,9 +25,9 @@
      * administrator's decision, not something a team lead grants themselves.
      */
     var NAV = [
-        { key: 'dashboard', label: 'My team',     href: ROOT + '/TeamLeads/TeamLeadDashboard.html' },
-        { key: 'assign',    label: 'Assign cases', href: ROOT + '/Peoples/ManualAssignments.html' },
-        { key: 'pipeline',  label: 'People',       href: ROOT + '/Peoples/Pipeline.html' }
+        { key: 'dashboard', label: 'My team',     href: '/pages/dashboard/team-lead.html' },
+        { key: 'assign',    label: 'Assign cases', href: '/pages/care/assign-cases.html' },
+        { key: 'pipeline',  label: 'People',       href: '/pages/care/pipeline.html' }
     ];
 
     function escapeHtml(value) {
@@ -42,12 +44,12 @@
 
     /** Whichever dashboard actually belongs to the signed-in account. */
     function dashboardHref() {
-        return isPastorNotLead() ? (ROOT + '/Pastor/Dashboard.html') : (ROOT + '/TeamLeads/TeamLeadDashboard.html');
+        return isPastorNotLead() ? ('/pages/dashboard/pastor.html') : ('/pages/dashboard/team-lead.html');
     }
 
     /**
      * Escalations.html and CheckIns.html each carry a "Back to dashboard" link
-     * and a Cancel button, both hardcoded to TeamLeadDashboard.html because
+     * and a Cancel button, both hardcoded to the team lead dashboard because
      * every visitor to this shell used to be a team lead. Now a pastor reaches
      * these same screens from their own dashboard's nav, and following either
      * link sent them into a team lead's dashboard that is not theirs — scoped
@@ -60,7 +62,9 @@
     function fixDashboardLinks() {
         var href = dashboardHref();
 
-        document.querySelectorAll('a[href="TeamLeadDashboard.html"], a[href$="/TeamLeadDashboard.html"]')
+        // Suffix match only. Every link in the pages is an absolute path now, so
+        // the old bare-filename form this also tested can no longer occur.
+        document.querySelectorAll('a[href$="/dashboard/team-lead.html"]')
             .forEach(function (a) { a.setAttribute('href', href); });
     }
 
@@ -100,7 +104,7 @@
         mount.innerHTML =
             '<div class="tl-brand">' +
                 '<div class="tl-logo">' +
-                    '<img src="' + ROOT + '/assets/Images/logo.jpeg" alt="RM" ' +
+                    '<img src="/assets/img/logo.jpeg" alt="RM" ' +
                          'onerror="this.style.display=\'none\';this.parentElement.textContent=\'R\'">' +
                 '</div>' +
                 '<div class="tl-titles">' +
@@ -123,7 +127,7 @@
                 // login page left the session live on the server.
                 if (window.RmAuth && RmAuth.logout) { RmAuth.logout(); return; }
 
-                window.location.href = ROOT + '/Volunteers/Login.html';
+                window.location.href = '/pages/auth/login.html';
             });
         }
     }

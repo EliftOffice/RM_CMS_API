@@ -36,7 +36,7 @@ $(function () {
     // do; this only stops the page booting for anyone else.
     AdminShell.boot({
         roles: ['ADMIN', 'DATA_ENTRY'],
-        active: { href: '/templates/Admin/areas.html', area: 'Areas' }
+        active: { href: '/pages/admin/areas.html', area: 'Areas' }
     }).then(function (ok) {
         if (!ok) return;
         loadAccess();

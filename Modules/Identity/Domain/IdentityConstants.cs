@@ -18,9 +18,16 @@ namespace RM_CMS.Modules.Identity.Domain
         /// <summary>Records visitors at intake. No case or volunteer access.</summary>
         public const string DataEntry = "DATA_ENTRY";
 
+        /// <summary>
+        /// Reviews what the public website collects. A side role like DataEntry, not a
+        /// rung on the pastoral ladder: someone working the enquiry list is not partway
+        /// to being a pastor.
+        /// </summary>
+        public const string WebCoordinator = "WEB_COORDINATOR";
+
         public static readonly string[] All =
         {
-            Admin, Pastor, TeamLead, Volunteer, DataEntry
+            Admin, Pastor, TeamLead, Volunteer, DataEntry, WebCoordinator
         };
 
         public static bool IsKnown(string? code) =>
@@ -43,6 +50,13 @@ namespace RM_CMS.Modules.Identity.Domain
 
         /// <summary>Intake: data-entry operators, and anyone above them.</summary>
         public const string CanRecordVisitors = "CanRecordVisitors";
+
+        /// <summary>
+        /// Reads and triages website enquiries. Deliberately narrow — the website
+        /// coordinator and administrators only. This list is unfiltered public input,
+        /// so widening it widens who sees whatever the internet typed.
+        /// </summary>
+        public const string CanReviewWebEnquiries = "CanReviewWebEnquiries";
 
         /// <summary>Scheduled jobs: an Admin token or the scheduler's service key.</summary>
         public const string JobRunner = "JobRunner";

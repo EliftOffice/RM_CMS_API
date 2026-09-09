@@ -34,7 +34,9 @@
         PASTOR:     { label: 'Pastor',        desc: 'Cross-team oversight and reporting' },
         TEAM_LEAD:  { label: 'Team Lead',     desc: 'Runs a team: escalations, check-ins, reviews' },
         VOLUNTEER:  { label: 'Volunteer',     desc: 'Handles assigned care cases' },
-        DATA_ENTRY: { label: 'Data Entry',    desc: 'Records visitors at intake only' }
+        DATA_ENTRY: { label: 'Data Entry',    desc: 'Records visitors at intake only' },
+        WEB_COORDINATOR: { label: 'Website Coordinator',
+                           desc: 'Reviews enquiries from the public website only' }
     };
 
     function roleLabel(code) {

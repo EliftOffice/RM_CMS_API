@@ -32,7 +32,7 @@ screen should have produced, which is how a bug in step 2 gets found in step 5.
 cd C:/Users/LENOVO/source/repos/CMS && dotnet run
 ```
 
-Then open `http://localhost:5043/templates/Volunteers/Login.html`.
+Then open `http://localhost:5043/pages/auth/login.html`.
 
 **The local sign-in you already have:**
 

@@ -21,11 +21,14 @@ Three tiers, in order of how much you should trust them right now:
 | Doc | What it's for |
 |---|---|
 | [`architecture/SYSTEM_WORKFLOW.md`](architecture/SYSTEM_WORKFLOW.md) | **Start here.** How the whole system actually works end to end — the care-case journey, the progression engine, escalation pause/resume, scheduled jobs, notifications, security model. |
+| [`architecture/FRONTEND.md`](architecture/FRONTEND.md) | The `wwwroot/` layout — how pages and assets are organised and named, why paths are absolute, the two themes, the vendored libraries, and the traps (no iframes, warnings arrive as HTTP 200, cache headers). Read before adding or moving a screen. |
 | [`architecture/CONVENTIONS.md`](architecture/CONVENTIONS.md) | The schema's design rulebook — naming, the three-tier identity system (`id`/`public_id`/`reference_code`), why there are no `ENUM`s, `row_version` optimistic locking, deletion policy. The rules the whole application rewrite follows. |
-| [`architecture/schema.sql`](architecture/schema.sql) | The live 34-table schema. Source of truth — apply fresh with `docs/database/README.md`'s instructions. |
+| [`architecture/schema.sql`](architecture/schema.sql) | The live 35-table schema. Source of truth — apply fresh with `docs/database/README.md`'s instructions. |
 | [`database/README.md`](database/README.md) | How to bring up the database: fresh schema load, or the real migrated-data workflow (`database/migrations/`). |
-| [`database/migrations/`](database/migrations/) | The four scripts, in order, that take a real MVP data export to the current schema plus everything added since (huddle assessment, team-management grants, a Telegram data-hygiene cleanup). |
+| [`database/migrations/`](database/migrations/) | The five scripts, in order, that take a real MVP data export to the current schema plus everything added since (huddle assessment, team-management grants, a Telegram data-hygiene cleanup, areas). |
 | [`database/archive/mvp_schema_pre_rewrite.sql`](database/archive/mvp_schema_pre_rewrite.sql) | The old MVP schema `001_mvp_to_v2.sql` migrates *from*. Reference for understanding old data shapes only — not a current or applicable schema. |
+| [`deployment/WEBSITE.md`](deployment/WEBSITE.md) | The public website and the CMS API — what that project actually is (a static design-canvas export, not React), how to deploy it, the CORS setup, the exact request shapes for its two forms, the anti-abuse layers, and the Website Coordinator role. |
+| [`deployment/COOLIFY.md`](deployment/COOLIFY.md) | How to deploy to Coolify — environment variables, loading the schema, the scheduled-jobs cron, and the traps (`AllowedHosts` on a new hostname, the always-`Secure` refresh cookie, the production Telegram bot). Written for standing up `feature/auth_security` as a test instance. |
 
 ## Testing
 

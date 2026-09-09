@@ -56,7 +56,7 @@ $(function () {
             isLogin === false
         ) {
 
-            window.location.href = "../Volunteers/Login.html";
+            window.location.href = "/pages/auth/login.html";
 
             return false;
         }
@@ -390,10 +390,10 @@ $(function () {
     });
 
     function openVolunteerDashboard(id) {
-        const url = `../Volunteers/Assignments.html?volunteerid=${id}`;
+        const url = `/pages/care/my-assignments.html?volunteerid=${id}`;
         openInModal(url, 'Volunteer Details..');
     }
-    // The header (logo, menu, sign out) is rendered by teamlead-shell.js and is
+    // The header (logo, menu, sign out) is rendered by team-lead-shell.js and is
     // the same on every team lead screen. Add volunteer is deliberately not on it:
     // enrolling a volunteer is a pastor's or administrator's decision.
 
@@ -488,7 +488,7 @@ $(function () {
             .text('See all in the pipeline')
             .off('click')
             .on('click', function () {
-                window.location.href = '/templates/Peoples/Pipeline.html?stage=NURTURE';
+                window.location.href = '/pages/care/pipeline.html?stage=NURTURE';
             });
     }
 

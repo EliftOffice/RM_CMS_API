@@ -83,7 +83,7 @@ $@"🤝 Team Huddle — ఈ రోజు
 
 దయచేసి సమయానికి రండి. 🙏
 
-👉 {_baseUrl}/templates/TeamLeads/TeamLeadDashboard.html";
+👉 {_baseUrl}/pages/dashboard/team-lead.html";
 
             return (message, null);
         }
@@ -146,7 +146,7 @@ Ref: <code>{reference}</code>
 {lead}{protocol}
 దయచేసి వెంటనే చూసి acknowledge చేయండి.
 
-👉 {_baseUrl}/templates/Volunteers/Assignments.html";
+👉 {_baseUrl}/pages/care/my-assignments.html";
 
             return (message, null);
         }

@@ -103,6 +103,55 @@ CREATE TABLE campus (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
+-- A locality inside a campus's catchment — the neighbourhood a person lives in.
+--
+-- This replaces free-text typing of the same place over and over. `person`
+-- still has a `locality` column and it is still written for someone from out
+-- of town, but for anyone local the area is picked from this list, and only
+-- becomes a new row when nothing here matches what was typed. That is what
+-- makes "who else lives near this visitor" answerable at all: three spellings
+-- of one road cannot be grouped, and the MVP had exactly that.
+--
+-- Scoped to a campus, like `team`. An area is a place near one site; offering
+-- one campus's neighbourhoods at another would be a picker whose entries can
+-- only ever be wrong.
+--
+-- There is no delete. People reference an area and their records outlive it;
+-- retiring sets is_active = 0, which keeps existing rows readable and takes it
+-- out of the picker.
+CREATE TABLE area (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id       CHAR(26)        NOT NULL,
+    campus_id       BIGINT UNSIGNED NOT NULL,
+
+    -- As typed by whoever first recorded it, trimmed. This is what is shown.
+    name            VARCHAR(100)    NOT NULL,
+
+    -- Lower-cased with runs of whitespace collapsed. Matching and uniqueness
+    -- use this and never `name`: the collation already ignores case, but it
+    -- does not ignore a double space, and 'Kurnool  Road' would otherwise
+    -- become a second area nobody can tell apart from the first.
+    normalized_name VARCHAR(100)    NOT NULL,
+
+    is_active       TINYINT(1)      NOT NULL DEFAULT 1,
+
+    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    created_by      BIGINT UNSIGNED NULL,
+    updated_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    updated_by      BIGINT UNSIGNED NULL,
+    row_version     INT UNSIGNED    NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY ux_area_public_id (public_id),
+    -- The find-or-create at intake depends on this: two operators typing the
+    -- same new area at the same moment must not produce two rows.
+    UNIQUE KEY ux_area_campus_name (campus_id, normalized_name),
+    KEY ix_area_campus_active (campus_id, is_active),
+
+    CONSTRAINT fk_area_campus FOREIGN KEY (campus_id) REFERENCES campus (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
 -- How a volunteer reached (or tried to reach) someone.
 CREATE TABLE contact_method (
     code            VARCHAR(30)  NOT NULL,
@@ -424,7 +473,15 @@ CREATE TABLE person (
     household_type      VARCHAR(40)     NULL,
 
     address_line        VARCHAR(200)    NULL,
+    -- Free text, as typed. Still written for someone who does NOT live locally:
+    -- an out-of-town address is a one-off, not a neighbourhood worth adding to
+    -- the shared list. For everyone local, `area_id` is the field that carries
+    -- the locality and this one is left null.
     locality            VARCHAR(100)    NULL,
+    -- The controlled locality. Picked from `area`, created there when nothing
+    -- matched what was typed. Null for anyone from out of town, and for
+    -- everyone recorded before areas existed whose locality matched nothing.
+    area_id             BIGINT UNSIGNED NULL,
     postal_code         VARCHAR(20)     NULL,
     -- Whether this person lives near enough for in-person visits. Drives whether
     -- a nurture step can be a Visit or must be a Call.
@@ -466,8 +523,10 @@ CREATE TABLE person (
     -- The members list, and the do-not-contact screen.
     KEY ix_person_lifecycle  (lifecycle_status, campus_id),
     KEY ix_person_dnc        (do_not_contact),
+    KEY ix_person_area       (area_id),
 
     CONSTRAINT fk_person_campus FOREIGN KEY (campus_id) REFERENCES campus (id),
+    CONSTRAINT fk_person_area   FOREIGN KEY (area_id)   REFERENCES area (id),
     CONSTRAINT ck_person_age_band CHECK (
         age_band IS NULL OR age_band IN ('UNDER_18','18_25','26_35','36_45','46_60','OVER_60')
     ),
@@ -1423,7 +1482,11 @@ INSERT INTO app_role (code, label, description, hierarchy_level) VALUES
     ('PASTOR',     'Pastor',        'Cross-team oversight and reporting',                             80),
     ('TEAM_LEAD',  'Team Lead',     'Leads a team: escalations, check-ins, nurture review',           60),
     ('VOLUNTEER',  'Volunteer',     'Handles assigned care cases',                                    40),
-    ('DATA_ENTRY', 'Data Entry',    'Records visitors at intake; no case or volunteer access',        20);
+    ('DATA_ENTRY', 'Data Entry',    'Records visitors at intake; no case or volunteer access',        20),
+    -- Reviews what the public website collects. A side role like DATA_ENTRY, not a
+    -- rung on the Volunteer -> Team Lead -> Pastor ladder.
+    ('WEB_COORDINATOR', 'Website Coordinator',
+     'Reviews enquiries submitted through the public website and decides what happens to them', 25);
 
 INSERT INTO capacity_band (code, label, min_per_week, max_per_week, description, sort_order) VALUES
     ('LIMITED',    'Limited',    1, 2, 'Reduced load: new, recovering or time-constrained volunteers', 10),
@@ -1583,7 +1646,12 @@ INSERT INTO app_setting (setting_key, setting_value, value_type, category, descr
     ('huddle.reminder_hour',             '8',    'INTEGER', 'HUDDLE',     'Hour (UTC) the huddle reminder is sent on the day',               0,   23),
     ('huddle.remind_volunteers',         'true', 'BOOLEAN', 'HUDDLE',     'Also remind the volunteers, not just the lead',                   NULL, NULL),
     ('telegram.require_linking',         'false','BOOLEAN', 'TELEGRAM',   'Require users to connect Telegram before using the application',  NULL, NULL),
-    ('telegram.link_token_minutes',      '30',   'INTEGER', 'TELEGRAM',   'How long a Telegram linking link stays valid',                    5,  1440);
+    ('telegram.link_token_minutes',      '30',   'INTEGER', 'TELEGRAM',   'How long a Telegram linking link stays valid',                    5,  1440),
+    -- An administrator always manages areas; that is not a setting. This only
+    -- widens it to the data-entry operators, who type area names all day and so
+    -- are the first to notice a misspelling. Off by default: turning it on lets
+    -- an intake account rename and retire rows the whole organisation reads.
+    ('area.manage_by_data_entry',        'false','BOOLEAN', 'AREA',       'Data entry operators may open the area management screen',        NULL, NULL);
 
 -- NOTE: no telegram bot token, no signing key, no connection string. Those are
 -- supplied as environment variables and must never be inserted here.

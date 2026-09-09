@@ -4,17 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Check-in - RM CMS</title>
-    <link rel="icon" href="../assets/Images/favicon.ico">
-    <link href="../assets/css/teamlead-shell.css" rel="stylesheet">
-    <link href="../assets/css/toast.css" rel="stylesheet">
+    <link rel="icon" href="/assets/img/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
+    <link href="/assets/css/team-lead-shell.css" rel="stylesheet">
+    <link href="/assets/css/toast.css" rel="stylesheet">
     <script>window.TL_PAGE = 'checkin';</script>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="../assets/js/api-config.js"></script>
+    <script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
+    <script src="/assets/js/api-config.js"></script>
     <!-- auth.js: attaches the bearer token to every API call -->
-    <script src="../assets/js/auth.js"></script>
-    <script src="../assets/js/toast.js"></script>
-    <script src="../assets/js/teamlead-shell.js"></script>
-    <script src="../assets/js/checkins.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/toast.js"></script>
+    <script src="/assets/js/team-lead-shell.js"></script>
+    <script src="/assets/js/check-ins.js"></script>
 </head>
 <body>
 
@@ -22,7 +24,7 @@
 
     <div class="tl-body is-narrow">
 
-        <a class="tl-back" href="TeamLeadDashboard.html">&#8592; Back to dashboard</a>
+        <a class="tl-back" href="/pages/dashboard/team-lead.html">&#8592; Back to dashboard</a>
 
         <h1 class="tl-page-title">Check-in</h1>
         <p class="tl-page-sub" id="lastCheckIn">A conversation with one of your volunteers.</p>
@@ -131,7 +133,7 @@
 
                 <div class="tl-actions">
                     <button class="tl-save" id="saveBtn">Save check-in</button>
-                    <a class="tl-secondary" href="TeamLeadDashboard.html" style="text-decoration:none;">Cancel</a>
+                    <a class="tl-secondary" href="/pages/dashboard/team-lead.html" style="text-decoration:none;">Cancel</a>
                 </div>
 
                 <p class="tl-message" id="message"></p>

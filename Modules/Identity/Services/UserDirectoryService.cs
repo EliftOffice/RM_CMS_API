@@ -58,6 +58,8 @@ namespace RM_CMS.Modules.Identity.Services
         private static readonly Dictionary<string, int> Rank = new(StringComparer.Ordinal)
         {
             [RoleCodes.DataEntry] = 10,
+            // Off the Ladder above, like DataEntry: a side role, not a rung.
+            [RoleCodes.WebCoordinator] = 15,
             [RoleCodes.Volunteer] = 20,
             [RoleCodes.TeamLead]  = 30,
             [RoleCodes.Pastor]    = 40,
@@ -521,6 +523,7 @@ namespace RM_CMS.Modules.Identity.Services
             RoleCodes.TeamLead  => "Team Lead",
             RoleCodes.Volunteer => "Volunteer",
             RoleCodes.DataEntry => "Data Entry Operator",
+            RoleCodes.WebCoordinator => "Website Coordinator",
             _ => roleCode
         };
 

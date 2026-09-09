@@ -40,6 +40,28 @@ namespace RM_CMS.Modules.Pipeline.Api
         {
             return Ok(await _pipeline.SearchAsync(page, pageSize, search, stage, status, includeUnstarted));
         }
+
+        /// <summary>
+        /// One visitor's whole history: who they are, every case they have had, and a
+        /// single chronological timeline of contacts, escalations, reassignments and
+        /// notes across all of them.
+        ///
+        /// Person-centric on purpose. <c>GET /api/cases/{id}</c> answers this one case;
+        /// somebody who visited, went quiet and came back a year later has two, and
+        /// reading them separately loses the shape of the whole relationship.
+        ///
+        /// Scoped by the caller's role in the service, the same as the list.
+        /// </summary>
+        [HttpGet("{personId}")]
+        [ProducesResponseType(typeof(ApiResponse<VisitorJourney>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Journey(string personId)
+        {
+            if (!Ulid.IsValid(personId))
+                return BadRequest(new ApiResponse<VisitorJourney>(
+                    ResponseType.Warning, "Invalid person id.", default!));
+
+            return Ok(await _pipeline.GetJourneyAsync(personId));
+        }
     }
 
     public sealed class PipelineResultDto

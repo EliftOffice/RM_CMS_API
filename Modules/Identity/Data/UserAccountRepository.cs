@@ -273,9 +273,14 @@ namespace RM_CMS.Modules.Identity.Data
                      @ActingUserId, @ActingUserId);
                 SELECT LAST_INSERT_ID();";
 
+            // ON DUPLICATE KEY, not INSERT IGNORE: both make a repeated grant a no-op,
+            // but IGNORE also downgrades a FOREIGN KEY violation to a warning, so a
+            // role_code with no app_role row was skipped silently and the account was
+            // created with no role at all.
             const string insertRole = @"
-                INSERT IGNORE INTO user_role (user_account_id, role_code, campus_id, granted_by)
-                VALUES (@AccountId, @RoleCode, @CampusId, @ActingUserId);";
+                INSERT INTO user_role (user_account_id, role_code, campus_id, granted_by)
+                VALUES (@AccountId, @RoleCode, @CampusId, @ActingUserId)
+                ON DUPLICATE KEY UPDATE user_account_id = user_account_id;";
 
             using var connection = _dbFactory.GetConnection();
             connection.Open();
@@ -428,9 +433,14 @@ namespace RM_CMS.Modules.Identity.Data
 
             const string deleteRoles = @"DELETE FROM user_role WHERE user_account_id = @Id;";
 
+            // ON DUPLICATE KEY, not INSERT IGNORE: both make a repeated grant a no-op,
+            // but IGNORE also downgrades a FOREIGN KEY violation to a warning, so a
+            // role_code with no app_role row was skipped silently and the account was
+            // created with no role at all.
             const string insertRole = @"
-                INSERT IGNORE INTO user_role (user_account_id, role_code, campus_id, granted_by)
-                VALUES (@Id, @RoleCode, @CampusId, @ActingUserId);";
+                INSERT INTO user_role (user_account_id, role_code, campus_id, granted_by)
+                VALUES (@Id, @RoleCode, @CampusId, @ActingUserId)
+                ON DUPLICATE KEY UPDATE user_account_id = user_account_id;";
 
             using var connection = _dbFactory.GetConnection();
             connection.Open();

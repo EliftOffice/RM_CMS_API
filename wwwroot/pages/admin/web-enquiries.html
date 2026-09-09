@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Website enquiries — RM_CMS</title>
+
+    <link rel="icon" href="/assets/img/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
+    <link rel="stylesheet" href="/assets/css/admin.css">
+
+    <script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
+    <script src="/assets/js/api-config.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/toast.js"></script>
+    <script src="/assets/js/admin-shell.js"></script>
+    <script src="/assets/js/web-enquiries.js"></script>
+
+    <style>
+        /* ── Queue counters. The first is the only one that means "do something". ── */
+        .counts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .count-card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+        }
+
+            .count-card:hover { border-color: var(--accent); }
+            .count-card.is-active { border-color: var(--accent); background: #f5f8ff; }
+
+        .count-value { font-size: 21px; font-weight: 700; line-height: 1.1; }
+        .count-label { font-size: 11px; color: var(--ink-muted); font-weight: 600; margin-top: 2px; }
+        .count-card.is-new .count-value { color: var(--accent); }
+
+        .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+        .filters .input, .filters .select { max-width: 220px; }
+
+        .form-chip {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #3730a3;
+            white-space: nowrap;
+        }
+
+        .chip-PRAYER_REQUEST { background: #fef3c7; color: #92400e; }
+        .chip-CONTACT_MESSAGE { background: #ecfeff; color: #155e75; }
+        .chip-PLAN_VISIT { background: var(--ok-bg); color: var(--ok); }
+        .chip-TEAM_REGISTRATION { background: #f3e8ff; color: #6b21a8; }
+
+        .cell-msg {
+            max-width: 380px;
+            color: var(--ink-muted);
+            font-size: 12.5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .row-spam { opacity: .6; }
+
+        /* ── Detail drawer ── */
+        .detail-grid { margin: 0 0 18px; font-size: 13.5px; }
+
+        .detail-grid div {
+            display: flex;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+            .detail-grid div:last-child { border-bottom: none; }
+
+        .detail-grid dt { flex: 0 0 130px; color: var(--ink-muted); font-size: 12.5px; }
+        .detail-grid dd { margin: 0; flex: 1; min-width: 0; word-break: break-word; }
+
+        .message-box {
+            background: var(--canvas);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px 14px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 13.5px;
+            margin-bottom: 18px;
+        }
+
+        .match-warn {
+            background: var(--warn-bg);
+            border: 1px solid #fde68a;
+            color: #92400e;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        .untrusted {
+            font-size: 12px;
+            color: var(--ink-muted);
+            border-left: 3px solid var(--line);
+            padding-left: 10px;
+            margin-bottom: 16px;
+            line-height: 1.55;
+        }
+
+        .modal { max-width: 640px; }
+    </style>
+</head>
+
+<body>
+
+<div id="adminShell"></div>
+
+<main class="page" id="pageBody" hidden>
+
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Website enquiries</h1>
+            <p class="page-sub">
+                Everything submitted through the public website. Nothing here is a church
+                record yet — read it, then decide what it becomes.
+            </p>
+        </div>
+    </div>
+
+    <div class="counts" id="counts"></div>
+
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">Enquiries</span>
+            <span class="card-note" id="resultCount" style="margin-left:auto;font-size:12px;color:var(--ink-muted);"></span>
+        </div>
+
+        <div class="card-body" style="padding-bottom:0;">
+            <div class="filters">
+                <input class="input" id="search" placeholder="Name, mobile, city or reference">
+                <select class="select" id="formFilter">
+                    <option value="">All forms</option>
+                </select>
+                <label class="role-option" style="font-size:13px;">
+                    <input type="checkbox" id="includeSpam"> Show flagged spam
+                </label>
+                <button type="button" class="btn btn-sm" id="clearBtn">Clear</button>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="table" id="enquiryTable">
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Form</th>
+                        <th>From</th>
+                        <th>What they said</th>
+                        <th>Received</th>
+                        <th>Status</th>
+                        <th class="cell-actions">&nbsp;</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="7" class="empty">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pager" id="pager"></div>
+    </div>
+</main>
+
+<!-- ── Detail / triage ─────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="detailModal">
+    <div class="modal">
+        <div class="modal-head">
+            <span class="card-title" id="detailTitle">Enquiry</span>
+            <button type="button" class="btn btn-sm" data-close>Close</button>
+        </div>
+
+        <div class="modal-body">
+            <div class="match-warn" id="matchWarn" hidden></div>
+
+            <p class="untrusted">
+                This was typed by a member of the public into a form on the website.
+                Treat it as a claim, not a fact — confirm who they are before recording
+                anything against a church record.
+            </p>
+
+            <dl class="detail-grid" id="detailFields"></dl>
+
+            <div id="messageWrap" hidden>
+                <div class="label">Message</div>
+                <div class="message-box" id="detailMessage"></div>
+            </div>
+
+            <div class="field">
+                <label class="label" for="reviewNote">Note</label>
+                <textarea class="input" id="reviewNote" rows="3" maxlength="1000"
+                          placeholder="What did you do about this?"></textarea>
+                <p class="hint">Required when marking it done or closed — it is what the next person reads.</p>
+            </div>
+
+            <div class="notice notice-warn" id="detailNotice" hidden></div>
+        </div>
+
+        <div class="modal-foot">
+            <button type="button" class="btn" id="spamBtn">Mark as spam</button>
+            <span style="flex:1;"></span>
+            <button type="button" class="btn" id="reviewBtn">I'm looking at it</button>
+            <button type="button" class="btn" id="closeOffBtn">Close</button>
+            <button type="button" class="btn btn-primary" id="actionBtn">Mark done</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

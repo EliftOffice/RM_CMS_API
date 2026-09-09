@@ -1,8 +1,8 @@
 # 4 · Team lead dashboard
 
-**Screen:** `wwwroot/templates/TeamLeads/TeamLeadDashboard.html`
-**Scripts:** `wwwroot/templates/assets/js/teamlead.js`, `teamlead-shell.js`
-**URL:** `http://localhost:5043/templates/TeamLeads/TeamLeadDashboard.html`
+**Screen:** `wwwroot/pages/dashboard/team-lead.html`
+**Scripts:** `wwwroot/assets/js/team-lead-dashboard.js`, `team-lead-shell.js`
+**URL:** `http://localhost:5043/pages/dashboard/team-lead.html`
 
 ---
 
@@ -46,7 +46,7 @@ address bar. That queue names real people and the crises disclosed about them. *
 below is the test that this is actually fixed, and it is the most important step in
 this document.**
 
-`TLID` still exists in `teamlead.js`, but it is now populated *from the response*
+`TLID` still exists in `team-lead-dashboard.js`, but it is now populated *from the response*
 (`teams[0].publicId`) rather than from the URL, so downstream handlers still have a team
 id to work with and nothing is trusted on the way in.
 
@@ -667,7 +667,7 @@ the huddle can change what is on the page under it.
 
 ### Step 15 · The shared header
 
-Every team lead screen renders its header from `teamlead-shell.js`.
+Every team lead screen renders its header from `team-lead-shell.js`.
 
 ✅ **Expect:** *My team* (current, not a link), *Assign cases*, *People*, and *Sign out*.
 
@@ -693,8 +693,8 @@ something from another screen, and reload.
 
 | Thing | Detail |
 |---|---|
-| ~~**Dead nurture-modal code**~~ | **Fixed 2026-09-07.** `loadNurtureData()`, `populateNurtureModal()`, `openCloseSeq()` and the `#confirmCloseSeqBtn` handler below were removed from `teamlead.js` — confirmed unreachable (their only trigger, a `teamLeadLoaded` event, was never dispatched anywhere), calling nonexistent `/api/nurture/*` routes. The dead `#nurtureModal` / `#closeSequenceModal` markup was removed from `TeamLeadDashboard.html` with it. The live nurture card is still `renderNurture()`, fed from the dashboard payload — unaffected. |
-| **`#dashboardSubtitle` no longer exists** | `teamlead.js` still writes to it; the header owns the subtitle now and gets it via `TeamLeadShell.setSubtitle()`. The stray write is a no-op. |
+| ~~**Dead nurture-modal code**~~ | **Fixed 2026-09-07.** `loadNurtureData()`, `populateNurtureModal()`, `openCloseSeq()` and the `#confirmCloseSeqBtn` handler below were removed from `team-lead-dashboard.js` — confirmed unreachable (their only trigger, a `teamLeadLoaded` event, was never dispatched anywhere), calling nonexistent `/api/nurture/*` routes. The dead `#nurtureModal` / `#closeSequenceModal` markup was removed from `dashboard/team-lead.html` with it. The live nurture card is still `renderNurture()`, fed from the dashboard payload — unaffected. |
+| **`#dashboardSubtitle` no longer exists** | `team-lead-dashboard.js` still writes to it; the header owns the subtitle now and gets it via `TeamLeadShell.setSubtitle()`. The stray write is a no-op. |
 | **Bootstrap and jQuery load from CDN** | Offline, the modals will not open. |
 | **`9859939859` password** | Different hash from the other migrated accounts; `Xq7#vTrb92!mKp` does not work. |
 

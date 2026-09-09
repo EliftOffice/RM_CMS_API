@@ -148,6 +148,6 @@ $(function () {
         var target = sessionStorage.getItem('rm_post_login_target');
         sessionStorage.removeItem('rm_post_login_target');
 
-        window.location.href = target || '/templates/Volunteers/Login.html';
+        window.location.href = target || '/pages/auth/login.html';
     }
 });

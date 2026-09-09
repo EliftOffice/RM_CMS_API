@@ -1,8 +1,8 @@
 # 1 · Visitor entry
 
-**Screen:** `wwwroot/templates/Peoples/PeopleEntry.html`
-**Script:** `wwwroot/templates/assets/js/people-entry.js`
-**URL:** `http://localhost:5043/templates/Peoples/PeopleEntry.html`
+**Screen:** `wwwroot/pages/intake/record-visitor.html`
+**Script:** `wwwroot/assets/js/record-visitor.js`
+**URL:** `http://localhost:5043/pages/intake/record-visitor.html`
 
 ---
 
@@ -51,7 +51,8 @@ Verified 2026-08-26: signed in as a DATA_ENTRY account, both calls succeed.
 
 | Table | What lands there |
 |---|---|
-| `person` | One row. `public_id` (ULID), `full_name`, `given_name`, `family_name`, `gender`, `age_band`, `address_line`, `locality`, `postal_code`, `is_local`, `campus_id`, `lifecycle_status`, `notes` |
+| `person` | One row. `public_id` (ULID), `full_name`, `given_name`, `family_name`, `gender`, `age_band`, `address_line`, `locality`, `area_id`, `postal_code`, `is_local`, `campus_id`, `lifecycle_status`, `notes` |
+| `area` | A row **only if** the area typed did not already exist at that campus. Matched case- and whitespace-insensitively, so `kurnool  road` finds `Kurnool Road` rather than adding a second row. |
 | `person_contact` | **One row per contact.** Mobile always; email only if given. Each has `contact_type`, `value` (as typed), `normalized_value` (for matching), `is_primary` |
 
 Contacts are rows, not columns. A person with two numbers gets two rows — which is why
@@ -101,8 +102,9 @@ If nobody has capacity the case stays `AWAITING_ASSIGNMENT` and waits for the
 | Email | no | must contain `@` if given |
 | Gender | no | `MALE` `FEMALE` `OTHER` `PREFER_NOT_TO_SAY` |
 | Age band | no | `UNDER_18` `18_25` `26_35` `36_45` `46_60` `OVER_60` |
-| Address / locality / postal code | no | |
-| Local resident | no | checkbox, defaults on |
+| **Lives locally** | no | checkbox, defaults **on**. Decides which of the next two rows is on screen — see below. |
+| **Area** | **Yes, when "lives locally" is ticked** | Type-ahead over `area`. Picking a match sends `areaId`; typing something new sends `areaName` and the server creates the area, then files the person against it. Enforced on `POST /api/people` as well as in the browser. |
+| Address / locality / postal code | no | Shown only when "lives locally" is **un**ticked. Unchanged from before areas existed — an out-of-town locality is a one-off and is not added to the shared list. |
 | First visit date | no | |
 | Connection source | no | `WALK_IN` `FRIEND_INVITE` `EVENT` `SOCIAL_MEDIA` `WEBSITE` `OTHER` |
 | Priority | no | `LOW` `NORMAL` `HIGH` `URGENT` — only shown when starting follow-up |
@@ -135,10 +137,8 @@ they are easy to find and delete afterwards.
 | Email | `anjali.test@example.com` |
 | Gender | `FEMALE` |
 | Age band | `26_35` |
-| Address | `12 Test Street` |
-| Locality | `Ongole` |
-| Postal code | `523001` |
-| Local resident | ticked |
+| Lives locally | ticked |
+| Area | `Ongole` — pick it from the list |
 | First visit | today |
 | Connection source | `WALK_IN` |
 | Priority | `NORMAL` |
@@ -182,6 +182,7 @@ Used to prove validation. Try each on its own:
 | Mobile `abc` | "That does not look like a valid mobile number." |
 | Mobile `123` | too short — same message |
 | Email `notanemail` | "That does not look like a valid email address." |
+| "Lives locally" ticked, Area empty | "Enter the area they live in. Type it in full if it is not on the list yet." Refused again by the server if the browser check is bypassed. |
 
 ---
 
@@ -196,7 +197,8 @@ SELECT 'person' t, COUNT(*) n FROM person
 UNION ALL SELECT 'person_contact', COUNT(*) FROM person_contact
 UNION ALL SELECT 'care_case', COUNT(*) FROM care_case
 UNION ALL SELECT 'care_interaction', COUNT(*) FROM care_interaction
-UNION ALL SELECT 'care_case_assignment', COUNT(*) FROM care_case_assignment;
+UNION ALL SELECT 'care_case_assignment', COUNT(*) FROM care_case_assignment
+UNION ALL SELECT 'area', COUNT(*) FROM area;
 ```
 
 ### Step 2 · V1 — full record with follow-up
@@ -209,7 +211,7 @@ Sign in as `9999999999`, open the screen, enter V1, save.
 ✅ **Expect in the database:**
 
 ```sql
-SELECT p.public_id, p.full_name, p.gender, p.age_band, p.is_local, p.locality
+SELECT p.public_id, p.full_name, p.gender, p.age_band, p.is_local, p.locality, p.area_id
 FROM person p WHERE p.full_name LIKE 'Anjali%';
 
 -- two contact rows: mobile + email
@@ -325,7 +327,7 @@ WHERE p.full_name LIKE '%Test%' OR p.full_name = 'Ravi'
 ORDER BY p.id DESC;
 ```
 
-Then open **People → pipeline** (`/templates/Peoples/Pipeline.html`) as the administrator.
+Then open **People → pipeline** (`/pages/care/pipeline.html`) as the administrator.
 
 ✅ **Expect:** V1 and V4 appear under Intake or First contact, V2 appears in the
 **Not started** count, and searching `9000000` finds them.
