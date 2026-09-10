@@ -1287,6 +1287,433 @@ the API and shown on the screen, ready for it.
 
 ---
 
+## 8.8 Church events — ✅ verified 2026-09-10
+
+`Modules/Events`, migration `007_events.sql`, `pages/admin/events.html`, and on the
+website `src/lib/events.ts` + `src/hooks/useEvents.ts`.
+
+The calendar the public site lists. Events were a hard-coded array in the website's own
+source; the CMS owns them now. See [`../deployment/WEBSITE.md`](../deployment/WEBSITE.md) §4a.
+
+### Admin
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| V1 | Create with local time 08:00 | Stored `02:30` UTC, read back as `08:00` local, zone `Asia/Kolkata` | ✅ |
+| V2 | New event's status | Always `DRAFT`, never published on create | ✅ |
+| V3 | Slug from title | `Good Friday Service` → `good-friday-service`, auto-filled in the editor | ✅ |
+| V4 | Duplicate slug | Refused, naming the address already in use | ✅ |
+| V5 | End before start | Refused, "The event cannot end before it starts." | ✅ |
+| V6 | *(retired)* Unknown image slug | The image dropdown is gone — see §8.8a. Superseded by P1–P8 | — |
+| V7 | Unparseable date | Refused | ✅ |
+| V8 | Title with no Latin characters (Telugu) | Refused, asking for a web address to be typed — an empty slug would collide and break `/events/` | ✅ |
+| V9 | Unknown campus | Refused | ✅ |
+| V10 | Length rules | Readable messages, not the framework's "The field Venue must be a string with a minimum length of 2" | ✅ |
+| V11 | Publish / unpublish / cancel | Each moves status and stamps `published_at`; only the moves that make sense are offered per row | ✅ |
+| V12 | Concurrent edit | Refused on a stale `rowVersion` | ✅ |
+
+### Public feed and the website
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| V13 | Draft in `GET /api/public/events` | **Absent.** Feed empty while the only event was a draft | ✅ |
+| V14 | Published event | `date: "2027-04-02T08:00:00+05:30"` — offset-carrying ISO, the shape the site's `ChurchEvent` documents | ✅ |
+| V15 | Description | Blank-line text split into a paragraph array | ✅ |
+| V16 | `/events` on the site | Both CMS events render with images, dates and venues | ✅ |
+| V17 | `/events/<slug>` | Renders; Schema.org `startDate`/`endDate` carry the right offsets | ✅ |
+| V18 | **Unknown slug still redirects** | `/events/no-such-event` → `/events`, *after* loading rather than during it | ✅ |
+| V19 | Homepage band | Shows upcoming events; hidden entirely while loading and when empty | ✅ |
+| V20 | Cancelled event | Shows `CANCELLED` and a struck-through title on the card; `EventCancelled` in the Schema.org markup | ✅ |
+| V21 | `npm run verify` | typecheck, lint, prettier and build clean on every file touched | ✅ |
+
+### The trap this feature nearly walked into
+
+`EventPage` did `if (!event) return <Navigate to="/events" />`. Events arrive over the
+network now, so `event` is undefined for the first moment of **every** visit — that
+redirect would have bounced anyone opening an event link straight to the index before the
+fetch answered, and the link would have looked broken while working perfectly. The loading
+check has to come first, and V18 is the test that holds it there.
+
+### Also fixed while here
+
+**`schema.sql` was missing `web_enquiry`.** The table was added in migration `006` but
+never folded into the full schema, and a fresh database is built from `schema.sql` — so a
+new deployment would have had the website-enquiry code and screens with no table behind
+them. The same omission that hid the `WEB_COORDINATOR` role in §8.7. Both `web_enquiry`
+and the new `church_event` are in `schema.sql` now, and it was verified by building a
+database from it alone: **37 tables, all six roles seeded**.
+
+---
+
+## 8.8a The event poster — ✅ verified 2026-09-10
+
+Migration `008_event_poster.sql`, the poster routes on `Modules/Events`, the upload field
+on `pages/admin/events.html`, and on the website `src/lib/events.ts`, `EventCard.tsx`,
+`PageHero.tsx` and `EventPage.tsx`.
+
+**What changed.** The picture was an `image_slug` chosen from a dropdown of about twenty
+stock plates baked into the website at build time. Staff could not use the poster actually
+designed for the event — the one on the flyer and the WhatsApp forward — so they picked the
+least wrong stock photograph and two unrelated events routinely showed the same one. The
+field is now a file upload, one poster per event, bytes held in `church_event_poster`.
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| P1 | Upload a real PNG | Accepted; `hasPoster` true, `posterUrl` set, `rowVersion` moves | ✅ |
+| P2 | **A non-image renamed `.png` and sent as `image/jpeg`** | **Refused.** The format is read from the file's own first bytes, so neither the name nor the declared type gets it through | ✅ |
+| P3 | `GET /api/public/events/{id}/poster` anonymously | 200, `Content-Type: image/png`, bytes **identical** to what was uploaded | ✅ |
+| P4 | Headers on that response | `Cross-Origin-Resource-Policy: cross-origin`, `Cache-Control: public, max-age=86400, immutable`, `Last-Modified` | ✅ |
+| P5 | Headers on every OTHER response | `Cross-Origin-Resource-Policy: same-origin` — the opt-out is one endpoint, not a weakening of the default | ✅ |
+| P6 | Draft's poster in the public feed | Feed empty while the event was a draft; poster URL appears only once published | ✅ |
+| P7 | `DELETE .../poster` | `hasPoster` false, and the serving endpoint then 404s | ✅ |
+| P8 | Re-running migration `008` | Clean: "poster columns already present", "image_slug already dropped" | ✅ |
+
+### On the website
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| P9 | `/events` against the live API, site on `:4173` and API on `:5055` | The card's `<img>` loads and decodes the cross-origin poster — `complete: true`, natural size read back from the file | ✅ |
+| P10 | Browser console on that page | No errors. In particular no CORP or CORS message | ✅ |
+| P11 | `tsc --noEmit`, eslint, `npm run build` | All clean | ✅ |
+
+> **Testing note.** The Browser pane reports a zero-height viewport, so `loading="lazy"`
+> never fires and the poster reads as `complete: false` no matter how long you wait. That
+> is the harness, not the page. Flip the element to `loading="eager"` and re-assign its
+> `src` to force the fetch, or load the URL through `new Image()`.
+
+### Why the bytes are in the database
+
+Coolify rebuilds the container from the image on every push, so a file written into
+`wwwroot` survives exactly until the next deploy — every uploaded poster would vanish and
+the events would quietly go back to having no picture. Avoiding that with files needs a
+mounted volume, and forgetting to configure one fails **invisibly** until a visitor looks.
+A row is backed up and restored with everything else.
+
+### The trade-off, stated
+
+An uploaded poster skips the website's build-time image pipeline: no AVIF or WebP
+variants, no `srcset`, no blurred placeholder, and the original is served at whatever size
+it was uploaded. The card and hero render it as a plain `<img>` in a fixed-ratio box so the
+layout still does not shift. If posters turn out to be multi-megabyte phone photographs in
+practice, the fix is server-side resizing on upload — not going back to a dropdown that
+could not show the church's own poster.
+
+### Known trade-off
+
+Individual events are no longer in `sitemap.xml`, because it is generated at build time and
+events are published after it. `/events` is still listed and links to every event, so they
+remain crawlable. `scripts/generate-seo.mjs` says so where the loop used to be, rather than
+silently iterating an empty array.
+
+---
+
+## 8.9 Signing in with a mobile number alone — ✅ verified 2026-09-10
+
+Migration `009_passwordless_login.sql`, `IdentityService.GetLoginMethodAsync` and
+`SetPasswordlessLoginAsync`, `POST /api/auth/login-method`,
+`PUT /api/admin/accounts/{id}/passwordless`, and the rewritten `login.js` / `accounts.js`.
+
+**Why it exists.** Some of the people who use this system cannot read. A password prompt
+does not make their account safer — what actually happens is that somebody literate types
+it for them, so the credential ends up shared or written down. An administrator marks
+those accounts individually.
+
+**What it costs, and this is not hedged:** for such an account the mobile number IS the
+credential, and mobile numbers are on posters and in group chats. Anyone who knows the
+number can sign in as that person and read whatever that person can read, which here means
+pastoral records and prayer requests. It is off by default (`NOT NULL DEFAULT 0`), granted
+one account at a time, and audited both ways.
+
+### The switch
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| L1 | Column default | Every existing account came out `allows_passwordless_login = 0` | ✅ |
+| L2 | Grant to a team lead | Accepted; message says what it now allows | ✅ |
+| L3 | **Grant to an administrator** | **Refused.** "Anyone who knew the number would hold the whole system." | ✅ |
+| L4 | Grant clears `must_change_password` | Yes — otherwise the account is sent to a password screen it cannot use and stops dead | ✅ |
+| L5 | Sessions on change | Revoked either way, so revoking the grant takes effect immediately rather than whenever the open session ends | ✅ |
+| L6 | Audit | `PASSWORDLESS_ENABLED`, `PASSWORDLESS_DISABLED` and `PASSWORDLESS_LOGIN` rows written | ✅ |
+| L7 | `canAllowPasswordlessLogin` in the DTO | `false` for an administrator, `true` for a volunteer, so the screen greys the control rather than offering a button that always fails | ✅ |
+| L8 | Re-running migration `009` | Clean: "already present" for both column and index | ✅ |
+
+### Signing in
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| L9 | Probe before the grant | `requiresPassword: true` | ✅ |
+| L10 | **Probe for a number with no account** | `requiresPassword: true` — identical to a real account, so this cannot be used to find out who has one | ✅ |
+| L11 | Empty password before the grant | `401`, generic "Invalid username or password." | ✅ |
+| L12 | Probe after the grant | `requiresPassword: false` | ✅ |
+| L13 | Empty password after the grant | `200`, token issued, `mustChangePassword: false` | ✅ |
+| L14 | After revoking | Probe back to `true`; number-only sign-in `401` again | ✅ |
+
+### The screen
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| L15 | First paint | Mobile number only. Password section hidden, **and there is no Sign in button anywhere** | ✅ |
+| L16 | A number that needs a password | Password section revealed, focus moved into it, "Press Enter to sign in." shown in place of the button | ✅ |
+| L17 | Editing the number afterwards | Password section hides again and the typed password is cleared — those digits may be a different account now | ✅ |
+| L18 | A number granted "number only" | Signed straight in and landed on the team lead dashboard, nothing else typed | ✅ |
+
+### A defect caught before shipping
+
+The probe was first put on the **login** rate limit, which is 5 requests per 5 minutes.
+Every successful sign-in would then have spent **two** of those five, and one mistyped
+number would have locked somebody out before their first real attempt. It has its own
+bucket now (`rl-login-method`, 20 per 5 minutes); the endpoint carries no credential, so
+there is nothing there to brute-force.
+
+### Still open, and pre-dating this work
+
+`LoginPartitionKey` is **IP-only**, and behind Coolify every request arrives from the
+proxy — so in production one bucket is shared by everybody signing in. That is deliberate
+(`X-Forwarded-For` is caller-supplied, and trusting it would let an attacker mint a fresh
+bucket per request), but it means a busy Sunday could hit the ceiling. Worth revisiting
+separately; this feature did not create it and does not make it worse now that the probe
+has its own bucket.
+
+### Testing note
+
+Both test servers were restarted between runs to clear the in-memory rate limiter — a
+fixed-window limiter has no other reset. The account used for L2–L14 belongs to the real
+migrated dataset; its username and every column touched were captured beforehand and
+restored afterwards, and the browser test at L18 ran against a placeholder number so no
+member's real number was ever displayed.
+
+---
+
+## 8.10 Editable Telegram messages — ✅ verified 2026-09-11
+
+Migration `010_message_templates.sql`, `Modules/MessageTemplates`, the rewired
+`NotificationComposer` and `TelegramLinkService`, and
+`pages/admin/telegram-messages.html`.
+
+**Why it exists.** The wording of every Telegram message was a string literal in C#, so
+changing a word meant a code change and a deployment. In practice the wording never
+changed, because the people who know how it should read are pastors rather than whoever
+can rebuild the application.
+
+**The shape.** A row in `telegram_template` exists only for a scenario somebody has
+edited. Every scenario has a default in `TelegramTemplates`, and no row means "use it" —
+so a fresh database sends correct messages with the table empty, a scenario added in code
+works before anyone opens the screen, and Reset is a `DELETE` rather than a second copy
+of the wording to keep in step.
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| T1 | The catalogue | 11 scenarios listed, grouped, none customised on a clean database | ✅ |
+| T2 | **A placeholder the scenario does not have** | **Refused** — "This message does not have {{Name}}." Caught on save, not discovered as a gap in a volunteer's message | ✅ |
+| T3 | A valid edit | Saved, marked customised, and attributed to the administrator who made it | ✅ |
+| T4 | Preview | Body rendered with the sample values from the catalogue | ✅ |
+| T5 | **End to end through a stub Telegram server** | The customised wording reached the wire with the recipient's own first name and full name substituted — no `{{` left in the sent text | ✅ |
+| T6 | Reset | Row deleted, scenario back on the built-in wording | ✅ |
+| T7 | Re-running migration `010` | Clean; the table is empty by design, nothing seeded | ✅ |
+
+### Placeholders
+
+`{{RecipientName}}`, `{{RecipientFirstName}}`, `{{ChurchName}}` and `{{SiteUrl}}` are
+available in every scenario — these are the recipient's own details, and they are what
+make a message specific to the person receiving it rather than a broadcast. Each scenario
+adds its own: the escalation templates carry the person, reason, tier and how long it has
+waited; the assignment template carries the person and reference.
+
+### The escaping rule, which is the whole point of `TemplateRenderer`
+
+Messages go with `parse_mode=HTML`, so the **template** is markup — a pastor may write
+`<b>` and expect bold. The **values** are not: they are names and localities, and a name
+containing an ampersand makes Telegram reject the entire message rather than render it
+plainly. So the template passes through untouched and every substituted value is escaped.
+Getting this backwards either way breaks something — escaping the template shows tags as
+literal text, and not escaping the values loses real messages to a person called "A & B".
+
+Three values are genuinely markup the server composes (the escalation heading, the
+team-lead line, the safeguarding line). They go through a separate `rawValues` channel
+that is deliberately awkward to reach, with the names inside them escaped at the point
+they are put in.
+
+### Two things this turned up
+
+**`CASE_ASSIGNED` never fired.** The notification type existed and the composer had no
+branch for it, so it would have been closed as "No message template" had anything ever
+queued one — and nothing did. Assignment now queues it and the composer renders it, so a
+volunteer learns a follow-up is theirs without checking the screen. Queued, never sent
+inline: a Telegram outage must not roll back an assignment. Every failure in that path is
+swallowed and logged, because the case is already assigned by the time it runs and
+throwing would report an error for work that succeeded.
+
+**`{{PersonPhone}}` is offered but is not in the default wording.** Putting somebody's
+phone number into a Telegram message is a decision the church should make deliberately —
+Telegram history outlives the follow-up — so the placeholder exists and the default does
+not use it.
+
+### Testing note
+
+T5 used a local HTTP stub standing in for the Telegram Bot API, with
+`Telegram__ApiBaseUrl` pointed at it, which is how the notification sender was proved
+originally. The captured message was checked for the substituted name and then masked
+before being printed, so no member's real name was displayed. Both templates edited during
+the test were reset afterwards and `telegram_template` is empty again.
+
+---
+
+## 8.11 Confirming a sign-in on Telegram — ✅ verified 2026-09-11
+
+Migration `011_login_telegram_verification.sql`, `login_challenge`, the verification
+block in `IdentityService`, the two `verify/*` routes, `callback_query` handling in the
+Telegram webhook, and the third step on the login screen.
+
+**What it does.** With `telegram.verify_on_login` switched on, a correct credential is no
+longer enough: the person also taps a button in Telegram. It applies to password accounts
+and to number-only accounts alike, which is the point — a number written on a poster no
+longer gets anybody in, because the phone has to be in their hand.
+
+**Two secrets, doing different jobs.** The browser holds a challenge id that identifies
+the pending sign-in and can only ask "has it been approved yet?". The token that actually
+approves it lives in the Telegram button and never reaches the browser. So the browser can
+wait for approval but cannot grant it to itself.
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| V1 | Setting off | Sign-in behaves exactly as before | ✅ |
+| V2 | **On, but the account has no usable Telegram link** | **Signed in anyway**, and the reason logged. Fails OPEN on purpose — see below | ✅ |
+| V3 | On, with a usable link | `requiresTelegramVerification: true`, a challenge id, and **no access token and no cookie** | ✅ |
+| V4 | The prompt | Message rendered from the `LOGIN_VERIFICATION` template with two buttons: confirm and refuse | ✅ |
+| V5 | Poll before the tap | `WAITING`, no session | ✅ |
+| V6 | The tap, delivered as Telegram delivers it | Webhook accepts the `callback_query` and approves | ✅ |
+| V7 | Poll after the tap | `APPROVED`, access token issued, refresh token **only** in the `Set-Cookie` header and `null` in the body | ✅ |
+| V8 | **Polling again** | `FAILED`, no second session. A challenge is good for exactly one | ✅ |
+| V9 | **A tap from a different chat** | Refused; the challenge stays `WAITING`. The chat that presses must be the chat that was asked | ✅ |
+| V10 | "This was not me" | Challenge `DECLINED`, poll returns `FAILED`, and `LOGIN_VERIFY_DECLINED` written | ✅ |
+| V11 | Audit trail | `LOGIN_VERIFY_REQUIRED` on each attempt, `LOGIN_VERIFIED` on success, `LOGIN_VERIFY_DECLINED` on refusal | ✅ |
+
+### Why it fails open
+
+`StartTelegramVerificationAsync` returns "let them in" when the setting is off, when the
+account has no usable Telegram link, **and when anything throws**. The alternative is a
+second factor that bricks every account the moment Telegram is misconfigured — including
+the administrator who would have to fix it. `telegram.require_linking` is the setting that
+makes the second case rare, and the new setting's description says to use the two together.
+
+### A bug the schema caught
+
+The first run failed on `ck_login_challenge_window` — `expires_at > created_at`. The cause:
+`created_at` was left to `DEFAULT CURRENT_TIMESTAMP(3)`, which stamps the **MySQL server's
+local time**, while the application writes UTC. On a server running in IST that puts
+`created_at` five and a half hours ahead of an `expires_at` three minutes in the future, so
+every challenge was rejected. `created_at` is now passed explicitly from the application.
+The same trap is documented on `church_event.published_at`; the CHECK constraint is what
+turned it into a loud failure instead of a feature that silently never triggered.
+
+### A design note on the button
+
+A callback button, not a `t.me` deep link. A deep link only re-sends its start payload for
+a **new** chat, so for anybody who has already linked — which is everybody this applies to,
+since linking is what gives them a chat id — tapping one just opens the conversation and
+nothing reaches the webhook. Callback buttons work in place, every time.
+
+### Testing note
+
+The Telegram Bot API was stubbed locally and the button press was delivered to the webhook
+as Telegram delivers it, with the shared secret header. The administrator's own Telegram
+contact was temporarily made usable for V3 onwards and put back afterwards; the setting is
+off again, `login_challenge` is empty, and the test audit rows were removed. The recipient
+name was masked before printing.
+
+---
+
+## 8.12 A global error page — ✅ verified 2026-09-11
+
+`Middleware/ErrorPages.cs`, `wwwroot/pages/error.html`, and the handlers in `Program.cs`
+that used to write JSON unconditionally.
+
+**What was there before: nothing.** Verified by running the application with
+`ASPNETCORE_ENVIRONMENT=Production` and requesting missing pages. Every one came back
+with a status and an **empty body**, so the browser fell back to its own blank "cannot
+reach this page" — which reads as the whole site being down rather than one address being
+wrong. There was no `UseStatusCodePages`, no `UseExceptionHandler` and no error page
+anywhere in `wwwroot`.
+
+**The rule.** Anything under `/api` always gets `application/problem+json`, even from a
+browser address bar — a client that parses responses must never be handed markup because
+an Accept header was broad. Everything else that explicitly asks for `text/html` gets the
+page. `fetch` defaults to a wildcard Accept, so page scripts stay on the JSON path.
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| E1 | Browser request to an unknown path | HTML page, ~4.7 KB, showing the status and a heading | ✅ |
+| E2 | Browser request to a missing page under `/pages` | Same | ✅ |
+| E3 | Browser request to a missing static asset | Same | ✅ |
+| E4 | `/api/...` with `Accept: application/json` | `application/problem+json`, unchanged | ✅ |
+| E5 | **`/api/...` with `Accept: */*`** (what `fetch` sends) | JSON, not markup | ✅ |
+| E6 | **429 keeps `Retry-After`** | Present, `300` | ✅ |
+
+### Two things worth knowing
+
+**Unknown paths answer 401, not 404.** The fallback authorization policy denies anonymous
+callers before routing can decide the path does not exist. That is deliberate and was left
+alone: answering 401 for everything unknown tells a prober nothing about which paths exist.
+The page now says "Please sign in" rather than showing nothing at all.
+
+**`Response.Clear()` drops headers as well as the body.** The rate limiter sets
+`Retry-After` before delegating to the renderer, and that value is the only actionable
+thing a throttled caller gets. It is captured and re-applied across the reset. The security
+headers are unaffected because `SecurityHeadersMiddleware` adds them in an `OnStarting`
+callback, which runs later.
+
+The page is deliberately self-contained — no stylesheet, no script, no font. It is what
+people see when something is already broken, and every external file it depended on would
+be one more thing that could be the reason it fails to render. If `error.html` is missing
+entirely, a plain built-in fallback is used rather than reverting to a blank response.
+
+---
+
+## 8.13 Data entry operators can correct a record — ✅ verified 2026-09-11
+
+`GET /api/people/{id}/intake`, the policy on `PUT /api/people/{id}`, and the correction
+mode on the intake screen.
+
+**Why.** Data entry operators are the ones who create these records, so they are the ones
+who mishear a name or transpose a digit. Editing was `VolunteerOrAbove`, so the person who
+made the mistake could not fix it — and in practice the record stayed wrong.
+
+**How the widening was kept narrow.** Rather than opening the full `GET /{id}`, which
+carries lifecycle, do-not-contact and pastoral notes, a new endpoint returns exactly the
+fields the intake form itself collects. `lookup` already masks contact values for the same
+reason, and widening the general read would have quietly undone that.
+
+| # | Test | Expect | Status |
+|---|---|---|---|
+| D1 | `GET /{id}/intake` as DATA_ENTRY | 200, and the payload carries **only** intake fields — no lifecycle, do-not-contact, reference code or care notes | ✅ |
+| D2 | **`GET /{id}` (full record) as DATA_ENTRY** | **403.** The wider read stays closed | ✅ |
+| D3 | `PUT /{id}` as DATA_ENTRY | 200, "Person updated", change applied | ✅ |
+| D4 | `PUT /{id}/do-not-contact` | 403 | ✅ |
+| D5 | `PUT /{id}/lifecycle` | 403 | ✅ |
+| D6 | `DELETE /{id}` | 403 | ✅ |
+| D7 | `GET /api/people` (list everybody) | 403 | ✅ |
+
+### On the screen
+
+A "Correct a record" button opens a search over the lookup the operator already had. Choosing
+a result loads the record into the same form they know, with a warning banner, the title
+changed, and Save relabelled. Two things are suppressed in that mode: the follow-up
+checkbox is hidden, because a correction must never open a pastoral case off the back of a
+spelling fix, and the duplicate override is not sent, because it is meaningless on an
+update. The save goes to `PUT` with the row version, so a concurrent edit is refused rather
+than silently overwritten.
+
+### Testing note
+
+The test account held both DATA_ENTRY and VOLUNTEER, which would have passed the old policy
+anyway, so it was temporarily reduced to DATA_ENTRY only — otherwise D2 to D7 would have
+proved nothing. Its password hash, security stamp, token version, row version, roles and
+failed-attempt counter were all captured beforehand and restored, along with the one field
+changed on the test person. A failed login I made during setup had bumped the row version
+and that was put back too.
+
+---
+
 ## 9. Cross-cutting
 
 | # | Area | Test | Expect |

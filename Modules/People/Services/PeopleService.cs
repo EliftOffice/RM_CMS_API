@@ -33,6 +33,12 @@ namespace RM_CMS.Modules.People.Services
         Task<ApiResponse<PersonDto>> SetAreaAsync(string publicId, string? areaId, string? areaName);
 
         Task<ApiResponse<IReadOnlyList<PersonMatchDto>>> LookupAsync(string term);
+
+        /// <summary>
+        /// One person, reduced to the fields the intake form collects, so a data-entry
+        /// operator can correct a record they typed.
+        /// </summary>
+        Task<ApiResponse<IntakePersonDto>> GetForIntakeAsync(string publicId);
         Task<ApiResponse<IReadOnlyList<PersonMatchDto>>> PickerAsync(string term);
 
         Task<ApiResponse<bool>> SetDoNotContactAsync(string publicId, DoNotContactRequest request);
@@ -151,6 +157,42 @@ namespace RM_CMS.Modules.People.Services
                 .ToList();
 
             return Ok<IReadOnlyList<PersonMatchDto>>(matches, matches.Count > 0 ? "Possible matches" : "No matches");
+        }
+
+        /// <summary>
+        /// One person as the intake screen sees them.
+        /// </summary>
+        /// <remarks>
+        /// Goes through exactly the same campus check as every other read here — an
+        /// operator cannot correct somebody at a site they have no access to, and an
+        /// off-limits record answers "not found" rather than confirming it exists.
+        /// </remarks>
+        public async Task<ApiResponse<IntakePersonDto>> GetForIntakeAsync(string publicId)
+        {
+            var person = await _people.GetByPublicIdAsync(publicId);
+
+            if (person is null || !CanAccess(person))
+                return Warn<IntakePersonDto>(NotFound);
+
+            return Ok(new IntakePersonDto
+            {
+                Id = person.PublicId,
+                GivenName = person.GivenName,
+                FamilyName = person.FamilyName,
+                CampusId = person.CampusPublicId,
+                AgeBand = person.AgeBand,
+                Gender = person.Gender,
+                HouseholdType = person.HouseholdType,
+                AddressLine = person.AddressLine,
+                Locality = person.Locality,
+                AreaId = person.AreaPublicId,
+                AreaName = person.AreaName,
+                PostalCode = person.PostalCode,
+                IsLocal = person.IsLocal,
+                Notes = person.Notes,
+                Mobile = person.PrimaryContact(ContactTypes.Mobile)?.Value,
+                RowVersion = person.RowVersion
+            }, "Person.");
         }
 
         /// <summary>

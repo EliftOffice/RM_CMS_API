@@ -237,6 +237,113 @@
         return serverMessage || pick(body, 'detail') || 'Sign-in failed.';
     }
 
+    /**
+     * Asks whether this mobile number needs a password.
+     *
+     * The login screen calls it once the number is complete and then either signs the
+     * person in or reveals the password box. Some of the people who use this system
+     * cannot read a password prompt, so an administrator can mark their account as
+     * signing in with the number alone.
+     *
+     * ALWAYS RESOLVES, and resolves to `true` on any doubt — an unreadable answer, a
+     * refusal, a dead connection. Failing towards the password box is the safe
+     * direction: the worst case is a password prompt somebody did not need, where the
+     * opposite would be a sign-in attempt that silently could not work.
+     *
+     * The URL starts with /api/auth/login, so auth.js's own interceptor already treats
+     * it as an auth endpoint and does not try to attach a token to it.
+     */
+    function loginMethod(username) {
+        return window.fetch(apiBase() + '/auth/login-method', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ Username: username })
+        }).then(function (response) {
+            if (!response.ok) return { requiresPassword: true };
+
+            return response.json().then(function (body) {
+                var payload = unwrap(body);
+
+                return {
+                    requiresPassword: !payload || pick(payload, 'requiresPassword') !== false
+                };
+            });
+        }).catch(function () {
+            return { requiresPassword: true };
+        });
+    }
+
+    /**
+     * Asks the server to send the Telegram confirmation for a pending sign-in.
+     *
+     * The challenge id is the only thing the browser holds, and it was handed out to
+     * a browser that already passed the first factor. It is not the thing that
+     * approves the sign-in — that token lives in the Telegram button and never comes
+     * near this page, which is what stops the browser confirming itself.
+     */
+    function sendTelegramVerification(challengeId) {
+        return window.fetch(apiBase() + '/auth/verify/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ChallengeId: challengeId })
+        }).then(function (response) {
+            return response.json().catch(function () { return null; }).then(function (body) {
+                return {
+                    // responseType 0 == Success in Utilities/ApiResponse.cs
+                    sent: response.ok && pick(body, 'responseType') === 0,
+                    message: pick(body, 'message') || '',
+                    retryAfterSeconds: retryAfter(response)
+                };
+            });
+        }).catch(function () {
+            return { sent: false, message: 'Unable to reach the server.' };
+        });
+    }
+
+    /**
+     * Asks whether the tap has arrived.
+     *
+     * The poll that finds the approval is also the one that receives the session, so
+     * this applies it exactly like `login` does. Every other poll returns WAITING and
+     * changes nothing.
+     */
+    function pollTelegramVerification(challengeId) {
+        return window.fetch(apiBase() + '/auth/verify/poll', {
+            method: 'POST',
+            credentials: 'include',      // the refresh cookie is written on approval
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ChallengeId: challengeId })
+        }).then(function (response) {
+            return response.json().catch(function () { return null; }).then(function (body) {
+                var data = pick(body, 'data');
+
+                if (!response.ok || !data) return { outcome: 'WAITING' };
+
+                var outcome = pick(data, 'outcome');
+                var session = pick(data, 'session');
+
+                if (outcome === 'APPROVED' && session) {
+                    applyAuthResult(session);
+
+                    return {
+                        outcome: 'APPROVED',
+                        user: CURRENT_USER,
+                        mustChangePassword: !!pick(session, 'mustChangePassword')
+                    };
+                }
+
+                return {
+                    outcome: outcome || 'WAITING',
+                    expiresInSeconds: pick(data, 'expiresInSeconds') || 0
+                };
+            });
+        }).catch(function () {
+            // A dropped poll is not a failed sign-in — the confirmation may still be
+            // sitting on the person's phone. Keep waiting.
+            return { outcome: 'WAITING' };
+        });
+    }
+
     function login(username, password, deviceLabel) {
         return window.fetch(apiBase() + '/auth/login', {
             method: 'POST',
@@ -256,6 +363,19 @@
                         success: false,
                         message: describeLoginFailure(response, body),
                         retryAfterSeconds: retryAfter(response)
+                    };
+                }
+
+                // The credential was right but the sign-in is not finished: this
+                // account confirms on Telegram. Checked BEFORE applyAuthResult,
+                // because there is no token in this payload and treating it as a
+                // session would leave the page believing it was signed in.
+                if (pick(payload, 'requiresTelegramVerification')) {
+                    return {
+                        success: false,
+                        pendingTelegram: true,
+                        challengeId: pick(payload, 'challengeId'),
+                        message: pick(body, 'message') || 'Confirm this sign-in on Telegram.'
                     };
                 }
 
@@ -515,6 +635,9 @@
 
     var RmAuth = {
         login: login,
+        loginMethod: loginMethod,
+        sendTelegramVerification: sendTelegramVerification,
+        pollTelegramVerification: pollTelegramVerification,
         logout: logout,
         refresh: refresh,
         bootstrap: bootstrap,

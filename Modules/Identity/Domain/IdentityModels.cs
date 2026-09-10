@@ -30,6 +30,21 @@ namespace RM_CMS.Modules.Identity.Domain
 
         public bool IsActive { get; set; }
         public bool MustChangePassword { get; set; }
+
+        /// <summary>
+        /// This account signs in with its mobile number and nothing else.
+        /// </summary>
+        /// <remarks>
+        /// Granted per account by an administrator, for people who cannot read a
+        /// password prompt. What it costs is not subtle: for these accounts the mobile
+        /// number IS the credential, and mobile numbers are on posters and in group
+        /// chats. It is a deliberate trade of security for access, and it is never the
+        /// default — see <c>009_passwordless_login.sql</c>.
+        ///
+        /// Refused for administrators. An administrator can grant this to everyone
+        /// else, so a passwordless one puts the whole system one known number away.
+        /// </remarks>
+        public bool AllowsPasswordlessLogin { get; set; }
         public int FailedAccessCount { get; set; }
         public DateTime? LockoutEndsAt { get; set; }
         public DateTime? LastLoginAt { get; set; }

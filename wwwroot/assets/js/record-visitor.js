@@ -1,17 +1,26 @@
 /*
  * Visitor intake — the data-entry operator's screen.
  *
- * Deliberately narrow. A DATA_ENTRY account can record a visitor and check for
- * duplicates; it cannot list people or browse cases (GET /api/people is
- * VolunteerOrAbove). So this is a capture form, not a CRUD console, and the
- * "recorded just now" panel is built from what this session created rather than
- * by reading the list back.
+ * Deliberately narrow. A DATA_ENTRY account can record a visitor, check for
+ * duplicates and CORRECT a record it got wrong; it still cannot list people or
+ * browse cases (GET /api/people is VolunteerOrAbove). So this is a capture form,
+ * not a CRUD console, and the "recorded just now" panel is built from what this
+ * session created rather than by reading the list back.
  *
  * Flow:
- *   POST /api/people           -> create the person
- *   POST /api/cases            -> open a case so a volunteer follows up  (optional)
- *   GET  /api/people/lookup    -> warn about an existing record before saving
- *   GET  /api/areas/options    -> the area type-ahead (via AreaPicker)
+ *   POST   /api/people              -> create the person
+ *   POST   /api/cases               -> open a case so a volunteer follows up (optional)
+ *   GET    /api/people/lookup       -> warn about an existing record before saving,
+ *                                      and find one to correct
+ *   GET    /api/people/{id}/intake  -> the record to correct, intake fields only
+ *   PUT    /api/people/{id}         -> save the correction
+ *   GET    /api/areas/options       -> the area type-ahead (via AreaPicker)
+ *
+ * CORRECTING: operators are the ones who mishear a name or transpose a digit, so
+ * they are the ones who should be able to fix it. What they can see and change is
+ * exactly what this form collects — the /intake endpoint exists so they do not need
+ * the full person record, which carries lifecycle, do-not-contact and pastoral
+ * notes. Those stay on other screens for other roles.
  *
  * Requires auth.js, toast.js, admin-shell.js and area-picker.js.
  */
@@ -28,6 +37,10 @@
     // The next submit carries allowDuplicate, so recording a duplicate is always a
     // second, deliberate action rather than something that happens by accident.
     var duplicateAcknowledged = false;
+
+    // The record being corrected: { id, rowVersion, name }, or null when recording
+    // somebody new. Everything that behaves differently in the two modes reads this.
+    var editing = null;
 
     document.addEventListener('DOMContentLoaded', function () {
         AdminShell
@@ -58,7 +71,34 @@
         wireResidence();
 
         form.addEventListener('submit', onSubmit);
-        clearBtn.addEventListener('click', function () { resetForm(true); });
+        clearBtn.addEventListener('click', function () { stopEditing(); resetForm(true); });
+
+        document.getElementById('correctBtn')
+            .addEventListener('click', openFinder);
+
+        document.getElementById('findClose')
+            .addEventListener('click', closeFinder);
+
+        document.getElementById('cancelEditBtn')
+            .addEventListener('click', function () { stopEditing(); resetForm(true); });
+
+        // Debounced: the server floor is three characters and a request per keystroke
+        // would ask the same question four times on the way to a name.
+        var findTimer = null;
+
+        document.getElementById('findTerm').addEventListener('input', function () {
+            window.clearTimeout(findTimer);
+            findTimer = window.setTimeout(searchPeople, 250);
+        });
+
+        // Delegated, because the result rows are rewritten on every search.
+        document.getElementById('findResults').addEventListener('click', function (event) {
+            var id = event.target && event.target.getAttribute
+                ? event.target.getAttribute('data-correct')
+                : null;
+
+            if (id) loadForCorrection(id);
+        });
 
         // Any edit invalidates a duplicate warning that was about the previous values.
         form.addEventListener('input', function (e) {
@@ -288,12 +328,27 @@
         setBusy(true, 'Saving…');
 
         var request = buildPersonRequest(payload);
-        request.allowDuplicate = duplicateAcknowledged;
+
+        // Correcting an existing record goes to PUT with the row version, so a save
+        // is refused rather than silently overwriting somebody who edited first.
+        // Recording somebody new goes to POST, where the duplicate override applies —
+        // it is meaningless on an update, which is by definition the same person.
+        var correcting = !!editing;
+        var url = API_BASE_URL + '/people';
+        var method = 'POST';
+
+        if (correcting) {
+            request.rowVersion = editing.rowVersion;
+            url += '/' + encodeURIComponent(editing.id);
+            method = 'PUT';
+        } else {
+            request.allowDuplicate = duplicateAcknowledged;
+        }
 
         var httpOk = true;
 
-        fetch(API_BASE_URL + '/people', {
-            method: 'POST',
+        fetch(url, {
+            method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(request)
         })
@@ -334,6 +389,18 @@
                 }
 
                 var person = body.data;
+
+                // A correction ends here. It must never open a follow-up case: the
+                // point was to fix what was typed, and starting pastoral work off the
+                // back of a spelling fix would put a volunteer in front of somebody
+                // who is already being looked after.
+                if (correcting) {
+                    setBusy(false);
+                    showToast('Record corrected.', 'success');
+                    stopEditing();
+                    resetForm();
+                    return;
+                }
 
                 if (!payload.startFollowUp) {
                     finish(person, false);
@@ -627,6 +694,157 @@
         hide(dupNotice);
         hide(formError);
         clearAllFieldErrors();
+    }
+
+    // ------------------------------------------------- correcting a record
+    //
+    // Data entry operators create these records, so they are the ones who mishear a
+    // name or transpose a digit. Without this the only person who could fix it was a
+    // volunteer or above, which in practice meant the record stayed wrong.
+    //
+    // The server allows exactly this much: GET /people/{id}/intake returns only the
+    // fields this form collects, and PUT /people/{id} accepts only those. Lifecycle,
+    // do-not-contact and deletion are other endpoints on stricter policies.
+
+    function openFinder() {
+        document.getElementById('findCard').hidden = false;
+        document.getElementById('findTerm').focus();
+    }
+
+    function closeFinder() {
+        document.getElementById('findCard').hidden = true;
+        document.getElementById('findTerm').value = '';
+        document.getElementById('findResults').innerHTML = '';
+    }
+
+    function searchPeople() {
+        var term = document.getElementById('findTerm').value.trim();
+        var host = document.getElementById('findResults');
+
+        // Matches the server's own floor. Below it every search returns the same
+        // empty answer, so asking is only noise.
+        if (term.length < 3) { host.innerHTML = ''; return; }
+
+        fetch(API_BASE_URL + '/people/lookup?q=' + encodeURIComponent(term))
+            .then(function (res) { return res.json(); })
+            .then(function (body) {
+                var matches = (body && body.data) || [];
+
+                if (!matches.length) {
+                    host.innerHTML = '<p class="hint">Nobody on file matches that.</p>';
+                    return;
+                }
+
+                host.innerHTML = '<ul class="dup-list">' + matches.map(function (m) {
+                    return '<li>' +
+                        AdminShell.escapeHtml(m.fullName) +
+                        ' <span class="hint">' + AdminShell.escapeHtml(m.maskedContact || '') + '</span> ' +
+                        '<button type="button" class="btn btn-sm" data-correct="' +
+                            AdminShell.escapeHtml(m.id) + '">Correct</button>' +
+                    '</li>';
+                }).join('') + '</ul>';
+            })
+            .catch(function () {
+                host.innerHTML = '<p class="hint">Could not search just now.</p>';
+            });
+    }
+
+    function loadForCorrection(id) {
+        fetch(API_BASE_URL + '/people/' + encodeURIComponent(id) + '/intake')
+            .then(function (res) { return res.json(); })
+            .then(function (body) {
+                if (!body || body.responseType !== 0 || !body.data) {
+                    showError((body && body.message) || 'That record could not be opened.');
+                    return;
+                }
+
+                fillForm(body.data);
+                startEditing(body.data);
+                closeFinder();
+            })
+            .catch(function () { showError('Could not reach the server.'); });
+    }
+
+    function fillForm(p) {
+        resetForm(true);
+
+        setValue('givenName', p.givenName);
+        setValue('familyName', p.familyName);
+        setValue('ageBand', p.ageBand);
+        setValue('gender', p.gender);
+        setValue('mobile', p.mobile);
+        setValue('addressLine', p.addressLine);
+        setValue('locality', p.locality);
+        setValue('postalCode', p.postalCode);
+        setValue('notes', p.notes);
+        setValue('campus', p.campusId);
+
+        var isLocal = p.isLocal !== false;
+
+        document.getElementById('isLocal').checked = isLocal;
+        document.getElementById('localBlock').hidden = !isLocal;
+        document.getElementById('awayBlock').hidden = isLocal;
+
+        // The picker holds an id as well as the text, and setting only the text would
+        // send a blank id and re-create the area by name on save.
+        if (areaPicker && isLocal && (p.areaId || p.areaName)) {
+            areaPicker.set(p.areaId, p.areaName || '');
+        }
+    }
+
+    function setValue(id, v) {
+        var el = document.getElementById(id);
+        if (el) el.value = v == null ? '' : v;
+    }
+
+    function startEditing(p) {
+        editing = { id: p.id, rowVersion: p.rowVersion, name: p.givenName };
+
+        document.getElementById('pageTitle').textContent = 'Correct a record';
+        document.getElementById('pageSub').textContent =
+            'Fix what was entered. This changes the existing record and does not create a new one.';
+
+        var notice = document.getElementById('editNotice');
+        notice.textContent = 'You are correcting an existing record. Saving updates it.';
+        notice.hidden = false;
+
+        saveBtn.textContent = 'Save correction';
+        document.getElementById('cancelEditBtn').hidden = false;
+
+        // A follow-up belongs to recording somebody new. Hidden rather than merely
+        // ignored, so nothing on screen suggests a correction might start one.
+        var followUp = document.getElementById('startFollowUp');
+        if (followUp) {
+            followUp.checked = false;
+            var wrap = followUp.closest('.field') || followUp.parentElement;
+            if (wrap) wrap.hidden = true;
+        }
+
+        document.getElementById('priorityField').hidden = true;
+        window.scrollTo(0, 0);
+    }
+
+    function stopEditing() {
+        editing = null;
+
+        document.getElementById('pageTitle').textContent = 'Record a visitor';
+        document.getElementById('pageSub').textContent =
+            'Capture someone who visited so a volunteer can follow up with them. ' +
+            'Only a name and one contact number are required.';
+
+        hide(document.getElementById('editNotice'));
+
+        saveBtn.textContent = 'Save visitor';
+        document.getElementById('cancelEditBtn').hidden = true;
+
+        var followUp = document.getElementById('startFollowUp');
+        if (followUp) {
+            followUp.checked = true;
+            var wrap = followUp.closest('.field') || followUp.parentElement;
+            if (wrap) wrap.hidden = false;
+        }
+
+        document.getElementById('priorityField').hidden = false;
     }
 
     function setBusy(busy, message) {

@@ -128,6 +128,35 @@ namespace RM_CMS.Modules.Identity.Api
             return HttpResponseHelper.CreateHttpResponse(result);
         }
 
+        /// <summary>
+        /// Lets this account sign in with its mobile number alone, or takes that back.
+        /// </summary>
+        /// <remarks>
+        /// For people who cannot read a password prompt. Understand what it grants: the
+        /// mobile number becomes the whole credential, and mobile numbers are not
+        /// secret. Every open session for the account is revoked either way, so
+        /// revoking the grant takes effect immediately rather than whenever the current
+        /// session happens to end.
+        ///
+        /// Refused for administrators — see <c>IdentityService.SetPasswordlessLoginAsync</c>.
+        /// </remarks>
+        [HttpPut("{accountId}/passwordless")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<bool>>> SetPasswordless(
+            string accountId, [FromBody] SetPasswordlessLoginRequest request)
+        {
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
+            if (!Ulid.IsValid(accountId))
+                return BadRequest(new ApiResponse<bool>(ResponseType.Warning, "Invalid account id.", false));
+
+            var result = await _identity.SetPasswordlessLoginAsync(
+                accountId, request, _current.AccountId, BuildContext());
+
+            return HttpResponseHelper.CreateHttpResponse(result);
+        }
+
         /// <summary>The assignable role codes.</summary>
         [HttpGet("/api/admin/roles")]
         [ProducesResponseType(typeof(ApiResponse<string[]>), StatusCodes.Status200OK)]

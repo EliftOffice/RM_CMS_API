@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="wwwroot\templates\**" />
+    <Content Remove="wwwroot\templates\**" />
+    <EmbeddedResource Remove="wwwroot\templates\**" />
+    <None Remove="wwwroot\templates\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Data\DTO\Followups\FollowUpResponseDto.cs" />
   </ItemGroup>
 
@@ -23,10 +30,6 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Dapper" Version="2.1.15" />
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="wwwroot\templates\assets\Images\" />
   </ItemGroup>
 
   <!--

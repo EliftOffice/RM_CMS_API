@@ -199,27 +199,24 @@ namespace RM_CMS
 
                     // Generic 401 as ProblemDetails. The reason is never disclosed —
                     // "signature invalid" vs "expired" is information an attacker can use.
+                    // Answers in whichever form the caller can use: ProblemDetails for a
+                    // page script, the error page for somebody who navigated here in a
+                    // browser. It used to write JSON unconditionally, so an expired
+                    // session on a page request filled the window with raw JSON.
+                    //
+                    // Note this is also what answers an unknown path — the fallback
+                    // policy denies anonymous callers before routing can 404 — which is
+                    // deliberate: a 401 for everything unknown tells a prober nothing
+                    // about which paths exist.
                     OnChallenge = async context =>
                     {
                         context.HandleResponse();
 
-                        if (context.Response.HasStarted) return;
+                        var environment = context.HttpContext.RequestServices
+                            .GetRequiredService<IWebHostEnvironment>();
 
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        context.Response.ContentType = "application/problem+json";
-
-                        var problem = new ProblemDetails
-                        {
-                            Status = StatusCodes.Status401Unauthorized,
-                            Title = "Authentication required.",
-                            Detail = "A valid access token is required to call this endpoint.",
-                            Instance = context.Request.Path
-                        };
-
-                        problem.Extensions["correlationId"] = context.HttpContext.TraceIdentifier;
-
-                        await context.Response.WriteAsync(
-                            JsonSerializer.Serialize(problem, ProblemJsonOptions));
+                        await ErrorPages.WriteAsync(
+                            context.HttpContext, StatusCodes.Status401Unauthorized, environment);
                     },
 
                     OnForbidden = async context =>
@@ -234,32 +231,15 @@ namespace RM_CMS
                             context.Request.Method,
                             context.Request.Path);
 
-                        if (context.Response.HasStarted) return;
+                        var environment = context.HttpContext.RequestServices
+                            .GetRequiredService<IWebHostEnvironment>();
 
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        context.Response.ContentType = "application/problem+json";
-
-                        var problem = new ProblemDetails
-                        {
-                            Status = StatusCodes.Status403Forbidden,
-                            Title = "Access denied.",
-                            Detail = "Your account does not have permission to perform this action.",
-                            Instance = context.Request.Path
-                        };
-
-                        problem.Extensions["correlationId"] = context.HttpContext.TraceIdentifier;
-
-                        await context.Response.WriteAsync(
-                            JsonSerializer.Serialize(problem, ProblemJsonOptions));
+                        await ErrorPages.WriteAsync(
+                            context.HttpContext, StatusCodes.Status403Forbidden, environment);
                     }
                 };
             });
         }
-
-        private static readonly JsonSerializerOptions ProblemJsonOptions = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
 
         // ==========================================================
         // Authorization
@@ -315,6 +295,12 @@ namespace RM_CMS
                     policy.RequireAuthenticatedUser()
                           .RequireClaim(ClaimNames.Role,
                               RoleCodes.Admin, RoleCodes.WebCoordinator));
+
+                // The church calendar on the public website.
+                options.AddPolicy(PolicyNames.CanManageEvents, policy =>
+                    policy.RequireAuthenticatedUser()
+                          .RequireClaim(ClaimNames.Role,
+                              RoleCodes.Admin, RoleCodes.Pastor, RoleCodes.WebCoordinator));
 
                 // Scheduled jobs: an Admin token OR the scheduler's service key. Note the
                 // absence of RequireAuthenticatedUser — the machine caller has no identity.
@@ -388,21 +374,14 @@ namespace RM_CMS
                             ((int)retryAfter.TotalSeconds).ToString();
                     }
 
-                    context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                    context.HttpContext.Response.ContentType = "application/problem+json";
+                    // Retry-After was set above; ErrorPages preserves it across the
+                    // response reset, because it is the only actionable thing a
+                    // throttled caller is given.
+                    var environment = context.HttpContext.RequestServices
+                        .GetRequiredService<IWebHostEnvironment>();
 
-                    var problem = new ProblemDetails
-                    {
-                        Status = StatusCodes.Status429TooManyRequests,
-                        Title = "Too many requests.",
-                        Detail = "You have made too many requests. Please wait and try again.",
-                        Instance = context.HttpContext.Request.Path
-                    };
-
-                    problem.Extensions["correlationId"] = context.HttpContext.TraceIdentifier;
-
-                    await context.HttpContext.Response.WriteAsync(
-                        JsonSerializer.Serialize(problem, ProblemJsonOptions), cancellationToken);
+                    await ErrorPages.WriteAsync(
+                        context.HttpContext, StatusCodes.Status429TooManyRequests, environment);
                 };
 
                 // Login: 5 attempts per 5 minutes per IP+username pair. Partitioning by
@@ -414,6 +393,30 @@ namespace RM_CMS
                         _ => new FixedWindowRateLimiterOptions
                         {
                             PermitLimit = 5,
+                            Window = TimeSpan.FromMinutes(5),
+                            QueueLimit = 0,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                        }));
+
+                // The login screen's "does this number need a password?" question.
+                //
+                // Four times the login allowance, on the same IP partition. It carries no
+                // credential, so there is nothing to guess at; the limit is here to stop a
+                // script sweeping numbers to find the passwordless ones, and to keep one
+                // client from making the endpoint expensive.
+                //
+                // NOTE, pre-dating this policy: LoginPartitionKey is IP-only, and behind
+                // Coolify every request arrives from the proxy — so in production this
+                // bucket, like the login one, is shared by everybody. That is deliberate
+                // (X-Forwarded-For is caller-supplied, and trusting it would let an
+                // attacker mint a fresh bucket per request), but it means the ceiling has
+                // to be generous enough for a whole church office at once.
+                options.AddPolicy(RateLimitPolicies.LoginMethod, context =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        LoginPartitionKey(context),
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 20,
                             Window = TimeSpan.FromMinutes(5),
                             QueueLimit = 0,
                             QueueProcessingOrder = QueueProcessingOrder.OldestFirst
@@ -663,6 +666,26 @@ namespace RM_CMS
             builder.Services.AddScoped<RM_CMS.Modules.Notifications.Services.INotificationSender,
                                        RM_CMS.Modules.Notifications.Services.NotificationSender>();
 
+            // Pending sign-ins awaiting their Telegram confirmation. Registered
+            // beside Identity because that is what creates and consumes them.
+            builder.Services.AddScoped<RM_CMS.Modules.Identity.Data.ILoginChallengeRepository,
+                                       RM_CMS.Modules.Identity.Data.LoginChallengeRepository>();
+
+            // ---- Message templates module ----
+            // The wording of every Telegram message, editable by an administrator.
+            // It used to be string literals scattered through the composer and the
+            // link service, so changing a word meant a deployment — and the people
+            // who know how these should read are pastors, not whoever can rebuild
+            // the application.
+            //
+            // Registered BEFORE Telegram and Notifications because both take it: the
+            // link service renders the /start replies through it, and the composer
+            // renders every queued alert.
+            builder.Services.AddScoped<RM_CMS.Modules.MessageTemplates.Data.ITemplateRepository,
+                                       RM_CMS.Modules.MessageTemplates.Data.TemplateRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.MessageTemplates.Services.ITemplateService,
+                                       RM_CMS.Modules.MessageTemplates.Services.TemplateService>();
+
             // ---- Telegram module (new architecture) ----
             // The bot token comes from Telegram__BotToken in the environment, never the
             // database — the MVP kept the live token in a settings row that a generic
@@ -709,6 +732,14 @@ namespace RM_CMS
                                        RM_CMS.Modules.WebEnquiries.Data.WebEnquiryRepository>();
             builder.Services.AddScoped<RM_CMS.Modules.WebEnquiries.Services.IWebEnquiryService,
                                        RM_CMS.Modules.WebEnquiries.Services.WebEnquiryService>();
+
+            // ---- Events module ----
+            // The church calendar the public website lists. Drafts are invisible to the
+            // public; publishing is its own action so an edit cannot push one live.
+            builder.Services.AddScoped<RM_CMS.Modules.Events.Data.IEventRepository,
+                                       RM_CMS.Modules.Events.Data.EventRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Events.Services.IEventService,
+                                       RM_CMS.Modules.Events.Services.EventService>();
 
             // ---- Jobs module (new architecture) ----
             // Replaces the legacy CornJobs slice. Triggered by an external cron over
@@ -785,6 +816,25 @@ namespace RM_CMS
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMiddleware<CorrelationIdMiddleware>();
             app.UseMiddleware<SecurityHeadersMiddleware>();
+
+            // Gives a body to every failure that would otherwise have none.
+            //
+            // A 404 for a missing page, a 403 from the authorization policies, a 429
+            // from the rate limiter: all of these came back with a status and an EMPTY
+            // BODY, so a browser showed its own blank "cannot reach this page" and the
+            // whole site looked down rather than one address being wrong.
+            //
+            // This runs only when nothing else wrote a body, so a controller returning
+            // its own ProblemDetails or an ApiResponse is left exactly as it was.
+            // ErrorPages then decides page or JSON by the path and the Accept header.
+            //
+            // Placed here, outside routing, so it also covers what never reaches a
+            // controller — which is most of the cases above.
+            app.UseStatusCodePages(context =>
+                ErrorPages.WriteAsync(
+                    context.HttpContext,
+                    context.HttpContext.Response.StatusCode,
+                    app.Environment));
 
             if (!app.Environment.IsDevelopment())
             {

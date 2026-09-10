@@ -236,6 +236,55 @@ namespace RM_CMS.Modules.People.Api
         public DateTime CreatedAt { get; set; }
     }
 
+    /// <summary>
+    /// A person as the INTAKE screen sees them, for correcting a record.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately narrower than <c>PersonDto</c>, and that narrowness is the point.
+    /// A data-entry operator needs to fix what they typed — a misheard name, a
+    /// transposed digit, the wrong area — so this carries exactly the fields the
+    /// intake form itself collects, plus the row version needed to save them.
+    ///
+    /// What it does NOT carry: lifecycle, do-not-contact and its note, reference code,
+    /// or anything about cases. Those are pastoral decisions taken on other screens by
+    /// other roles, and an operator who can see the intake form has no business
+    /// reading them. `lookup` already masks contact values for the same reason, and
+    /// widening the general GET would have quietly undone that.
+    /// </remarks>
+    public sealed class IntakePersonDto
+    {
+        public string Id { get; set; } = string.Empty;
+
+        public string GivenName { get; set; } = string.Empty;
+        public string? FamilyName { get; set; }
+
+        public string? CampusId { get; set; }
+        public string? AgeBand { get; set; }
+        public string? Gender { get; set; }
+        public string? HouseholdType { get; set; }
+
+        public string? AddressLine { get; set; }
+        public string? Locality { get; set; }
+        public string? AreaId { get; set; }
+        public string? AreaName { get; set; }
+        public string? PostalCode { get; set; }
+
+        public bool IsLocal { get; set; }
+        public string? Notes { get; set; }
+
+        /// <summary>
+        /// Their mobile number in full, not masked.
+        /// </summary>
+        /// <remarks>
+        /// The one place this screen shows a whole number. Correcting a transposed
+        /// digit is impossible against a masked value, and the operator has already
+        /// identified this specific person rather than browsing a list.
+        /// </remarks>
+        public string? Mobile { get; set; }
+
+        public int RowVersion { get; set; }
+    }
+
     public sealed class PagedResult<T>
     {
         public IReadOnlyList<T> Items { get; set; } = Array.Empty<T>();

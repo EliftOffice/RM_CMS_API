@@ -267,6 +267,115 @@ Two things that file gets right and are easy to get wrong if you write your own 
 To point the site at a different CMS, change `VITE_API_BASE_URL` and rebuild. Nothing
 else in the app knows the API exists.
 
+## 4a. Events
+
+The church calendar the website lists at `/events` and `/events/<slug>`.
+
+Events used to be a hard-coded array in the website's own source, so publishing one meant
+a code change and a redeploy. The CMS owns them now.
+
+### Managing them
+
+**CMS → Events.** Open to **administrators, pastors and the website coordinator** —
+pastors because the calendar is theirs, the coordinator because publishing to the public
+site is what that role is for.
+
+- A new event is always a **draft**. Publishing is a separate button, so a half-typed
+  event cannot reach the public site on a mis-click.
+- **Cancel** rather than delete. The event stays on the site shown as cancelled, because
+  somebody who saw it advertised will come looking and a dead link tells them nothing.
+- **Times are local to the church.** Type 8:00 am and the server stores UTC and hands the
+  website back `2027-04-02T08:00:00+05:30`. Nothing in either project does its own date
+  arithmetic; a browser in another timezone would otherwise show a different answer.
+- **The poster is uploaded**, one file per event. Staff pick the image from their own
+  machine on the event editor; there is no picture list to choose from any more.
+
+### The feed
+
+```
+GET /api/public/events
+```
+
+Anonymous, read-only, rate-limited with the same bucket as the forms. Returns published
+and cancelled events — **never a draft**.
+
+```json
+{ "responseType": 0, "message": "1 event(s)", "data": [
+  { "slug": "good-friday-service",
+    "title": "Good Friday Service",
+    "date": "2027-04-02T08:00:00+05:30",
+    "endDate": "2027-04-02T12:00:00+05:30",
+    "venue": "HCM Junior College, Ongole",
+    "summary": "A morning of remembrance, worship and the Word.",
+    "description": ["Join us as we remember the cross.", "The service runs…"],
+    "image": "https://rmoffice.online/api/public/events/01J.../poster?v=6392…",
+    "cancelled": false } ] }
+```
+
+`description` is the CMS's blank-line separated text split into paragraphs.
+
+`image` is an **absolute URL** to the uploaded poster, or `null`. Absolute because the
+website runs on a different origin — a path would resolve against the site and 404. The
+field is still called `image` because it used to carry a picture slug.
+
+The `?v=` is the upload's timestamp. The address is otherwise stable for the life of the
+event, so without it a replaced poster would keep showing the old picture until every
+visitor's cache expired.
+
+### On the website
+
+`src/lib/events.ts` fetches, `src/hooks/useEvents.ts` shares one request across the three
+places that want the list — the homepage band, the Events page and an individual event
+page. Nothing else changed.
+
+### The poster
+
+```
+POST   /api/events/{id}/poster     multipart, field name "file"
+DELETE /api/events/{id}/poster
+GET    /api/public/events/{id}/poster    anonymous, what the site embeds
+```
+
+JPEG, PNG or WebP, up to 6 MB. **The format is decided by reading the first bytes of the
+file**, and the content type served back is the one the server decided — never the one the
+upload announced. A file renamed `poster.jpg` and sent as `image/jpeg` is refused if it is
+not really an image, which is what stops an upload becoming a page that runs on the API's
+own origin. SVG is refused for the same reason: it is a document and can carry script.
+
+There is no picture list to keep in step any more. The old contract mirrored the website's
+`src/data/generated/media.ts` in a C# file, and the CMS would only offer those twenty-odd
+stock plates — so the poster actually designed for the event was never one of the options
+and two unrelated events routinely showed the same photograph.
+
+**The bytes live in the database**, in `church_event_poster`, not in `wwwroot`. Coolify
+rebuilds the container on every push, so a file written into it survives exactly until the
+next deploy — every poster would vanish and the events would quietly go back to having no
+picture. Avoiding that with a file would need a mounted volume, and forgetting to configure
+one fails invisibly until a visitor looks.
+
+**Two headers matter on the serving endpoint.** `Cross-Origin-Resource-Policy:
+cross-origin`, because the API's default is `same-origin` and a browser drops a
+cross-origin image under that with nothing in the console to say why. And a long
+`Cache-Control` with `immutable`, which is safe only because the URL carries the `?v=`
+above.
+
+The trade-off, stated plainly: an uploaded poster skips the site's build-time image
+pipeline, so it has no AVIF or WebP variants, no `srcset` and no blurred placeholder. The
+event card and hero render it as a plain `<img>` inside a fixed-ratio box so the layout
+still does not shift. Showing the church's real poster is worth more than showing a stock
+plate in four optimised widths.
+
+### One trade-off worth knowing
+
+**Individual events are no longer listed in `sitemap.xml`.** The sitemap is generated at
+build time and events are published afterwards, so listing them would produce a file that
+is stale the moment somebody adds one. `/events` is still in the sitemap with a weekly
+change frequency and every event is linked from it, so crawlers reach them the ordinary
+way. If per-event entries turn out to matter, the honest fix is for the CMS to serve that
+part of the sitemap rather than the build script guessing.
+
+---
+
 ## 5. What stops abuse
 
 This is the only anonymous write in the whole application, so it has four layers. Worth

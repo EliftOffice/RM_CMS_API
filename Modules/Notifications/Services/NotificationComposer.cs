@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Options;
 using RM_CMS.Modules.Care.Data;
 using RM_CMS.Modules.Care.Domain;
+using RM_CMS.Modules.MessageTemplates.Domain;
+using RM_CMS.Modules.MessageTemplates.Services;
 using RM_CMS.Modules.Notifications.Domain;
 
 namespace RM_CMS.Modules.Notifications.Services
@@ -18,6 +20,13 @@ namespace RM_CMS.Modules.Notifications.Services
     /// when the alert was queued. For a chase-up that is the behaviour you want: if the
     /// escalation was acknowledged in the meantime, <see cref="ComposeAsync"/> says so
     /// rather than nagging about something already handled.
+    ///
+    /// WHAT CHANGED WHEN TEMPLATES ARRIVED: the wording used to be string literals in
+    /// this file, so changing a word meant a deployment. This class now decides only
+    /// WHICH FACTS a message gets — reading the entity, working out whether the alert
+    /// still applies, formatting a duration — and hands them to
+    /// <see cref="ITemplateService"/>, which owns the words. The two jobs were tangled
+    /// before, and the wording is the half that pastors need to change.
     /// </summary>
     public interface INotificationComposer
     {
@@ -32,15 +41,21 @@ namespace RM_CMS.Modules.Notifications.Services
     public sealed class NotificationComposer : INotificationComposer
     {
         private readonly IEscalationRepository _escalations;
+        private readonly ICareCaseRepository _cases;
+        private readonly ITemplateService _templates;
         private readonly TimeProvider _clock;
         private readonly string _baseUrl;
 
         public NotificationComposer(
             IEscalationRepository escalations,
+            ICareCaseRepository cases,
+            ITemplateService templates,
             TimeProvider clock,
             IOptions<NotificationOptions> options)
         {
             _escalations = escalations;
+            _cases = cases;
+            _templates = templates;
             _clock = clock;
             _baseUrl = options.Value.PublicBaseUrl.TrimEnd('/');
         }
@@ -52,7 +67,8 @@ namespace RM_CMS.Modules.Notifications.Services
                 NotificationType.EscalationUnacknowledged => await ComposeEscalationAsync(delivery, pastor: false),
                 NotificationType.EscalationPastorAlert    => await ComposeEscalationAsync(delivery, pastor: true),
                 NotificationType.EscalationRaised         => await ComposeEscalationAsync(delivery, pastor: false),
-                NotificationType.HuddleReminder           => ComposeHuddleReminder(),
+                NotificationType.HuddleReminder           => await ComposeHuddleReminderAsync(delivery),
+                NotificationType.CaseAssigned             => await ComposeCaseAssignedAsync(delivery),
 
                 // A type with no template is a coding gap, not a transient fault, so
                 // it is closed rather than retried until attempts run out.
@@ -71,21 +87,67 @@ namespace RM_CMS.Modules.Notifications.Services
         /// names and circumstances discussed at the huddle are exactly what should not
         /// be broadcast to a group chat. It says when and where to turn up; the agenda
         /// itself is behind a login.
+        ///
+        /// The template placeholders offered for it reflect that: a team name and a
+        /// link, and nothing about any person.
         /// </summary>
-        private (string?, string?) ComposeHuddleReminder()
+        private async Task<(string?, string?)> ComposeHuddleReminderAsync(NotificationDelivery delivery)
         {
-            var message =
-$@"🤝 Team Huddle — ఈ రోజు
+            var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["TeamName"] = null,
+                ["TeamLeadLink"] = $"{_baseUrl}/pages/dashboard/team-lead.html"
+            };
 
-🙏 Praise the Lord,
+            var message = await _templates.RenderAsync(
+                TelegramTemplates.HuddleReminder, delivery.RecipientPersonId, values);
 
-ఈ రోజు మన <b>Team Huddle</b> ఉంది. ఈ వారం చేసిన follow-ups గురించి కలిసి మాట్లాడుకుందాం.
+            return message is null
+                ? (null, "The huddle reminder has no message template.")
+                : (message, null);
+        }
 
-దయచేసి సమయానికి రండి. 🙏
+        // ==================================================================
+        // Case assigned
+        // ==================================================================
 
-👉 {_baseUrl}/pages/dashboard/team-lead.html";
+        /// <summary>
+        /// A follow-up has been placed with this volunteer.
+        ///
+        /// Re-read at send time like everything else here, so a case reassigned between
+        /// queueing and sending does not tell the wrong volunteer it is theirs.
+        /// </summary>
+        private async Task<(string?, string?)> ComposeCaseAssignedAsync(NotificationDelivery delivery)
+        {
+            if (delivery.RelatedEntityId is null)
+                return (null, "The alert names no case.");
 
-            return (message, null);
+            var careCase = await _cases.GetByIdAsync(delivery.RelatedEntityId.Value);
+
+            if (careCase is null)
+                return (null, "That case no longer exists.");
+
+            // Closed between queueing and sending. Telling a volunteer to follow up on
+            // something already finished is how these messages start being ignored.
+            if (string.Equals(careCase.Status, CaseStatus.Closed, StringComparison.Ordinal))
+                return (null, "The case was closed before the alert was sent.");
+
+            var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["PersonName"] = careCase.PersonName,
+                ["Reference"] = careCase.ReferenceCode ?? careCase.PublicId,
+                ["PersonPhone"] = careCase.PersonPhone,
+                ["CampusName"] = careCase.CampusName,
+                ["TeamName"] = careCase.TeamName,
+                ["MyAssignmentsLink"] = $"{_baseUrl}/pages/care/my-assignments.html"
+            };
+
+            var message = await _templates.RenderAsync(
+                TelegramTemplates.CaseAssigned, delivery.RecipientPersonId, values);
+
+            return message is null
+                ? (null, "The assignment alert has no message template.")
+                : (message, null);
         }
 
         // ==================================================================
@@ -111,7 +173,6 @@ $@"🤝 Team Huddle — ఈ రోజు
                 return (null, $"Escalation already {escalation.Status}.");
 
             var now = _clock.GetUtcNow().UtcDateTime;
-            var waited = FormatWaited(now - escalation.RaisedAt);
 
             var title = pastor
                 ? "🔔 Pastor Alert — ఎవరూ స్పందించలేదు"
@@ -119,36 +180,46 @@ $@"🤝 Team Huddle — ఈ రోజు
                     ? "🚨 EMERGENCY — వెంటనే స్పందించండి"
                     : "⚠️ Escalation Pending";
 
-            var person = Escape(escalation.PersonName ?? "—");
-            var reason = Escape(escalation.ReasonLabel ?? escalation.ReasonCode);
-            var raisedBy = Escape(escalation.RaisedByName ?? "—");
-            var reference = Escape(escalation.ReferenceCode ?? escalation.PublicId);
+            var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["PersonName"] = escalation.PersonName ?? "—",
+                ["Reason"] = escalation.ReasonLabel ?? escalation.ReasonCode,
+                ["Tier"] = escalation.Tier,
+                ["RaisedByName"] = escalation.RaisedByName ?? "—",
+                ["Reference"] = escalation.ReferenceCode ?? escalation.PublicId,
+                ["Waited"] = FormatWaited(now - escalation.RaisedAt),
+                ["MyAssignmentsLink"] = $"{_baseUrl}/pages/care/my-assignments.html"
+            };
 
-            var lead = pastor && !string.IsNullOrWhiteSpace(escalation.AssignedToName)
-                ? $"\nTeam Lead: <b>{Escape(escalation.AssignedToName!)}</b> ఇంకా acknowledge చేయలేదు.\n"
-                : string.Empty;
+            // These three are markup the server composes, not values somebody typed, so
+            // they go through the raw channel. The names inside them are escaped here,
+            // where they are put in — passing an already-built sentence through the
+            // escaper would turn its own tags into visible text.
+            var rawValues = new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["Title"] = title,
 
-            var protocol = escalation.ReasonRequiresProtocol
-                ? "\n📋 దీనికి safeguarding protocol పాటించాలి.\n"
-                : string.Empty;
+                ["TeamLeadNote"] = pastor && !string.IsNullOrWhiteSpace(escalation.AssignedToName)
+                    ? $"\nTeam Lead: <b>{TemplateRenderer.Escape(escalation.AssignedToName!)}</b> ఇంకా acknowledge చేయలేదు.\n"
+                    : string.Empty,
 
-            var message =
-$@"{title}
+                ["ProtocolNote"] = escalation.ReasonRequiresProtocol
+                    ? "\n📋 దీనికి safeguarding protocol పాటించాలి.\n"
+                    : string.Empty
+            };
 
-🙏 Praise the Lord,
+            var code = pastor
+                ? TelegramTemplates.EscalationPastorAlert
+                : delivery.NotificationType == NotificationType.EscalationRaised
+                    ? TelegramTemplates.EscalationRaised
+                    : TelegramTemplates.EscalationUnacknowledged;
 
-<b>{person}</b> గారి కోసం ఒక escalation <b>{waited}</b> నుండి pending లో ఉంది.
+            var message = await _templates.RenderAsync(
+                code, delivery.RecipientPersonId, values, rawValues);
 
-Reason: <b>{reason}</b>
-Tier: <b>{Escape(escalation.Tier)}</b>
-Raised by: {raisedBy}
-Ref: <code>{reference}</code>
-{lead}{protocol}
-దయచేసి వెంటనే చూసి acknowledge చేయండి.
-
-👉 {_baseUrl}/pages/care/my-assignments.html";
-
-            return (message, null);
+            return message is null
+                ? (null, $"No message template for '{code}'.")
+                : (message, null);
         }
 
         // ==================================================================
@@ -166,13 +237,5 @@ Ref: <code>{reference}</code>
 
             return $"{(int)waited.TotalDays} రోజుల";
         }
-
-        /// <summary>
-        /// Messages are sent with parse_mode=HTML, so a name carrying an angle bracket
-        /// or an ampersand would break the whole message — Telegram rejects the send
-        /// outright rather than rendering it plainly.
-        /// </summary>
-        private static string Escape(string value) =>
-            value.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
     }
 }

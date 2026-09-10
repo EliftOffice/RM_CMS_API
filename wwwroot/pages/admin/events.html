@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Events — RM_CMS</title>
+
+    <link rel="icon" href="/assets/img/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
+    <link rel="stylesheet" href="/assets/css/admin.css">
+
+    <script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
+    <script src="/assets/js/api-config.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/toast.js"></script>
+    <script src="/assets/js/admin-shell.js"></script>
+    <script src="/assets/js/events.js"></script>
+
+    <style>
+        /* ── Counters, doubling as the status filter ── */
+        .counts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .count-card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+        }
+
+            .count-card:hover { border-color: var(--accent); }
+            .count-card.is-active { border-color: var(--accent); background: #f5f8ff; }
+
+        .count-value { font-size: 21px; font-weight: 700; line-height: 1.1; }
+        .count-label { font-size: 11px; color: var(--ink-muted); font-weight: 600; margin-top: 2px; }
+        .count-card.is-live .count-value { color: var(--ok); }
+
+        .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+        .filters .input { max-width: 260px; }
+
+        /* An event that has already happened is still useful to read, but it is not
+           what anyone came here to work on. */
+        .row-past { opacity: .55; }
+
+        .when { white-space: nowrap; }
+        .when-date { font-weight: 600; }
+        .when-time { color: var(--ink-muted); font-size: 12.5px; }
+
+        /* ── The poster ── */
+        .poster-field {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        /* Fixed box, image contained rather than cropped: a portrait flyer and a
+           landscape photograph both have to be judged as uploaded, and a preview
+           that crops would hide exactly what the editor needs to check. */
+        .poster-preview,
+        .poster-empty {
+            width: 200px;
+            height: 200px;
+            border-radius: var(--radius);
+            background: #f9fafb;
+        }
+
+        .poster-preview {
+            border: 1px solid var(--line);
+            object-fit: contain;
+            display: block;
+        }
+
+        .poster-empty {
+            border: 1px dashed var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 12px;
+            font-size: 12.5px;
+            line-height: 1.5;
+            color: var(--ink-muted);
+        }
+
+        .poster-controls { flex: 1 1 240px; min-width: 240px; }
+        .poster-meta { font-size: 12.5px; color: var(--ink-muted); margin: 8px 0 0; }
+
+        /* The list thumbnail. Fixed height so a portrait poster does not give one
+           row three times the height of its neighbours. */
+        .poster-cell,
+        .poster-cell-none {
+            width: 88px;
+            height: 50px;
+            border-radius: 4px;
+            display: block;
+        }
+
+        .poster-cell { border: 1px solid var(--line); object-fit: cover; background: #f3f4f6; }
+
+        .poster-cell-none {
+            border: 1px dashed var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: var(--ink-muted);
+        }
+
+        .slug {
+            font-family: ui-monospace, Menlo, Consolas, monospace;
+            font-size: 11.5px;
+            color: var(--ink-muted);
+        }
+
+        /* ── Editor ── */
+        .modal { max-width: 720px; }
+        .field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+
+        @media (max-width: 620px) { .field-row { grid-template-columns: minmax(0, 1fr); } }
+
+        .hint-slug { font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+        .live-warn {
+            background: var(--warn-bg);
+            border: 1px solid #fde68a;
+            color: #92400e;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="adminShell"></div>
+
+<main class="page" id="pageBody" hidden>
+
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Events</h1>
+            <p class="page-sub">
+                The church calendar as the public website shows it. A new event is a
+                draft until you publish it — nothing reaches the site by accident.
+            </p>
+        </div>
+        <button type="button" class="btn btn-primary" id="newBtn">New event</button>
+    </div>
+
+    <div class="counts" id="counts"></div>
+
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">All events</span>
+            <span id="resultCount" style="margin-left:auto;font-size:12px;color:var(--ink-muted);"></span>
+        </div>
+
+        <div class="card-body" style="padding-bottom:0;">
+            <div class="filters">
+                <input class="input" id="search" placeholder="Title, venue or web address">
+                <label class="role-option" style="font-size:13px;">
+                    <input type="checkbox" id="includePast" checked> Include past events
+                </label>
+                <button type="button" class="btn btn-sm" id="clearBtn">Clear</button>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="table" id="eventTable">
+                <thead>
+                    <tr>
+                        <th>Poster</th>
+                        <th>When</th>
+                        <th>Event</th>
+                        <th>Venue</th>
+                        <th>Status</th>
+                        <th class="cell-actions">&nbsp;</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="6" class="empty">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pager" id="pager"></div>
+    </div>
+</main>
+
+<!-- ── Create / edit ───────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="editModal">
+    <div class="modal">
+        <div class="modal-head">
+            <span class="card-title" id="editTitle">New event</span>
+            <button type="button" class="btn btn-sm" data-close>Close</button>
+        </div>
+
+        <div class="modal-body">
+            <div class="live-warn" id="liveWarn" hidden>
+                This event is live on the website. Saving changes them for everyone
+                looking at it right now.
+            </div>
+
+            <div class="field">
+                <label class="label" for="fTitle">Title</label>
+                <input class="input" id="fTitle" maxlength="160" autocomplete="off"
+                       placeholder="Good Friday Service">
+            </div>
+
+            <div class="field">
+                <label class="label" for="fSummary">Summary</label>
+                <input class="input" id="fSummary" maxlength="400" autocomplete="off"
+                       placeholder="A morning of remembrance, worship and the Word.">
+                <p class="hint">One or two lines. This is what shows on the card.</p>
+            </div>
+
+            <div class="field-row">
+                <div class="field">
+                    <label class="label" for="fStarts">Starts</label>
+                    <input class="input" id="fStarts" type="datetime-local">
+                </div>
+                <div class="field">
+                    <label class="label" for="fEnds">Ends <span class="hint">optional</span></label>
+                    <input class="input" id="fEnds" type="datetime-local">
+                </div>
+            </div>
+            <p class="hint" id="tzHint" style="margin:-8px 0 14px;"></p>
+
+            <div class="field">
+                <label class="label" for="fVenue">Venue</label>
+                <input class="input" id="fVenue" maxlength="200" autocomplete="off"
+                       placeholder="HCM Junior College, Ongole">
+            </div>
+
+            <div class="field-row">
+                <div class="field" id="campusField" hidden>
+                    <label class="label" for="fCampus">Campus</label>
+                    <select class="input" id="fCampus">
+                        <option value="">Every campus</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- ── The poster ───────────────────────────────────────────────
+                 A file the staff member chooses, not a picture picked from a
+                 list of stock plates the website happens to ship. That list
+                 could never contain the poster actually designed for this
+                 event, which is the one everybody has already seen.          -->
+            <div class="field">
+                <label class="label" for="fPoster">Poster image</label>
+
+                <div class="poster-field">
+                    <img class="poster-preview" id="posterPreview" alt="" hidden>
+                    <div class="poster-empty" id="posterEmpty">
+                        No poster yet.<br>Landscape images look best on the cards.
+                    </div>
+
+                    <div class="poster-controls">
+                        <input type="file" class="input" id="fPoster"
+                               accept="image/jpeg,image/png,image/webp">
+
+                        <p class="hint">
+                            JPEG, PNG or WebP, up to 6 MB. Shown at the top of the event's own
+                            page on the website and on its card in the list.
+                        </p>
+
+                        <p class="poster-meta" id="posterMeta"></p>
+
+                        <button type="button" class="btn btn-sm" id="removePosterBtn" hidden>
+                            Remove poster
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label" for="fDescription">Full description <span class="hint">optional</span></label>
+                <textarea class="input" id="fDescription" rows="5" maxlength="8000"
+                          placeholder="The longer text on the event's own page.&#10;&#10;Leave a blank line between paragraphs."></textarea>
+                <p class="hint">Blank line between paragraphs.</p>
+            </div>
+
+            <div class="field">
+                <label class="label" for="fSlug">Web address</label>
+                <input class="input hint-slug" id="fSlug" maxlength="120" autocomplete="off">
+                <p class="hint" id="slugHint">Made from the title. Change it only if you need to.</p>
+            </div>
+
+            <div class="notice notice-warn" id="editNotice" hidden></div>
+        </div>
+
+        <div class="modal-foot">
+            <button type="button" class="btn" data-close>Cancel</button>
+            <span style="flex:1;"></span>
+            <button type="button" class="btn btn-primary" id="saveBtn">Save</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

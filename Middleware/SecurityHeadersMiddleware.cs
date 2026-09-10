@@ -38,7 +38,16 @@ namespace RM_CMS.Middleware
                     "microphone=(), payment=(), usb=(), interest-cohort=()";
 
                 headers["Cross-Origin-Opener-Policy"] = "same-origin";
-                headers["Cross-Origin-Resource-Policy"] = "same-origin";
+
+                // same-origin unless the endpoint has already said otherwise. One has:
+                // the event poster is deliberately embedded by the public website,
+                // which runs on a different origin, and this default would make the
+                // browser drop the image with no console message explaining why.
+                //
+                // Assigned rather than overwritten so opting out is a decision made at
+                // the endpoint, in the open, next to the reason for it.
+                if (!headers.ContainsKey("Cross-Origin-Resource-Policy"))
+                    headers["Cross-Origin-Resource-Policy"] = "same-origin";
 
                 // Remove the server fingerprint where the host lets us.
                 headers.Remove("Server");

@@ -606,6 +606,24 @@ CREATE TABLE user_account (
 
     is_active               TINYINT(1)      NOT NULL DEFAULT 1,
     must_change_password    TINYINT(1)      NOT NULL DEFAULT 0,
+
+    -- This account signs in with its mobile number and nothing else.
+    --
+    -- For people who cannot read a password prompt. Asking them for one does not
+    -- make the account safer: what happens in practice is that somebody literate
+    -- types it for them, so the credential ends up shared or written down.
+    --
+    -- WHAT IT COSTS: for these accounts the mobile number IS the credential, and
+    -- mobile numbers are on posters and in group chats. Anyone who knows the
+    -- number can sign in as that person. It is a deliberate trade of security for
+    -- access, made one account at a time by an administrator, and both granting
+    -- and revoking it are written to security_event.
+    --
+    -- DEFAULT 0 is load-bearing: every account that exists, and every account
+    -- created later, keeps needing a password until somebody decides otherwise
+    -- for that person. The application additionally refuses to set this on an
+    -- account holding ADMIN.
+    allows_passwordless_login TINYINT(1)    NOT NULL DEFAULT 0,
     failed_access_count     SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     lockout_ends_at         DATETIME(3)     NULL,
     last_login_at           DATETIME(3)     NULL,
@@ -627,6 +645,9 @@ CREATE TABLE user_account (
     -- One login per person. Shared logins destroy accountability in an audit trail.
     UNIQUE KEY ux_user_account_person    (person_id),
     KEY ix_user_account_active (is_active),
+    -- Serves the audit an administrator should be able to run at any time:
+    -- "which accounts can be signed into with a number alone?"
+    KEY ix_user_account_passwordless (allows_passwordless_login, is_active),
 
     CONSTRAINT fk_user_account_person FOREIGN KEY (person_id) REFERENCES person (id),
     CONSTRAINT ck_user_account_username_len CHECK (CHAR_LENGTH(username) >= 3)
@@ -1460,6 +1481,332 @@ CREATE TABLE job_run (
     KEY ix_job_run_name (job_name, started_at),
     CONSTRAINT ck_job_run_status CHECK (status IN ('RUNNING','SUCCEEDED','FAILED','PARTIAL'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+
+-- -----------------------------------------------------------------------------
+-- login_challenge — a sign-in waiting to be confirmed on Telegram
+--
+-- A row lives only between "the credential checked out" and "the session was
+-- issued", which is at most a few minutes. Not an audit table: what happened is
+-- written to security_event like every other authentication event.
+--
+-- WHY THE CREDENTIAL IS ALREADY VERIFIED BEFORE A ROW APPEARS: a challenge
+-- created before checking the password would let anyone spray mobile numbers and
+-- make the church's phones buzz.
+--
+-- TWO SECRETS, DIFFERENT JOBS. public_id is what the waiting BROWSER holds; it
+-- identifies the pending sign-in and can only ask "approved yet?". token_hash is
+-- the hash of what the TELEGRAM BUTTON carries, and that is what approves it. The
+-- browser can wait but cannot approve itself.
+-- -----------------------------------------------------------------------------
+CREATE TABLE login_challenge (
+    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id         CHAR(26)        NOT NULL,
+    user_account_id   BIGINT UNSIGNED NOT NULL,
+
+    -- SHA-256 only, like refresh_token: a database leak must not hand somebody
+    -- the means to approve a sign-in.
+    token_hash        CHAR(64)        NOT NULL,
+
+    -- The chat the prompt was sent to. Compared against the chat the button was
+    -- pressed in, so a forwarded message cannot approve somebody else's sign-in.
+    chat_id           VARCHAR(32)     NOT NULL,
+
+    status            VARCHAR(20)     NOT NULL DEFAULT 'PENDING',
+    send_count        SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+
+    -- Shown IN the Telegram message so the person can tell their own sign-in from
+    -- somebody else's.
+    request_ip        VARCHAR(64)     NULL,
+    user_agent        VARCHAR(255)    NULL,
+
+    -- created_at is written by the APPLICATION, not defaulted. CURRENT_TIMESTAMP
+    -- stamps the MySQL server's local time and everything else here is UTC — on a
+    -- server in IST that made created_at hours later than expires_at, and
+    -- ck_login_challenge_window rejected every row.
+    created_at        DATETIME(3)     NOT NULL,
+    expires_at        DATETIME(3)     NOT NULL,
+    approved_at       DATETIME(3)     NULL,
+    consumed_at       DATETIME(3)     NULL,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY ux_login_challenge_public_id (public_id),
+    UNIQUE KEY ux_login_challenge_token     (token_hash),
+    KEY ix_login_challenge_pending (status, expires_at),
+    KEY ix_login_challenge_account (user_account_id, created_at),
+
+    CONSTRAINT fk_login_challenge_account FOREIGN KEY (user_account_id)
+        REFERENCES user_account (id) ON DELETE CASCADE,
+
+    CONSTRAINT ck_login_challenge_status CHECK (
+        status IN ('PENDING','APPROVED','CONSUMED','DECLINED','EXPIRED')
+    ),
+    CONSTRAINT ck_login_challenge_approved CHECK (
+        status <> 'APPROVED' OR approved_at IS NOT NULL
+    ),
+    CONSTRAINT ck_login_challenge_window CHECK (expires_at > created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------------------------------
+-- telegram_template — the wording of each Telegram message
+--
+-- WHY A ROW IS THE EXCEPTION: every scenario has a default written in C#
+-- (`TelegramTemplates`), and no row here means "use it". So this table is empty
+-- on a fresh database and the messages are still correct, a scenario added in
+-- code works before anybody opens the admin screen, and "reset to the standard
+-- wording" is a DELETE rather than a second copy of the text to keep in step.
+--
+-- WHAT IS AND IS NOT STORED: the TEMPLATE — the shape, with {{Placeholder}}
+-- tokens in it — which contains no personal data at all. The values are
+-- substituted at send time and never persisted, which is the same rule that
+-- keeps a body column off `notification_delivery`.
+-- -----------------------------------------------------------------------------
+CREATE TABLE telegram_template (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id       CHAR(26)        NOT NULL,
+
+    -- The scenario: LINK_WELCOME, CASE_ASSIGNED and so on. Not a lookup table
+    -- and no CHECK, deliberately — the set of scenarios is decided by the code
+    -- that sends them, and a CHECK would need migrating every time one was
+    -- added, which is exactly the deployment this feature exists to avoid. A row
+    -- for a code the application no longer knows is ignored, not broken.
+    code            VARCHAR(60)     NOT NULL,
+
+    -- Telegram HTML, so it may contain <b> and <i>. The values substituted into
+    -- it are escaped at render time, which is what stops a name containing an
+    -- angle bracket from making Telegram reject the whole message.
+    body            TEXT            NOT NULL,
+
+    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+                                    ON UPDATE CURRENT_TIMESTAMP(3),
+    updated_by      BIGINT UNSIGNED NULL,
+    row_version     INT UNSIGNED    NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY ux_telegram_template_public_id (public_id),
+    -- One wording per scenario. Two would mean the message sent depends on which
+    -- row happened to be read first.
+    UNIQUE KEY ux_telegram_template_code      (code),
+
+    CONSTRAINT fk_telegram_template_editor FOREIGN KEY (updated_by)
+        REFERENCES user_account (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- #############################################################################
+-- 6b. THE PUBLIC WEBSITE
+--
+--    Two tables the church's public site reads and writes. Both sit outside the
+--    pastoral model on purpose: one holds untrusted input from strangers, the
+--    other holds published copy. Neither is a record about a person.
+-- #############################################################################
+
+-- Everything submitted through a form on the public website.
+--
+-- UNTRUSTED INPUT, held apart from `person` deliberately. The submit endpoint is
+-- open to the internet; writing straight into the pastoral records would let
+-- anyone create people, and the first spam run would sit beside real prayer
+-- requests with no way to tell them apart. A submission lands here, somebody
+-- with the WEB_COORDINATOR role reads it, and `linked_person_id` records what
+-- they decided it becomes.
+CREATE TABLE web_enquiry (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id           CHAR(26)        NOT NULL,
+    reference_code      VARCHAR(20)     NULL,      -- 'W0001', display only
+
+    -- Which form it came from. Not an FK: the website owns its own form list,
+    -- and the service validates against a known set at the edge.
+    form_type           VARCHAR(40)     NOT NULL,
+    campus_id           BIGINT UNSIGNED NULL,
+
+    -- All nullable. A prayer request carries only a message; a registration
+    -- carries everything but one. One table, several shapes, and the service
+    -- enforces which fields each form_type actually requires.
+    full_name           VARCHAR(160)    NULL,
+    mobile              VARCHAR(20)     NULL,
+    mobile_normalized   VARCHAR(20)     NULL,
+    email               VARCHAR(255)    NULL,
+    city                VARCHAR(100)    NULL,
+    street              VARCHAR(200)    NULL,
+    landmark            VARCHAR(200)    NULL,
+    referred_by_name    VARCHAR(160)    NULL,
+    referred_by_mobile  VARCHAR(20)     NULL,
+    message             TEXT            NULL,
+
+    -- Anything the form sent that has no column, so a new website field is
+    -- captured from day one without a migration.
+    payload             JSON            NULL,
+
+    source_page         VARCHAR(255)    NULL,
+    user_agent          VARCHAR(255)    NULL,
+    -- SHA-256 of the caller's IP salted with the submission DATE, so it rotates
+    -- nightly. A grouping key for spotting one source flooding the form, not a
+    -- permanent identifier for somebody who only asked for prayer.
+    submitter_hash      CHAR(64)        NULL,
+    is_suspected_spam   TINYINT(1)      NOT NULL DEFAULT 0,
+
+    status              VARCHAR(20)     NOT NULL DEFAULT 'NEW',
+    reviewed_by         BIGINT UNSIGNED NULL,
+    reviewed_at         DATETIME(3)     NULL,
+    review_note         VARCHAR(1000)   NULL,
+    linked_person_id    BIGINT UNSIGNED NULL,
+
+    submitted_at        DATETIME(3)     NOT NULL,
+
+    created_at          DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at          DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    updated_by          BIGINT UNSIGNED NULL,
+    row_version         INT UNSIGNED    NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY ux_web_enquiry_public_id      (public_id),
+    UNIQUE KEY ux_web_enquiry_reference_code (reference_code),
+    KEY ix_web_enquiry_status    (status, submitted_at),
+    KEY ix_web_enquiry_form      (form_type, submitted_at),
+    KEY ix_web_enquiry_mobile    (mobile_normalized),
+    KEY ix_web_enquiry_submitter (submitter_hash, submitted_at),
+
+    CONSTRAINT fk_web_enquiry_campus   FOREIGN KEY (campus_id)        REFERENCES campus (id),
+    CONSTRAINT fk_web_enquiry_person   FOREIGN KEY (linked_person_id) REFERENCES person (id),
+    CONSTRAINT fk_web_enquiry_reviewer FOREIGN KEY (reviewed_by)      REFERENCES user_account (id),
+
+    CONSTRAINT ck_web_enquiry_status CHECK (
+        status IN ('NEW','IN_REVIEW','ACTIONED','SPAM','CLOSED')
+    ),
+    -- A reviewed row must say who and when, or the audit trail is decorative.
+    CONSTRAINT ck_web_enquiry_reviewed CHECK (
+        status = 'NEW' OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL)
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- The events the public website lists at /events and /events/<slug>.
+--
+-- Named `church_event`, not `event`: `event` is a reserved word in MySQL (the
+-- scheduler), and `security_event` next door is an audit row about the
+-- application rather than a gathering people are invited to.
+CREATE TABLE church_event (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id       CHAR(26)        NOT NULL,
+
+    -- The URL segment: /events/<slug>. Stable once published — it is what
+    -- anyone who shared the link is holding, so retitling does not change it.
+    slug            VARCHAR(120)    NOT NULL,
+
+    -- Null means every campus.
+    campus_id       BIGINT UNSIGNED NULL,
+
+    title           VARCHAR(160)    NOT NULL,
+    summary         VARCHAR(400)    NOT NULL,
+    -- Blank-line separated paragraphs, split into an array by the API.
+    description     TEXT            NULL,
+    venue           VARCHAR(200)    NOT NULL,
+
+    -- UTC like every other instant here. The API converts to the campus zone on
+    -- the way out, because the site needs an offset-carrying ISO string — a bare
+    -- UTC stamp renders an 8am service as 2:30am to a reader in India.
+    starts_at       DATETIME(3)     NOT NULL,
+    ends_at         DATETIME(3)     NULL,
+
+    -- The poster staff uploaded. Metadata only — the bytes are in
+    -- church_event_poster, so the admin list reads rows of a few hundred bytes
+    -- and the image is fetched only by the endpoint that serves it.
+    --
+    -- This replaced an `image_slug` naming one of about twenty stock plates from
+    -- the website's build-time manifest. Those were optimised into four widths
+    -- and two formats, which was the argument for them — but the poster actually
+    -- designed for the event was never among them, so two unrelated events
+    -- routinely showed the same photograph.
+    --
+    -- The content type is what the SERVER decided by reading the first bytes,
+    -- never what the upload announced: echoing the caller's value back is how an
+    -- uploaded file becomes a page running on the API's own origin.
+    poster_content_type VARCHAR(80)  NULL,
+    poster_file_name    VARCHAR(200) NULL,
+    poster_byte_size    INT UNSIGNED NULL,
+    -- Doubles as the cache-busting token in the URL, so a replaced poster is a
+    -- different address and appears at once.
+    poster_updated_at   DATETIME(3)  NULL,
+
+    -- DRAFT is invisible to the public, which is the point: an event can be
+    -- written, checked and dated before anyone outside the church sees it.
+    status          VARCHAR(20)     NOT NULL DEFAULT 'DRAFT',
+    published_at    DATETIME(3)     NULL,
+
+    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    created_by      BIGINT UNSIGNED NULL,
+    updated_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    updated_by      BIGINT UNSIGNED NULL,
+    row_version     INT UNSIGNED    NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY ux_church_event_public_id (public_id),
+    UNIQUE KEY ux_church_event_slug      (slug),
+    KEY ix_church_event_public (status, starts_at),
+    KEY ix_church_event_campus (campus_id, starts_at),
+
+    CONSTRAINT fk_church_event_campus FOREIGN KEY (campus_id) REFERENCES campus (id),
+
+    CONSTRAINT ck_church_event_status CHECK (
+        status IN ('DRAFT','PUBLISHED','CANCELLED')
+    ),
+    -- An end before a start is always a typo, and it silently breaks the
+    -- upcoming/past split the website does on ends_at.
+    CONSTRAINT ck_church_event_dates CHECK (
+        ends_at IS NULL OR ends_at >= starts_at
+    ),
+    CONSTRAINT ck_church_event_published CHECK (
+        status <> 'PUBLISHED' OR published_at IS NOT NULL
+    ),
+    -- Either there is a poster and we know what it is, or there is none. A
+    -- content type with no size is a half-written upload.
+    CONSTRAINT ck_church_event_poster CHECK (
+        (poster_content_type IS NULL AND poster_byte_size IS NULL
+                                     AND poster_updated_at IS NULL)
+     OR (poster_content_type IS NOT NULL AND poster_byte_size IS NOT NULL
+                                         AND poster_updated_at IS NOT NULL)
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------------------------------
+-- church_event_poster — the image itself
+--
+-- WHY THE BYTES ARE HERE AND NOT A FILE ON DISK: the API is deployed by Coolify
+-- from a container image rebuilt on every push, so anything written into the
+-- container's filesystem is gone at the next deploy. Every uploaded poster would
+-- silently vanish and the events would go back to rendering without a picture.
+-- Surviving that needs a mounted volume nobody has configured, and the failure
+-- mode of forgetting is invisible until a visitor looks. A row is backed up and
+-- restored with everything else and needs no infrastructure at all.
+--
+-- WHY A SEPARATE TABLE: a MEDIUMBLOB on church_event would be dragged along by
+-- the admin list, which reads fifty rows to show titles and dates.
+--
+-- Keyed by the event rather than by an id of its own — there is never a second
+-- poster for one event, and a surrogate key would only make that possible by
+-- accident.
+-- -----------------------------------------------------------------------------
+CREATE TABLE church_event_poster (
+    church_event_id BIGINT UNSIGNED NOT NULL,
+
+    -- MEDIUMBLOB (16MB), not BLOB (64KB): a phone photograph of a printed poster
+    -- is routinely 3-4MB before anyone resizes it. The application caps uploads
+    -- well below this, so the limit that bites is the one with a readable
+    -- sentence attached rather than a truncated row.
+    bytes           MEDIUMBLOB      NOT NULL,
+
+    PRIMARY KEY (church_event_id),
+
+    -- The one place a cascade is right: the image has no meaning without the
+    -- event, and leaving it behind would be megabytes nothing can ever reach.
+    CONSTRAINT fk_church_event_poster_event FOREIGN KEY (church_event_id)
+        REFERENCES church_event (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -127,11 +127,38 @@
 
         <div class="page-head">
             <div>
-                <h1 class="page-title">Record a visitor</h1>
-                <p class="page-sub">
+                <h1 class="page-title" id="pageTitle">Record a visitor</h1>
+                <p class="page-sub" id="pageSub">
                     Capture someone who visited so a volunteer can follow up with them.
                     Only a name and one contact number are required.
                 </p>
+            </div>
+            <button type="button" class="btn" id="correctBtn">Correct a record</button>
+        </div>
+
+        <!--
+            Finding a record to fix.
+
+            Hidden until asked for, because the common case is recording somebody new
+            and a search box above the form would invite typing the visitor's name
+            into the wrong place.
+        -->
+        <div class="card" id="findCard" hidden>
+            <div class="card-head">
+                <h2 class="card-title">Find the record to correct</h2>
+                <button type="button" class="btn btn-sm" id="findClose">Close</button>
+            </div>
+            <div class="card-body">
+                <div class="field">
+                    <label class="label" for="findTerm">Name or mobile number</label>
+                    <input class="input" id="findTerm" autocomplete="off"
+                           placeholder="At least 3 characters">
+                    <p class="hint">
+                        Searches people already on file. Numbers are shown partly hidden
+                        until you open a record.
+                    </p>
+                </div>
+                <div id="findResults"></div>
             </div>
         </div>
 
@@ -146,6 +173,13 @@
                 <div class="card-body">
 
                     <!-- duplicate / error notices -->
+                    <!--
+                        Correcting is a different act from recording, and the form looks
+                        identical in both. This is what stops somebody overwriting one
+                        person with another person's details.
+                    -->
+                    <div id="editNotice" class="notice notice-warn" role="status" hidden></div>
+
                     <div id="dupNotice" class="notice notice-warn" role="alert" hidden></div>
                     <div id="formError" class="notice" role="alert" hidden></div>
 
@@ -346,6 +380,9 @@
                                 Save visitor
                             </button>
                             <button type="button" class="btn" id="clearBtn">Clear form</button>
+                            <button type="button" class="btn" id="cancelEditBtn" hidden>
+                                Cancel correction
+                            </button>
                             <span class="spacer"></span>
                             <span class="hint" id="statusHint"></span>
                         </div>

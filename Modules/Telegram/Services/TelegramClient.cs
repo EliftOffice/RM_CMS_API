@@ -27,6 +27,37 @@ namespace RM_CMS.Modules.Telegram.Services
         /// </summary>
         Task<bool> SendMessageAsync(long chatId, string text, CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Sends a message with buttons underneath it, each carrying a value the bot
+        /// gets back when it is tapped.
+        /// </summary>
+        /// <remarks>
+        /// Used by sign-in confirmation. A button rather than a link on purpose: a
+        /// <c>t.me</c> deep link only re-sends its payload when the chat is NEW, so for
+        /// somebody who has spoken to the bot before — which is everybody here, since
+        /// linking required it — tapping one just opens the conversation and nothing
+        /// reaches the webhook. Callback buttons work every time, in place.
+        ///
+        /// The callback value goes back to Telegram and returns unchanged, so it must
+        /// be treated as caller-supplied on the way in. It is capped at 64 bytes by
+        /// the Bot API.
+        /// </remarks>
+        Task<bool> SendMessageWithButtonsAsync(
+            long chatId, string text,
+            IReadOnlyList<(string Label, string CallbackData)> buttons,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Closes the spinner on a tapped button, optionally with a short toast.
+        /// </summary>
+        /// <remarks>
+        /// Telegram shows a loading state on the button until this is called and
+        /// retries the update if it never is. Not answering leaves the person watching
+        /// a spinner on a sign-in that actually succeeded.
+        /// </remarks>
+        Task<bool> AnswerCallbackAsync(string callbackQueryId, string? text = null,
+                                       CancellationToken cancellationToken = default);
+
         /// <summary>Registers the webhook with Telegram. Used by the admin setup action.</summary>
         Task<(bool Ok, string Detail)> SetWebhookAsync(string url, string secretToken, CancellationToken cancellationToken = default);
 
@@ -192,6 +223,51 @@ namespace RM_CMS.Modules.Telegram.Services
             });
 
             return await PostAsync("sendMessage", payload, cancellationToken) is { Ok: true };
+        }
+
+        public async Task<bool> SendMessageWithButtonsAsync(
+            long chatId, string text,
+            IReadOnlyList<(string Label, string CallbackData)> buttons,
+            CancellationToken cancellationToken = default)
+        {
+            if (!IsConfigured)
+            {
+                _logger.LogWarning("Telegram message not sent: the bot is not configured.");
+                return false;
+            }
+
+            // One button per row. Two side by side would put "Yes, it was me" and
+            // "No, it was not" a thumb-width apart on a phone, which is the wrong
+            // geometry for a question where the two answers mean opposite things.
+            var keyboard = buttons
+                .Select(b => new[] { new { text = b.Label, callback_data = b.CallbackData } })
+                .ToArray();
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                chat_id = chatId,
+                text,
+                parse_mode = "HTML",
+                disable_web_page_preview = true,
+                reply_markup = new { inline_keyboard = keyboard }
+            });
+
+            return await PostAsync("sendMessage", payload, cancellationToken) is { Ok: true };
+        }
+
+        public async Task<bool> AnswerCallbackAsync(
+            string callbackQueryId, string? text = null, CancellationToken cancellationToken = default)
+        {
+            if (!IsConfigured) return false;
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                callback_query_id = callbackQueryId,
+                text = text ?? string.Empty,
+                show_alert = false
+            });
+
+            return await PostAsync("answerCallbackQuery", payload, cancellationToken) is { Ok: true };
         }
 
         public async Task<(bool Ok, string Detail)> SetWebhookAsync(

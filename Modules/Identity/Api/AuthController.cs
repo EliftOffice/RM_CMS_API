@@ -58,7 +58,101 @@ namespace RM_CMS.Modules.Identity.Api
                 return Unauthorized(new ApiResponse<AuthResultDto>(result.ResponseType, result.Message, null!));
             }
 
+            // The credential was right but the sign-in is not finished — this account
+            // has to confirm on Telegram. 200, because nothing has gone wrong, but no
+            // cookie is written and the payload carries no token: there is no session
+            // to hand out until the tap arrives.
+            if (result.Data.Payload.RequiresTelegramVerification)
+                return Ok(new ApiResponse<AuthResultDto>(ResponseType.Success, result.Message, result.Data.Payload));
+
             return IssueSession(result.Data, "Signed in successfully");
+        }
+
+        /// <summary>
+        /// Sends the Telegram confirmation for a sign-in that is waiting on one.
+        /// </summary>
+        /// <remarks>
+        /// Anonymous, because by definition there is no session yet — the challenge id
+        /// returned by <c>login</c> is the only thing the caller holds, and it was
+        /// issued to a browser that already passed the first factor.
+        ///
+        /// Rate-limited on the login bucket. This one DOES belong there: it makes
+        /// somebody's phone buzz, so it is the surface worth keeping tight.
+        /// </remarks>
+        [HttpPost("verify/send")]
+        [AllowAnonymous]
+        [EnableRateLimiting(RateLimitPolicies.Login)]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> SendVerification([FromBody] LoginChallengeRequest request)
+        {
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            return Ok(await _identity.SendVerificationPromptAsync(request.ChallengeId, BuildContext()));
+        }
+
+        /// <summary>
+        /// Asks whether the tap has arrived, and issues the session on the poll that
+        /// finds it.
+        /// </summary>
+        /// <remarks>
+        /// Its own rate limit rather than the login one: a screen waiting three minutes
+        /// polls perhaps ninety times, which would exhaust a five-per-five-minutes
+        /// bucket in the first fifteen seconds and strand a sign-in that was going
+        /// perfectly well.
+        ///
+        /// The session arrives here exactly once. Two tabs polling the same challenge
+        /// resolve to one winner in the database, and the loser is told the sign-in is
+        /// no longer waiting.
+        /// </remarks>
+        [HttpPost("verify/poll")]
+        [AllowAnonymous]
+        [EnableRateLimiting(RateLimitPolicies.LoginMethod)]
+        [ProducesResponseType(typeof(ApiResponse<LoginChallengeStatusDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> PollVerification([FromBody] LoginChallengeRequest request)
+        {
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            var result = await _identity.PollVerificationAsync(request.ChallengeId, BuildContext());
+
+            // The refresh token goes into the HttpOnly cookie and is stripped from the
+            // body, exactly as an ordinary sign-in does it.
+            if (result.Session is not null)
+            {
+                WriteRefreshCookie(result.Session.RawRefreshToken, result.Session.RefreshExpiresAt);
+                result.Session.Payload.RefreshToken = null;
+            }
+
+            return Ok(result.Response);
+        }
+
+        /// <summary>
+        /// Says whether a given mobile number has to supply a password.
+        /// </summary>
+        /// <remarks>
+        /// The login screen asks this after the number is typed, then either signs the
+        /// person in or reveals a password box. It exists because some of the people
+        /// who use this system cannot read a password prompt, and an administrator can
+        /// mark their account accordingly.
+        ///
+        /// Anonymous, because it runs before anybody is signed in, and on its own rate
+        /// limit rather than the login one. Sharing that bucket would mean every
+        /// successful sign-in spent two of the five permitted attempts, and somebody who
+        /// mistyped their number once would be locked out before their first real try.
+        ///
+        /// An unknown number answers "password required", the same as a normal account,
+        /// so this cannot be used to find out who has an account here.
+        /// </remarks>
+        [HttpPost("login-method")]
+        [AllowAnonymous]
+        [EnableRateLimiting(RateLimitPolicies.LoginMethod)]
+        [ProducesResponseType(typeof(ApiResponse<LoginMethodDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+        public async Task<IActionResult> LoginMethod([FromBody] LoginMethodRequest request)
+        {
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
+            return Ok(await _identity.GetLoginMethodAsync(request, BuildContext()));
         }
 
         /// <summary>

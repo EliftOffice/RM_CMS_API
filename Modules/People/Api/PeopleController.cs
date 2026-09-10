@@ -116,9 +116,41 @@ namespace RM_CMS.Modules.People.Api
             return HttpResponseHelper.CreateHttpResponse(await _people.CreateAsync(request));
         }
 
-        /// <summary>Updates demographic and address detail. Requires the record's rowVersion.</summary>
+        /// <summary>
+        /// One person, reduced to what the intake form collects, so an operator can
+        /// correct a record.
+        /// </summary>
+        /// <remarks>
+        /// Exists so data-entry operators do not need the full <c>GET /{id}</c>, which
+        /// carries lifecycle, do-not-contact and pastoral notes. They can fix what they
+        /// typed and see nothing else.
+        /// </remarks>
+        [HttpGet("{id}/intake")]
+        [Authorize(Policy = PolicyNames.CanRecordVisitors)]
+        [ProducesResponseType(typeof(ApiResponse<IntakePersonDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetForIntake(string id)
+        {
+            if (!Ulid.IsValid(id))
+                return BadRequest(new ApiResponse<IntakePersonDto>(
+                    ResponseType.Warning, "Invalid person id.", null!));
+
+            return Ok(await _people.GetForIntakeAsync(id));
+        }
+
+        /// <summary>
+        /// Updates demographic and address detail. Requires the record's rowVersion.
+        /// </summary>
+        /// <remarks>
+        /// CanRecordVisitors rather than VolunteerOrAbove, so a data-entry operator can
+        /// correct their own typing. They are the ones who create these records, and a
+        /// misheard name they could enter but never fix is a record that stays wrong.
+        ///
+        /// The widening is narrow by construction: this request body carries only the
+        /// fields the intake form has. Do-not-contact, lifecycle and deletion are
+        /// separate endpoints on stricter policies, and stay there.
+        /// </remarks>
         [HttpPut("{id}")]
-        [Authorize(Policy = PolicyNames.VolunteerOrAbove)]
+        [Authorize(Policy = PolicyNames.CanRecordVisitors)]
         [ProducesResponseType(typeof(ApiResponse<PersonDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<ApiResponse<PersonDto>>> Update(string id, [FromBody] UpdatePersonRequest request)
         {

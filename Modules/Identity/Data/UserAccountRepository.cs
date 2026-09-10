@@ -47,6 +47,25 @@ namespace RM_CMS.Modules.Identity.Data
         Task<bool> UpgradePasswordHashAsync(long accountId, string passwordHash);
 
         Task<bool> SetActiveAsync(long accountId, int rowVersion, bool isActive, string newSecurityStamp);
+
+        /// <summary>
+        /// Turns mobile-number-only sign-in on or off for one account.
+        /// </summary>
+        /// <remarks>
+        /// Rotates the security stamp and bumps the token version like every other
+        /// change to how an account authenticates, so any session already open is
+        /// invalidated. Revoking the grant has to take effect NOW — leaving a live
+        /// session running would mean the account is still reachable for as long as
+        /// that session lasts, which is exactly the window an administrator was
+        /// trying to close.
+        ///
+        /// Clears must_change_password when granting. A passwordless account is
+        /// otherwise sent straight to the change-password screen on first sign-in and
+        /// stops dead there, which for somebody who cannot read a password prompt is
+        /// the same as having no account at all.
+        /// </remarks>
+        Task<bool> SetPasswordlessLoginAsync(
+            long accountId, int rowVersion, bool allowed, string newSecurityStamp, long? actingUserId);
         Task<bool> ReplaceRolesAsync(long accountId, int rowVersion, IEnumerable<UserRoleAssignment> roles,
                                      string newSecurityStamp, long? actingUserId);
 
@@ -85,6 +104,7 @@ namespace RM_CMS.Modules.Identity.Data
                 ua.token_version         AS TokenVersion,
                 ua.is_active             AS IsActive,
                 ua.must_change_password  AS MustChangePassword,
+                ua.allows_passwordless_login AS AllowsPasswordlessLogin,
                 ua.failed_access_count   AS FailedAccessCount,
                 ua.lockout_ends_at       AS LockoutEndsAt,
                 ua.last_login_at         AS LastLoginAt,
@@ -417,6 +437,37 @@ namespace RM_CMS.Modules.Identity.Data
                 RowVersion = rowVersion,
                 IsActive = isActive,
                 SecurityStamp = newSecurityStamp
+            }) == 1;
+        }
+
+        public async Task<bool> SetPasswordlessLoginAsync(
+            long accountId, int rowVersion, bool allowed, string newSecurityStamp, long? actingUserId)
+        {
+            // must_change_password is cleared only when GRANTING. Revoking must not
+            // silently hand somebody a password-free account that also skips the
+            // password-set gate: taking the grant away should leave them exactly where
+            // an account with no usable password already stands.
+            const string sql = @"
+                UPDATE user_account
+                SET allows_passwordless_login = @Allowed,
+                    must_change_password      = CASE WHEN @Allowed = 1
+                                                     THEN 0
+                                                     ELSE must_change_password END,
+                    security_stamp            = @SecurityStamp,
+                    token_version             = token_version + 1,
+                    updated_by                = @ActingUserId,
+                    row_version               = row_version + 1
+                WHERE id = @Id AND row_version = @RowVersion;";
+
+            using var connection = _dbFactory.GetConnection();
+
+            return await connection.ExecuteAsync(sql, new
+            {
+                Id = accountId,
+                RowVersion = rowVersion,
+                Allowed = allowed,
+                SecurityStamp = newSecurityStamp,
+                ActingUserId = actingUserId
             }) == 1;
         }
 

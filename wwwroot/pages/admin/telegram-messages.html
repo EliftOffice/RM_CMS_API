@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Telegram messages — RM_CMS</title>
+
+    <link rel="icon" href="/assets/img/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
+    <link rel="stylesheet" href="/assets/css/admin.css">
+
+    <script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
+    <script src="/assets/js/api-config.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/toast.js"></script>
+    <script src="/assets/js/admin-shell.js"></script>
+    <script src="/assets/js/telegram-messages.js"></script>
+
+    <style>
+        /* The screen is a list of scenarios on the left and one editor on the right.
+           Stacks on a narrow window, because a pastor rewording a message on a tablet
+           is a likely way for this to be used. */
+        .tpl-layout {
+            display: grid;
+            grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) { .tpl-layout { grid-template-columns: minmax(0, 1fr); } }
+
+        .tpl-group-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: var(--ink-muted);
+            padding: 14px 14px 6px;
+        }
+
+        .tpl-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: 0;
+            border-top: 1px solid var(--line);
+            background: none;
+            font-family: inherit;
+            padding: 11px 14px;
+            cursor: pointer;
+        }
+
+        .tpl-item:hover { background: #f9fafb; }
+        .tpl-item.is-active { background: #f5f8ff; box-shadow: inset 3px 0 0 var(--accent); }
+
+        .tpl-item-name { font-size: 13.5px; font-weight: 600; }
+        .tpl-item-sub { font-size: 11.5px; color: var(--ink-muted); margin-top: 2px; }
+
+        /* The editor itself. Monospace because the placeholders are the point, and
+           they need to read as tokens rather than disappear into the prose. */
+        #body {
+            width: 100%;
+            min-height: 260px;
+            resize: vertical;
+            font-family: ui-monospace, Menlo, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .tpl-placeholders { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+        /* Clicking one inserts it at the cursor — typing {{RecipientFirstName}} by
+           hand is how a typo gets in, and a typo is refused on save. */
+        .chip {
+            border: 1px solid var(--line);
+            background: #f9fafb;
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-family: ui-monospace, Menlo, Consolas, monospace;
+            font-size: 11.5px;
+            cursor: pointer;
+        }
+
+        .chip:hover { border-color: var(--accent); background: #f5f8ff; }
+
+        .tpl-help { font-size: 12.5px; color: var(--ink-muted); line-height: 1.6; }
+        .tpl-help b { color: var(--ink); }
+        .tpl-help dl { margin: 8px 0 0; }
+        .tpl-help dt {
+            font-family: ui-monospace, Menlo, Consolas, monospace;
+            font-size: 11.5px;
+            color: var(--ink);
+            margin-top: 7px;
+        }
+        .tpl-help dd { margin: 1px 0 0; }
+
+        /* What it will actually look like on a phone. Rendered as text, never as
+           HTML — see the note in telegram-messages.js. */
+        .tpl-preview {
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: #eef4fb;
+            border: 1px solid #d6e4f5;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 13px;
+            line-height: 1.65;
+            min-height: 60px;
+        }
+
+        .tpl-foot {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .tpl-foot .spacer { flex: 1 1 auto; }
+        .tpl-meta { font-size: 12px; color: var(--ink-muted); }
+    </style>
+</head>
+
+<body>
+
+<div id="adminShell"></div>
+
+<main class="page" id="pageBody" hidden>
+
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Telegram messages</h1>
+            <p class="page-sub">
+                The wording of every message this system sends over Telegram. Changing it
+                here takes effect on the next message — nothing needs redeploying. Use the
+                placeholders to say the person's own name back to them.
+            </p>
+        </div>
+    </div>
+
+    <div class="tpl-layout">
+
+        <div class="card" id="templateList">
+            <div class="card-head"><span class="card-title">Messages</span></div>
+            <div class="empty" style="padding:18px;">Loading…</div>
+        </div>
+
+        <div class="card" id="editorCard" hidden>
+            <div class="card-head">
+                <span class="card-title" id="editorTitle">—</span>
+                <span class="badge badge-warn" id="customBadge" hidden>Customised</span>
+            </div>
+
+            <div class="card-body">
+                <p class="tpl-help" id="editorDescription"></p>
+
+                <div class="field" style="margin-top:14px;">
+                    <label class="label" for="body">Message</label>
+                    <textarea class="input" id="body" spellcheck="false"></textarea>
+                    <div class="hint">
+                        You can use Telegram formatting: <b>&lt;b&gt;bold&lt;/b&gt;</b>,
+                        <b>&lt;i&gt;italic&lt;/i&gt;</b> and <b>&lt;code&gt;fixed&lt;/code&gt;</b>.
+                    </div>
+
+                    <div class="tpl-placeholders" id="chips"></div>
+                </div>
+
+                <div class="notice notice-warn" id="editorNotice" hidden></div>
+
+                <div class="field">
+                    <label class="label">Preview</label>
+                    <div class="tpl-preview" id="preview"></div>
+                    <div class="hint">
+                        Filled in with example details. The real message uses the actual
+                        person's details.
+                    </div>
+                </div>
+
+                <div class="tpl-foot">
+                    <button type="button" class="btn btn-primary" id="saveBtn">Save</button>
+                    <button type="button" class="btn" id="revertBtn">Undo my edits</button>
+                    <div class="spacer"></div>
+                    <span class="tpl-meta" id="editorMeta"></span>
+                    <button type="button" class="btn btn-danger" id="resetBtn" hidden>
+                        Reset to standard wording
+                    </button>
+                </div>
+
+                <details style="margin-top:18px;">
+                    <summary class="tpl-help" style="cursor:pointer;">What can I put in this message?</summary>
+                    <div class="tpl-help">
+                        <dl id="placeholderHelp"></dl>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </div>
+</main>
+
+</body>
+</html>

@@ -31,15 +31,21 @@ namespace RM_CMS.Modules.Telegram.Api
     {
         private readonly ITelegramLinkService _linking;
         private readonly ITelegramClient _client;
+
+        /// <summary>Resolves the sign-in confirmation buttons. See HandleSignInCallbackAsync.</summary>
+        private readonly IIdentityService _identity;
+
         private readonly ILogger<TelegramWebhookController> _logger;
 
         public TelegramWebhookController(
             ITelegramLinkService linking,
             ITelegramClient client,
+            IIdentityService identity,
             ILogger<TelegramWebhookController> logger)
         {
             _linking = linking;
             _client = client;
+            _identity = identity;
             _logger = logger;
         }
 
@@ -52,6 +58,16 @@ namespace RM_CMS.Modules.Telegram.Api
         {
             try
             {
+                // A tapped button, not a typed message. This is how a sign-in is
+                // confirmed: a callback button works in an existing chat, where a
+                // t.me deep link would only re-send its payload for a NEW chat and so
+                // would do nothing for anybody who had already linked.
+                if (TryParseCallback(update, out var callback))
+                {
+                    await HandleSignInCallbackAsync(callback);
+                    return Ok(new { ok = true });
+                }
+
                 var message = Parse(update);
 
                 // Anything that is not a /start is ignored for now: two-way chat is a
@@ -74,6 +90,102 @@ namespace RM_CMS.Modules.Telegram.Api
             }
 
             return Ok(new { ok = true });
+        }
+
+        /// <summary>A button somebody tapped, reduced to the three things that matter.</summary>
+        private sealed record TelegramCallback(string Id, long ChatId, string Data);
+
+        /// <summary>
+        /// Pulls a <c>callback_query</c> out of the update envelope.
+        /// </summary>
+        /// <remarks>
+        /// The chat comes from the MESSAGE the button is attached to, which is the chat
+        /// this server sent the prompt to. It is compared against the challenge's own
+        /// stored chat before anything is approved.
+        /// </remarks>
+        private static bool TryParseCallback(JsonElement update, out TelegramCallback callback)
+        {
+            callback = default!;
+
+            if (update.ValueKind != JsonValueKind.Object) return false;
+            if (!update.TryGetProperty("callback_query", out var query)) return false;
+            if (!query.TryGetProperty("id", out var id)) return false;
+
+            var data = query.TryGetProperty("data", out var d) ? d.GetString() : null;
+
+            if (string.IsNullOrWhiteSpace(data)) return false;
+
+            long chatId = 0;
+
+            if (query.TryGetProperty("message", out var message) &&
+                message.TryGetProperty("chat", out var chat) &&
+                chat.TryGetProperty("id", out var cid))
+            {
+                cid.TryGetInt64(out chatId);
+            }
+
+            if (chatId == 0) return false;
+
+            callback = new TelegramCallback(id.GetString() ?? string.Empty, chatId, data!);
+            return true;
+        }
+
+        /// <summary>
+        /// Handles a sign-in confirmation button.
+        /// </summary>
+        /// <remarks>
+        /// The callback data is <c>lv:a:token</c> to confirm and <c>lv:d:token</c> to
+        /// refuse. It came back from Telegram unchanged, so it is treated as untrusted
+        /// input: the token is only ever looked up by hash, and anything that does not
+        /// match this shape is ignored rather than guessed at.
+        ///
+        /// The spinner on the button is always closed, even on a refusal. Telegram
+        /// retries an update that is never answered, which would replay the tap.
+        /// </remarks>
+        private async Task HandleSignInCallbackAsync(TelegramCallback callback)
+        {
+            const string prefix = "lv:";
+
+            if (!callback.Data.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                await _client.AnswerCallbackAsync(callback.Id);
+                return;
+            }
+
+            var rest = callback.Data[prefix.Length..];
+            var separator = rest.IndexOf(':');
+
+            if (separator <= 0)
+            {
+                await _client.AnswerCallbackAsync(callback.Id);
+                return;
+            }
+
+            var action = rest[..separator];
+            var token = rest[(separator + 1)..];
+
+            if (token.Length == 0 || (action != "a" && action != "d"))
+            {
+                await _client.AnswerCallbackAsync(callback.Id);
+                return;
+            }
+
+            var context = new RequestContext(
+                HttpContext.Connection.RemoteIpAddress?.ToString(),
+                Request.Headers.UserAgent.ToString(),
+                HttpContext.TraceIdentifier);
+
+            var (handled, reply) = await _identity.ResolveVerificationAsync(
+                token, approved: action == "a", callback.ChatId, context);
+
+            // The toast is short by necessity — Telegram caps it — so the full
+            // sentence goes in a follow-up message where there is room for it.
+            await _client.AnswerCallbackAsync(callback.Id, handled ? "Done" : "No longer valid");
+            await _client.SendMessageAsync(callback.ChatId, reply);
+
+            _logger.LogInformation(
+                "Sign-in confirmation from chat {ChatId}: {Action}, handled={Handled}",
+                callback.ChatId, action == "a" ? "approved" : "declined", handled);
         }
 
         /// <summary>

@@ -118,6 +118,32 @@
         /* ---------- fields ---------- */
         .vl-field { margin-bottom: 16px; }
 
+        /* ---------- Telegram confirmation step ---------- */
+        .vl-verify-lead {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--ink-soft);
+            margin: 0 0 16px;
+        }
+
+        .vl-verify-status {
+            font-size: 0.83rem;
+            line-height: 1.6;
+            margin: 12px 0 0;
+            min-height: 1.2em;
+        }
+
+        .vl-verify-status.is-waiting { color: var(--ink-soft); }
+        .vl-verify-status.is-bad { color: #b91c1c; }
+
+        /* The number is being checked. A quiet line rather than the full-screen
+           overlay, which at this point would be a lot of ceremony for one request. */
+        .vl-checking {
+            font-size: 0.8rem;
+            color: var(--ink-soft);
+            margin: 8px 0 0;
+        }
+
         .vl-label {
             font-size: 0.85rem;
             font-weight: 600;
@@ -318,7 +344,7 @@
     <main class="vl-card">
 
         <h1 class="vl-heading">Sign in</h1>
-        <p class="vl-sub">Use your registered mobile number and password.</p>
+        <p class="vl-sub" id="loginSub">Enter your mobile number.</p>
 
         <div class="vl-divider"></div>
 
@@ -352,10 +378,20 @@
                        autofocus>
                 <span id="mobileHelp" class="vl-visually-hidden">
                     Enter the ten digit mobile number registered with your account.
+                    Sign-in continues on its own once the number is complete.
                 </span>
+                <p class="vl-checking" id="checkingHint" role="status" aria-live="polite"></p>
             </div>
 
-            <div class="vl-field">
+            <!--
+                Hidden until the server says this account has a password.
+
+                The number is entered first and answers the question by itself: an
+                account an administrator has marked as signing in with a mobile number
+                alone never sees this section, and never has to understand why it is
+                there. Everyone else gets it revealed under the number they just typed.
+            -->
+            <div class="vl-field" id="passwordField" hidden>
                 <label class="vl-label" for="password">Password</label>
                 <div class="vl-password-wrap">
                     <input type="password"
@@ -363,8 +399,7 @@
                            name="password"
                            class="vl-input"
                            autocomplete="current-password"
-                           maxlength="128"
-                           required>
+                           maxlength="128">
                     <button type="button"
                             id="revealPassword"
                             class="vl-reveal"
@@ -373,12 +408,40 @@
                 </div>
             </div>
 
-            <button type="submit" id="loginBtn" class="vl-btn">Sign in</button>
+            <!--
+                Both of these belong to the password step and appear with it.
 
-            <div class="vl-links">
+                An account that signs in on its mobile number alone never sees either:
+                it is signed in before there is anything to press, and "forgot your
+                password" is a confusing thing to offer somebody who has never had one.
+            -->
+            <button type="submit" id="loginBtn" class="vl-btn" hidden>Sign in</button>
+
+            <div class="vl-links" id="forgotWrap" hidden>
                 <button type="button" id="forgotLink" class="vl-link">
                     Forgot your password?
                 </button>
+            </div>
+
+            <!--
+                The second step, when the church has sign-in confirmation switched on.
+
+                Replaces the fields rather than sitting under them: the credential is
+                already accepted by the time this appears, and leaving the password box
+                on screen would invite somebody to retype it.
+            -->
+            <div id="verifyStep" hidden>
+                <p class="vl-verify-lead">
+                    Tap the button, then confirm on Telegram to finish signing in.
+                </p>
+
+                <button type="button" id="verifyBtn" class="vl-btn">Verify on Telegram</button>
+
+                <p class="vl-verify-status" id="verifyStatus" role="status" aria-live="polite"></p>
+
+                <div class="vl-links">
+                    <button type="button" id="verifyCancel" class="vl-link">Start again</button>
+                </div>
             </div>
 
         </form>

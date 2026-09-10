@@ -33,6 +33,12 @@ namespace RM_CMS.Modules.Notifications.Data
         Task<NotificationRecipient?> FindByUserAccountIdAsync(long userAccountId);
 
         /// <summary>
+        /// The same, keyed on the person — a volunteer row names a person, not an
+        /// account. Null when they have no active sign-in.
+        /// </summary>
+        Task<NotificationRecipient?> FindByPersonIdAsync(long personId);
+
+        /// <summary>
         /// True when an alert of this type for this entity has already been queued
         /// since <paramref name="since"/>. Guards against a job run that overlaps a
         /// previous one queueing the same reminder twice.
@@ -171,6 +177,25 @@ namespace RM_CMS.Modules.Notifications.Data
 
             return await connection.QueryFirstOrDefaultAsync<NotificationRecipient>(
                 sql, new { UserAccountId = userAccountId });
+        }
+
+        public async Task<NotificationRecipient?> FindByPersonIdAsync(long personId)
+        {
+            // Keyed on the PERSON, because a volunteer row names a person and not an
+            // account. Still joined through user_account: somebody with no sign-in has
+            // no way to act on an alert, so telling them about it only means an
+            // unanswerable message on their phone.
+            var sql = SelectRecipient + @",
+                NULL AS CampusId
+            FROM user_account ua
+            JOIN person p ON p.id = ua.person_id
+            WHERE p.id = @PersonId AND ua.is_active = 1 AND p.deleted_at IS NULL
+            LIMIT 1;";
+
+            using var connection = _dbFactory.GetConnection();
+
+            return await connection.QueryFirstOrDefaultAsync<NotificationRecipient>(
+                sql, new { PersonId = personId });
         }
 
         public async Task<bool> WasQueuedSinceAsync(

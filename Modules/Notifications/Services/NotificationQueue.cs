@@ -24,6 +24,11 @@ namespace RM_CMS.Modules.Notifications.Services
 
         Task<NotificationRecipient?> FindAssigneeAsync(long? userAccountId);
 
+        /// <summary>
+        /// The recipient behind a volunteer, who is identified by their person id.
+        /// </summary>
+        Task<NotificationRecipient?> FindByPersonAsync(long? personId);
+
         Task<bool> AlreadyQueuedSinceAsync(string notificationType, string relatedEntityType,
                                            long relatedEntityId, DateTime since);
     }
@@ -86,6 +91,9 @@ namespace RM_CMS.Modules.Notifications.Services
 
         public async Task<NotificationRecipient?> FindAssigneeAsync(long? userAccountId) =>
             userAccountId is null ? null : await _repository.FindByUserAccountIdAsync(userAccountId.Value);
+
+        public async Task<NotificationRecipient?> FindByPersonAsync(long? personId) =>
+            personId is null ? null : await _repository.FindByPersonIdAsync(personId.Value);
 
         public Task<bool> AlreadyQueuedSinceAsync(
             string notificationType, string relatedEntityType, long relatedEntityId, DateTime since) =>

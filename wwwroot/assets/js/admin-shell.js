@@ -62,9 +62,25 @@
             href: '/pages/admin/web-enquiries.html',
             roles: ['ADMIN', 'WEB_COORDINATOR']
         },
+        {
+            // The church calendar the public website lists. Pastors get it because the
+            // calendar is theirs; the coordinator because publishing to the public site
+            // is what that role is for.
+            label: 'Events',
+            href: '/pages/admin/events.html',
+            roles: ['ADMIN', 'PASTOR', 'WEB_COORDINATOR']
+        },
         { label: 'Accounts', href: '/pages/admin/accounts.html', roles: ['ADMIN'] },
         { label: 'Settings', href: '/pages/admin/settings.html', roles: ['ADMIN'] },
-        { label: 'Telegram', href: '/pages/admin/telegram.html', roles: ['ADMIN'] }
+        { label: 'Telegram', href: '/pages/admin/telegram.html', roles: ['ADMIN'] },
+        {
+            // The wording of every Telegram message. Separate from the Telegram setup
+            // screen next door, which is about the bot connection rather than what it
+            // says — one is plumbing, the other is pastoral tone.
+            label: 'Messages',
+            href: '/pages/admin/telegram-messages.html',
+            roles: ['ADMIN']
+        }
     ];
 
     function escapeHtml(value) {

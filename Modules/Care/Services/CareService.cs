@@ -4,6 +4,8 @@ using RM_CMS.Modules.Care.Domain;
 using RM_CMS.Modules.Identity.Data;
 using RM_CMS.Modules.Identity.Domain;
 using RM_CMS.Modules.Identity.Services;
+using RM_CMS.Modules.Notifications.Domain;
+using RM_CMS.Modules.Notifications.Services;
 using RM_CMS.Modules.Volunteers.Data;
 using RM_CMS.Utilities;
 
@@ -56,6 +58,12 @@ namespace RM_CMS.Modules.Care.Services
         private readonly IVolunteerRepository _volunteers;
         private readonly ICurrentIdentity _current;
         private readonly IUserAccountRepository _accounts;
+
+        /// <summary>
+        /// Tells a volunteer a follow-up has been placed with them. Queued, never sent
+        /// from here: a Telegram outage must not roll back the assignment.
+        /// </summary>
+        private readonly INotificationQueue _notifications;
         private readonly TimeProvider _clock;
         private readonly ILogger<CareService> _logger;
 
@@ -68,6 +76,7 @@ namespace RM_CMS.Modules.Care.Services
             IVolunteerRepository volunteers,
             ICurrentIdentity current,
             IUserAccountRepository accounts,
+            INotificationQueue notifications,
             TimeProvider clock,
             ILogger<CareService> logger)
         {
@@ -79,6 +88,7 @@ namespace RM_CMS.Modules.Care.Services
             _volunteers = volunteers;
             _current = current;
             _accounts = accounts;
+            _notifications = notifications;
             _clock = clock;
             _logger = logger;
         }
@@ -420,6 +430,8 @@ namespace RM_CMS.Modules.Care.Services
 
             var refreshed = await _cases.GetByIdAsync(careCase.Id);
             await CreateFirstFollowUpAsync(refreshed!, volunteer.Id, actingUserId);
+
+            await NotifyAssignedAsync(careCase.Id, volunteer.PersonId);
 
             _logger.LogInformation(
                 "Case {Case} assigned to volunteer {Volunteer} ({Reason})",
@@ -1010,6 +1022,47 @@ namespace RM_CMS.Modules.Care.Services
         // ==================================================================
 
         private bool CanAccess(CareCase c) => _current.CanAccessCampus(c.CampusPublicId);
+
+        /// <summary>
+        /// Tells the volunteer a follow-up is now theirs.
+        /// </summary>
+        /// <remarks>
+        /// Queued, not sent — the sender drains the queue later, so a Telegram outage
+        /// cannot undo an assignment that has already happened.
+        ///
+        /// Every failure here is swallowed on purpose. The case IS assigned by the time
+        /// this runs, and throwing now would return an error for work that succeeded,
+        /// leaving the operator to assign it a second time. A volunteer who is not
+        /// reachable on Telegram still sees the case on their own screen; the wording
+        /// they get is editable on the Telegram messages screen.
+        /// </remarks>
+        private async Task NotifyAssignedAsync(long careCaseId, long volunteerPersonId)
+        {
+            try
+            {
+                var recipient = await _notifications.FindByPersonAsync(volunteerPersonId);
+
+                if (recipient is null)
+                {
+                    // No sign-in, so nothing they could act on. Worth a line: a team
+                    // full of volunteers without accounts is a setup problem, and this
+                    // is where it first shows.
+                    _logger.LogInformation(
+                        "Case {CaseId} assigned to a person with no active account; no alert queued.", careCaseId);
+                    return;
+                }
+
+                await _notifications.QueueAsync(
+                    new[] { recipient }, NotificationType.CaseAssigned,
+                    RelatedEntityType.CareCase, careCaseId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Could not queue the assignment alert for case {CaseId}. The assignment itself stands.",
+                    careCaseId);
+            }
+        }
 
         private async Task<long?> ActingUserIdAsync()
         {

@@ -110,11 +110,25 @@
                 return '<span class="badge badge-role">' + esc(roleLabel(c)) + '</span>';
             }).join('') || '<span class="cell-sub">none</span>';
 
+            var passwordless = RmAuth.pick(a, 'allowsPasswordlessLogin');
+
+            // canAllowPasswordlessLogin is absent on an older server. Treated as
+            // allowed in that case, because the server refuses it anyway — the flag
+            // only saves a pointless click, and defaulting it to false would hide a
+            // working control.
+            var canAllow = RmAuth.pick(a, 'canAllowPasswordlessLogin');
+            if (canAllow === undefined || canAllow === null) canAllow = true;
+
             var status = active
                 ? '<span class="badge badge-ok">Active</span>'
                 : '<span class="badge badge-off">Disabled</span>';
 
             if (mustChange) status += '<span class="badge badge-warn">Must set password</span>';
+
+            // Deliberately a warning badge, not a neutral one. For these accounts the
+            // mobile number IS the credential, and an administrator scanning this list
+            // should be able to see at a glance who that applies to.
+            if (passwordless) status += '<span class="badge badge-warn">Number only</span>';
 
             return '<tr data-id="' + esc(id) + '" data-username="' +
                        esc(RmAuth.pick(a, 'username') || '') + '">' +
@@ -126,6 +140,14 @@
                 '<td class="cell-actions">' +
                     '<button type="button" class="btn btn-sm" data-act="roles">Roles</button>' +
                     '<button type="button" class="btn btn-sm" data-act="password">Password</button>' +
+                    '<button type="button" class="btn btn-sm" data-act="passwordless"' +
+                        ' data-on="' + (passwordless ? '1' : '0') + '"' +
+                        (canAllow || passwordless ? '' : ' disabled') +
+                        ' title="' + esc(canAllow || passwordless
+                            ? 'Whether this person signs in with their mobile number alone'
+                            : 'An administrator must always enter a password') + '">' +
+                        (passwordless ? 'Require password' : 'Number only') +
+                    '</button>' +
                     '<button type="button" class="btn btn-sm ' + (active ? 'btn-danger' : '') + '" data-act="toggle">' +
                         (active ? 'Disable' : 'Enable') +
                     '</button>' +
@@ -327,6 +349,38 @@
                         identifiersFor(state.editing));
 
                     openModal('passwordModal');
+                }
+
+                if (action === 'passwordless') {
+                    var turningOn = $(this).data('on') !== 1 && $(this).data('on') !== '1';
+
+                    // Granting it is confirmed and revoking it is not. Turning it ON is
+                    // the step that gives away a credential, and it should not happen on
+                    // a mis-click next to the Password button.
+                    if (turningOn && !window.confirm(
+                            'Let ' + name + ' sign in with their mobile number and no password?\n\n' +
+                            'Anyone who knows that number will be able to sign in as them and ' +
+                            'see everything they can see.')) return;
+
+                    $.ajax({
+                        url: API_BASE_URL + '/admin/accounts/' + encodeURIComponent(id) + '/passwordless',
+                        method: 'PUT',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ Allowed: turningOn })
+                    }).done(function (res) {
+                        // A refusal arrives as HTTP 200 with responseType 1 — an
+                        // administrator being told they cannot do this, for instance.
+                        if (res && RmAuth.pick(res, 'responseType') !== 0) {
+                            showToast(RmAuth.pick(res, 'message') || 'That could not be changed.', 'warning');
+                            return;
+                        }
+
+                        showToast(RmAuth.pick(res, 'message') ||
+                            (turningOn ? 'Signs in with a number only' : 'Password required again'), 'success');
+                        loadAccounts();
+                    }).fail(function (jqXHR) {
+                        showToast(errorFrom(jqXHR, 'Could not update the account'), 'error');
+                    });
                 }
 
                 if (action === 'toggle') {

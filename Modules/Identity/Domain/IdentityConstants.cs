@@ -58,6 +58,13 @@ namespace RM_CMS.Modules.Identity.Domain
         /// </summary>
         public const string CanReviewWebEnquiries = "CanReviewWebEnquiries";
 
+        /// <summary>
+        /// Creates and publishes the events the public website lists. Administrators,
+        /// pastors (the church calendar is theirs) and the website coordinator (whose
+        /// job publishing to the public site is).
+        /// </summary>
+        public const string CanManageEvents = "CanManageEvents";
+
         /// <summary>Scheduled jobs: an Admin token or the scheduler's service key.</summary>
         public const string JobRunner = "JobRunner";
     }
@@ -131,6 +138,42 @@ namespace RM_CMS.Modules.Identity.Domain
         public const string AccountCreated = "ACCOUNT_CREATED";
         public const string AccountEnabled = "ACCOUNT_ENABLED";
         public const string AccountDisabled = "ACCOUNT_DISABLED";
+
+        /// <summary>
+        /// An administrator allowed an account to sign in with its mobile number
+        /// alone, or took that back.
+        ///
+        /// Audited as its own event rather than folded into a generic account edit:
+        /// this is the moment a credential stopped being secret, and "when did this
+        /// account become passwordless, and who decided that" is a question somebody
+        /// will eventually need answered from the log.
+        /// </summary>
+        public const string PasswordlessEnabled = "PASSWORDLESS_ENABLED";
+        public const string PasswordlessDisabled = "PASSWORDLESS_DISABLED";
+
+        /// <summary>
+        /// A sign-in that presented a mobile number and no password. Distinct from
+        /// LOGIN_SUCCEEDED on purpose — otherwise the log cannot tell a session that
+        /// proved something from one that proved only that somebody knew a number.
+        /// </summary>
+        public const string PasswordlessLoginSucceeded = "PASSWORDLESS_LOGIN";
+
+        /// <summary>
+        /// The credential was correct and the sign-in is waiting for a tap on Telegram.
+        /// Not a success — no session exists yet — but recorded, because a burst of
+        /// these with no matching LOGIN_VERIFIED is somebody working through a list of
+        /// known credentials.
+        /// </summary>
+        public const string LoginVerificationRequired = "LOGIN_VERIFY_REQUIRED";
+
+        /// <summary>The tap arrived and the session was issued.</summary>
+        public const string LoginVerified = "LOGIN_VERIFIED";
+
+        /// <summary>
+        /// They tapped "this was not me". The most serious row in this list: somebody
+        /// had that account's credential and the owner says it was not them.
+        /// </summary>
+        public const string LoginVerificationDeclined = "LOGIN_VERIFY_DECLINED";
         public const string AuthorizationDenied = "AUTHORIZATION_DENIED";
     }
 

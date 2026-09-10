@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using RM_CMS.Modules.Settings.Data;
 using RM_CMS.Modules.Identity.Data;
 using RM_CMS.Modules.Identity.Services;
+using RM_CMS.Modules.MessageTemplates.Domain;
+using RM_CMS.Modules.MessageTemplates.Services;
 using RM_CMS.Modules.Telegram.Data;
 using RM_CMS.Modules.Telegram.Domain;
 using RM_CMS.Utilities;
@@ -66,6 +68,12 @@ namespace RM_CMS.Modules.Telegram.Services
         private readonly ISettingRepository _settings;
         private readonly IUserAccountRepository _accounts;
         private readonly ICurrentIdentity _current;
+
+        /// <summary>
+        /// The wording of every reply below. Editable by an administrator on the
+        /// Telegram messages screen; falls back to the text compiled in.
+        /// </summary>
+        private readonly ITemplateService _templates;
         private readonly TimeProvider _clock;
         private readonly ILogger<TelegramLinkService> _logger;
 
@@ -75,6 +83,7 @@ namespace RM_CMS.Modules.Telegram.Services
             ISettingRepository settings,
             IUserAccountRepository accounts,
             ICurrentIdentity current,
+            ITemplateService templates,
             TimeProvider clock,
             ILogger<TelegramLinkService> logger)
         {
@@ -83,6 +92,7 @@ namespace RM_CMS.Modules.Telegram.Services
             _settings = settings;
             _accounts = accounts;
             _current = current;
+            _templates = templates;
             _clock = clock;
             _logger = logger;
         }
@@ -177,12 +187,11 @@ namespace RM_CMS.Modules.Telegram.Services
                     await _telegram.LinkAsync(existingOwner.Value, chatId, message.Username, now, null);
 
                     return (LinkOutcome.AlreadyLinked,
-                        $"You are already connected to RMChurch, {Escape(message.DisplayName)}.");
+                        await ReplyAsync(TelegramTemplates.LinkAlreadyConnected, message));
                 }
 
                 return (LinkOutcome.Unknown,
-                    "Hello. To connect this Telegram account, open the personal link from your " +
-                    "RMChurch profile — the Connect Telegram button on your account page.");
+                    await ReplyAsync(TelegramTemplates.LinkUnknownChat, message));
             }
 
             // ---- token present ----
@@ -193,8 +202,7 @@ namespace RM_CMS.Modules.Telegram.Services
                 _logger.LogInformation("Telegram link rejected for chat {ChatId}: token invalid or spent", chatId);
 
                 return (LinkOutcome.InvalidToken,
-                    "That link has expired or has already been used. " +
-                    "Please generate a new one from your RMChurch profile.");
+                    await ReplyAsync(TelegramTemplates.LinkExpired, message));
             }
 
             // ---- the chat may already belong to somebody ----
@@ -207,8 +215,7 @@ namespace RM_CMS.Modules.Telegram.Services
                     chatId, existingOwner.Value, personId.Value);
 
                 return (LinkOutcome.ClaimedByAnotherPerson,
-                    "This Telegram account is already connected to a different RMChurch profile. " +
-                    "Please contact an administrator.");
+                    await ReplyAsync(TelegramTemplates.LinkClaimedByAnother, message));
             }
 
             await _telegram.LinkAsync(personId.Value, chatId, message.Username, now, null);
@@ -216,8 +223,36 @@ namespace RM_CMS.Modules.Telegram.Services
             _logger.LogInformation("Telegram linked for person {PersonId}", personId.Value);
 
             return (LinkOutcome.Linked,
-                $"✅ Connected. Thank you, {Escape(message.DisplayName)} — " +
-                "RMChurch will now reach you here.");
+                await ReplyAsync(TelegramTemplates.LinkWelcome, message, personId.Value));
+        }
+
+        /// <summary>
+        /// Renders one of the /start replies.
+        /// </summary>
+        /// <remarks>
+        /// {{TelegramName}} comes off the Telegram message rather than the database,
+        /// because for most of these outcomes there is no person on file yet — an
+        /// unrecognised chat and an expired token both reach a stranger. It is passed
+        /// as an ordinary value so the renderer escapes it: a Telegram display name is
+        /// whatever its owner typed, angle brackets included.
+        ///
+        /// {{RecipientName}} is only meaningful once we know who they are, which is why
+        /// the successful link is the one call that passes a person id.
+        /// </remarks>
+        private async Task<string> ReplyAsync(string code, TelegramMessage message, long? personId = null)
+        {
+            var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["TelegramName"] = message.DisplayName
+            };
+
+            var rendered = await _templates.RenderAsync(code, personId, values);
+
+            // Never silence. A /start that gets no answer at all reads as a broken bot,
+            // and the person is left with no idea whether they are connected.
+            return string.IsNullOrWhiteSpace(rendered)
+                ? "Thank you. Please contact the church office if you need help connecting."
+                : rendered;
         }
 
         // ==================================================================
@@ -378,10 +413,11 @@ namespace RM_CMS.Modules.Telegram.Services
             if (!long.TryParse(contact.ChatId, out var chatId))
                 return Warn<bool>("Their stored chat id is not a number, so nothing can be sent.");
 
+            var body = await _templates.RenderAsync(TelegramTemplates.TestMessage, personId.Value);
+
             var sent = await _client.SendMessageAsync(
                 chatId,
-                "This is a test message from RM_CMS. If you did not expect it, " +
-                "please tell the church office — it may have been sent to the wrong person.");
+                body ?? "This is a test message. If you did not expect it, please tell the church office.");
 
             if (!sent)
             {
