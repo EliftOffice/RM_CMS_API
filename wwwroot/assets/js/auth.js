@@ -325,6 +325,14 @@
             return response.json().catch(function () { return null; }).then(function (body) {
                 var data = pick(body, 'data');
 
+                // A throttled poll is NOT "not tapped yet", and reporting it as one is
+                // how an approved sign-in used to sit on "waiting" forever: the screen
+                // kept polling a bucket it had already emptied and never saw APPROVED.
+                // Reported separately so the caller can stand back and let it refill.
+                if (response.status === 429) {
+                    return { outcome: 'WAITING', throttled: true, retryAfterSeconds: retryAfter(response) };
+                }
+
                 if (!response.ok || !data) return { outcome: 'WAITING' };
 
                 var outcome = pick(data, 'outcome');

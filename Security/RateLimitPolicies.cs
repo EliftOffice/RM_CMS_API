@@ -23,6 +23,23 @@ namespace RM_CMS.Security
         /// </remarks>
         public const string LoginMethod = "rl-login-method";
 
+        /// <summary>
+        /// The sign-in screen asking whether the Telegram tap has arrived yet.
+        /// </summary>
+        /// <remarks>
+        /// Sized from the actual client behaviour, which is what the earlier sharing of
+        /// <see cref="LoginMethod"/> was not. A challenge lives three minutes and the
+        /// screen polls every two seconds, so ONE ordinary sign-in spends about ninety
+        /// permits. Against a bucket of twenty that ran out after forty seconds, and
+        /// every later poll came back 429 — which the page cannot tell apart from "not
+        /// tapped yet", so an approved sign-in sat on "waiting" forever.
+        ///
+        /// Loose on purpose and safe to be: the poll carries no credential, and the
+        /// challenge id it quotes was handed to a browser that already passed the first
+        /// factor. The global ceiling still applies underneath.
+        /// </remarks>
+        public const string VerifyPoll = "rl-verify-poll";
+
         /// <summary>Token refresh. Legitimate clients hit this roughly once per access-token lifetime.</summary>
         public const string Refresh = "rl-refresh";
 

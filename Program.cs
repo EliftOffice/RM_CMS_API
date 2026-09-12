@@ -462,6 +462,23 @@ namespace RM_CMS
                             QueueProcessingOrder = QueueProcessingOrder.OldestFirst
                         }));
 
+                // "Has the Telegram tap arrived?" — see RateLimitPolicies.VerifyPoll.
+                //
+                // One sign-in spends about ninety permits (three minutes at one poll
+                // every two seconds). 300 leaves room for a re-send and for two or three
+                // people signing in at once from the same address, which behind the
+                // proxy is how a whole office looks.
+                options.AddPolicy(RateLimitPolicies.VerifyPoll, context =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        LoginPartitionKey(context),
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 300,
+                            Window = TimeSpan.FromMinutes(5),
+                            QueueLimit = 0,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                        }));
+
                 // Refresh: a normal client refreshes about once per access-token lifetime.
                 options.AddPolicy(RateLimitPolicies.Refresh, context =>
                     RateLimitPartition.GetFixedWindowLimiter(

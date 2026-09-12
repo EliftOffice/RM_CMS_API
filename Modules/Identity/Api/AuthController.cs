@@ -98,7 +98,8 @@ namespace RM_CMS.Modules.Identity.Api
         /// Its own rate limit rather than the login one: a screen waiting three minutes
         /// polls perhaps ninety times, which would exhaust a five-per-five-minutes
         /// bucket in the first fifteen seconds and strand a sign-in that was going
-        /// perfectly well.
+        /// perfectly well. It briefly shared the login-method bucket instead, which at
+        /// twenty permits had the same effect forty seconds in.
         ///
         /// The session arrives here exactly once. Two tabs polling the same challenge
         /// resolve to one winner in the database, and the loser is told the sign-in is
@@ -106,7 +107,7 @@ namespace RM_CMS.Modules.Identity.Api
         /// </remarks>
         [HttpPost("verify/poll")]
         [AllowAnonymous]
-        [EnableRateLimiting(RateLimitPolicies.LoginMethod)]
+        [EnableRateLimiting(RateLimitPolicies.VerifyPoll)]
         [ProducesResponseType(typeof(ApiResponse<LoginChallengeStatusDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> PollVerification([FromBody] LoginChallengeRequest request)
         {

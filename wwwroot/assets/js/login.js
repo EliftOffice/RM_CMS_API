@@ -249,7 +249,7 @@ $(document).ready(function () {
     // cannot grant it to itself.
     // ------------------------------------------------------------------
 
-    var verify = { challengeId: null, timer: null, deadline: 0 };
+    var verify = { challengeId: null, timer: null, deadline: 0, pausedUntil: 0 };
 
     function showVerifyStep(challengeId) {
         verify.challengeId = challengeId;
@@ -301,6 +301,7 @@ $(document).ready(function () {
         // Matches the server's challenge lifetime. Kept slightly longer so the
         // server's own answer is what ends the wait, not this timer racing it.
         verify.deadline = Date.now() + (3 * 60 + 15) * 1000;
+        verify.pausedUntil = 0;
 
         verify.timer = window.setInterval(function () {
             if (Date.now() > verify.deadline) {
@@ -309,7 +310,17 @@ $(document).ready(function () {
                 return;
             }
 
+            // Standing back after a 429. Continuing to ask on an empty bucket only
+            // keeps it empty, and every one of those answers looks like "not yet".
+            if (Date.now() < verify.pausedUntil) return;
+
             RmAuth.pollTelegramVerification(verify.challengeId).then(function (result) {
+                if (result.throttled) {
+                    verify.pausedUntil = Date.now() +
+                        Math.max(5, result.retryAfterSeconds || 10) * 1000;
+                    return;
+                }
+
                 if (result.outcome === 'WAITING') return;
 
                 stopPolling();
