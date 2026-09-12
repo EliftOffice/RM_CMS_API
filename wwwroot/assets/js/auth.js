@@ -38,8 +38,16 @@
     // an anonymous endpoint missing from this list fails on exactly the pages that
     // have no session yet (sign-in, change-password), which is where it is needed.
     // Keep it in step with the [AllowAnonymous] actions on AuthController.
+    //
+    // Matching is by PREFIX, so '/api/auth/login' also covers '/api/auth/login-method'.
+    // The two-step Telegram sign-in is listed explicitly because it shares no prefix
+    // with anything else here: without it, the confirmation screen on the login page
+    // asked the interceptor for a token it cannot have yet, got "Not authenticated",
+    // and reported "Unable to reach the server." while the server was perfectly fine.
     var AUTH_ENDPOINTS = [
-        '/api/auth/login',
+        '/api/auth/login',           // also /api/auth/login-method
+        '/api/auth/verify/send',
+        '/api/auth/verify/poll',
         '/api/auth/refresh',
         '/api/auth/logout',
         '/api/auth/password-policy'
