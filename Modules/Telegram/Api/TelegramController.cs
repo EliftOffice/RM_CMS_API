@@ -446,23 +446,49 @@ namespace RM_CMS.Modules.Telegram.Api
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         public async Task<IActionResult> RegisterWebhook([FromQuery] string? baseUrl = null)
         {
-            if (string.IsNullOrWhiteSpace(_auth.TelegramWebhookSecret))
+            var secret = _auth.TelegramWebhookSecret;
+
+            if (string.IsNullOrWhiteSpace(secret))
             {
                 return Ok(new ApiResponse<string>(ResponseType.Warning,
                     "Auth__TelegramWebhookSecret is not configured, so the webhook cannot be secured.", null!));
             }
 
-            // Telegram requires a public HTTPS URL; localhost will be rejected.
+            // Telegram accepts only 1-256 characters of A-Z a-z 0-9 _ - in the secret
+            // token, and refuses setWebhook outright otherwise with a message most
+            // people read as "the webhook is broken". A secret generated with
+            // `openssl rand -base64` carries +, / and = and trips exactly this. Caught
+            // here so the error names the real problem instead of Telegram's generic
+            // refusal — and BEFORE the token is sent anywhere.
+            if (!System.Text.RegularExpressions.Regex.IsMatch(secret, "^[A-Za-z0-9_-]{1,256}$"))
+            {
+                return Ok(new ApiResponse<string>(ResponseType.Warning,
+                    "Auth__TelegramWebhookSecret has characters Telegram will not accept. " +
+                    "It must be 1-256 characters using only letters, digits, underscore and hyphen — " +
+                    "no +, /, = or punctuation. Generate one with, for example, `openssl rand -hex 32`, " +
+                    "set it as Auth__TelegramWebhookSecret, redeploy, then register again.",
+                    null!));
+            }
+
+            // Telegram requires a public HTTPS URL on port 443/80/88/8443 with a
+            // certificate it can verify; localhost and self-signed certs are rejected.
             var origin = string.IsNullOrWhiteSpace(baseUrl)
                 ? $"{Request.Scheme}://{Request.Host}"
                 : baseUrl.TrimEnd('/');
 
-            var (ok, detail) = await _client.SetWebhookAsync(
-                $"{origin}/api/telegram/webhook", _auth.TelegramWebhookSecret);
+            var webhookUrl = $"{origin}/api/telegram/webhook";
 
+            var (ok, detail) = await _client.SetWebhookAsync(webhookUrl, secret);
+
+            // On failure the message carries Telegram's own reason rather than a
+            // generic line, so an administrator can act on it without opening the
+            // network tab. The raw body still travels in data for diagnostics.
             return Ok(new ApiResponse<string>(
                 ok ? ResponseType.Success : ResponseType.Warning,
-                ok ? "Webhook registered." : "Telegram refused the webhook.", detail));
+                ok
+                    ? $"Webhook registered at {webhookUrl}."
+                    : $"Telegram refused the webhook: {Summarise(detail)}",
+                detail));
         }
 
         /// <summary>What Telegram currently believes about the webhook.</summary>

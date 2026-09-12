@@ -417,7 +417,7 @@
             }
 
             if (CURRENT_USER && pick(CURRENT_USER, 'mustChangePassword') &&
-                window.location.pathname.indexOf('ChangePassword') === -1) {
+                window.location.pathname.toLowerCase().indexOf('change-password') === -1) {
                 window.location.href = origin() + CHANGE_PASSWORD_PAGE;
                 return false;
             }
@@ -457,7 +457,12 @@
     });
 
     function requireTelegramIfNeeded() {
-        if (window.location.pathname.indexOf('LinkTelegram') !== -1) return true;
+        // The page file is link-telegram.html (kebab-case). This used to test for
+        // 'LinkTelegram', which never matches the real path — so the linking page was
+        // not treated as exempt and redirected to ITSELF on every load, an infinite
+        // loop that fired a token refresh each time until the shared rate bucket
+        // returned 429. Match the actual filename.
+        if (window.location.pathname.toLowerCase().indexOf('link-telegram') !== -1) return true;
         if (hasAnyRole(['ADMIN'])) return true;
 
         return fetch(origin() + '/api/telegram/status', {
