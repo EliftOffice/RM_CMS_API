@@ -1,8 +1,9 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -35,6 +36,7 @@ namespace RM_CMS
             ConfigureLogging(builder);
             ConfigureOptions(builder);
             ConfigureRequestLimits(builder);
+            ConfigureForwardedHeaders(builder);
             ConfigureAuthentication(builder);
             ConfigureAuthorization(builder);
             ConfigureCors(builder);
@@ -155,6 +157,44 @@ namespace RM_CMS
                 options.ValueLengthLimit = 256 * 1024;
                 options.KeyLengthLimit = 2 * 1024;
                 options.ValueCountLimit = 256;
+            });
+        }
+
+        // ==========================================================
+        // Reverse proxy
+        //
+        // In production this application does not terminate TLS. Coolify's proxy does,
+        // then forwards the request to the container over plain HTTP. Without this,
+        // Request.Scheme is "http" and Request.Host is the container's internal name,
+        // so anything the application derives from the incoming request is wrong:
+        //
+        //   - the Telegram webhook URL is built as http://..., and Telegram refuses
+        //     setWebhook with "An HTTPS URL must be provided for webhook";
+        //   - UseHttpsRedirection sees "http" and issues a redirect to https, which
+        //     the proxy turns back into http, looping forever;
+        //   - the rate limiter and the audit log record the proxy's address as the
+        //     client rather than the caller's.
+        //
+        // KnownNetworks and KnownProxies are cleared because the proxy's address inside
+        // the Docker network is assigned at deploy time and is not knowable here. That
+        // makes the X-Forwarded-* headers trusted from any peer, which is only safe
+        // because the container is published to the proxy alone and never directly to
+        // the internet. If that ever changes, the proxy's subnet must be listed here
+        // instead, otherwise a caller can forge its own address and scheme.
+        // ==========================================================
+        private static void ConfigureForwardedHeaders(WebApplicationBuilder builder)
+        {
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders =
+                    ForwardedHeaders.XForwardedFor |
+                    ForwardedHeaders.XForwardedProto |
+                    ForwardedHeaders.XForwardedHost;
+
+                options.ForwardLimit = 1; // exactly one proxy sits in front of this app
+
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
             });
         }
 
@@ -813,6 +853,10 @@ namespace RM_CMS
         // ==========================================================
         private static void ConfigurePipeline(WebApplication app)
         {
+            // Must run before anything that reads the scheme, host or client address —
+            // which includes the exception handler's logging and the HTTPS redirect.
+            app.UseForwardedHeaders();
+
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMiddleware<CorrelationIdMiddleware>();
             app.UseMiddleware<SecurityHeadersMiddleware>();

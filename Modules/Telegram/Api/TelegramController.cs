@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -350,7 +350,7 @@ namespace RM_CMS.Modules.Telegram.Api
                 BotTokenConfigured = _client.HasToken,
                 BotUsername = _client.BotUsername,
                 WebhookSecretConfigured = !string.IsNullOrWhiteSpace(_auth.TelegramWebhookSecret),
-                SuggestedWebhookUrl = $"{Request.Scheme}://{Request.Host}/api/telegram/webhook",
+                SuggestedWebhookUrl = $"{PublicOrigin()}/api/telegram/webhook",
                 LinkedPeople = await _linking.CountLinkedAsync()
             };
 
@@ -438,6 +438,31 @@ namespace RM_CMS.Modules.Telegram.Api
         }
 
         /// <summary>
+        /// The address Telegram should call, as seen from the internet.
+        ///
+        /// Behind Coolify's proxy TLS is terminated before the request reaches this
+        /// container, so the raw request arrives over plain HTTP. UseForwardedHeaders
+        /// restores the original scheme from X-Forwarded-Proto; this forces HTTPS
+        /// anyway outside development, because a proxy that is misconfigured to drop
+        /// that header would otherwise produce an http:// URL that Telegram rejects
+        /// with "An HTTPS URL must be provided for webhook".
+        ///
+        /// Loopback hosts are left alone so a developer still sees the local address.
+        /// </summary>
+        private string PublicOrigin()
+        {
+            var host = Request.Host.Value ?? string.Empty;
+
+            var isLocal = host.StartsWith("localhost", StringComparison.OrdinalIgnoreCase) ||
+                          host.StartsWith("127.0.0.1", StringComparison.Ordinal) ||
+                          host.StartsWith("[::1]", StringComparison.Ordinal);
+
+            var scheme = isLocal ? Request.Scheme : "https";
+
+            return $"{scheme}://{host}";
+        }
+
+        /// <summary>
         /// Registers the webhook with Telegram, using the secret the application
         /// already validates against. Administrator-only setup action.
         /// </summary>
@@ -473,8 +498,16 @@ namespace RM_CMS.Modules.Telegram.Api
             // Telegram requires a public HTTPS URL on port 443/80/88/8443 with a
             // certificate it can verify; localhost and self-signed certs are rejected.
             var origin = string.IsNullOrWhiteSpace(baseUrl)
-                ? $"{Request.Scheme}://{Request.Host}"
+                ? PublicOrigin()
                 : baseUrl.TrimEnd('/');
+
+            if (!origin.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                return Ok(new ApiResponse<string>(ResponseType.Warning,
+                    $"Telegram only accepts an HTTPS webhook, and this deployment resolves to {origin}. " +
+                    "Register from the public HTTPS address, or pass ?baseUrl=https://your-domain.",
+                    null!));
+            }
 
             var webhookUrl = $"{origin}/api/telegram/webhook";
 
