@@ -279,9 +279,17 @@ namespace RM_CMS.Modules.Telegram.Services
             {
                 url,
                 secret_token = secretToken,
-                // Only messages are processed, so asking for anything else would just
-                // be traffic this application discards.
-                allowed_updates = new[] { "message" },
+                // Telegram sends ONLY the kinds named here and silently drops the rest
+                // at its end — no error, no queue, nothing in getWebhookInfo to see. So
+                // this list has to name every kind the application handles.
+                //
+                // "message" carries /start, which is how a person links their account.
+                // "callback_query" carries a tapped inline button, which is how a
+                // sign-in is confirmed. This list said "message" alone for as long as
+                // linking was the only feature, and adding the sign-in confirmation did
+                // not update it: the prompt went out, the button was tapped, and the
+                // answer was discarded before it ever reached the webhook.
+                allowed_updates = new[] { "message", "callback_query" },
                 drop_pending_updates = true
             });
 
