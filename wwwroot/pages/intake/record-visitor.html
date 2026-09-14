@@ -324,7 +324,11 @@
                             </div>
                         </div>
 
-                        <div class="field-row">
+                        <!-- Both of these describe the VISIT, and they are carried on
+                             the case rather than on the person. Correcting a record
+                             hides them: an update cannot store them, and leaving them
+                             on screen invited an edit that would be silently dropped. -->
+                        <div class="field-row" id="visitFields">
                             <div class="field">
                                 <label class="label" for="connectionSource">How they found us</label>
                                 <select class="input" id="connectionSource" name="connectionSource">

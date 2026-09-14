@@ -22,6 +22,11 @@
  * the full person record, which carries lifecycle, do-not-contact and pastoral
  * notes. Those stay on other screens for other roles.
  *
+ * The two modes are not the same request. Intake POSTs a `contacts` array; a
+ * correction PUTs `mobile` and `email` as plain fields, and sends nothing about the
+ * VISIT (how they found us, the date, the follow-up) because those live on the case.
+ * Anything this form shows in correction mode is something an update can store.
+ *
  * Requires auth.js, toast.js, admin-shell.js and area-picker.js.
  */
 (function () {
@@ -107,7 +112,7 @@
             if (duplicateAcknowledged || !dupNotice.hidden) {
                 duplicateAcknowledged = false;
                 hide(dupNotice);
-                saveBtn.textContent = 'Save visitor';
+                saveBtn.textContent = defaultSaveLabel();
             }
         });
 
@@ -291,6 +296,15 @@
             .then(function (res) { return res.json(); })
             .then(function (body) {
                 var matches = (body && body.data) || [];
+
+                // The record being corrected is not a duplicate of itself. Without
+                // this, opening a record and tabbing past the untouched number
+                // announced "this number is already on file" and named the very
+                // person on screen.
+                if (editing) {
+                    matches = matches.filter(function (m) { return m.id !== editing.id; });
+                }
+
                 if (!matches.length) return;
 
                 var names = matches.map(function (m) {
@@ -327,13 +341,12 @@
 
         setBusy(true, 'Saving…');
 
-        var request = buildPersonRequest(payload);
-
         // Correcting an existing record goes to PUT with the row version, so a save
         // is refused rather than silently overwriting somebody who edited first.
         // Recording somebody new goes to POST, where the duplicate override applies —
         // it is meaningless on an update, which is by definition the same person.
         var correcting = !!editing;
+        var request = buildPersonRequest(payload, correcting);
         var url = API_BASE_URL + '/people';
         var method = 'POST';
 
@@ -533,16 +546,39 @@
         };
     }
 
-    function buildPersonRequest(p) {
-        var contacts = [{ contactType: 'MOBILE', value: p.mobile, isPrimary: true }];
-
-        if (p.email) contacts.push({ contactType: 'EMAIL', value: p.email, isPrimary: false });
-
+    /**
+     * The two modes send contacts DIFFERENTLY, and that is the whole point.
+     *
+     * Intake builds a `contacts` array, which is how a person is created. An update
+     * does not bind that shape at all — it takes `mobile` and `email` directly — so
+     * a correction that sent the array had its number and email dropped in silence
+     * while the save still came back successful. That was the bug this addresses: the
+     * one field an operator most often opens this screen to fix was the one field
+     * that never saved.
+     */
+    function buildPersonRequest(p, correcting) {
         var request = {
             givenName: p.givenName,
-            isLocal: p.isLocal,
-            contacts: contacts
+            isLocal: p.isLocal
         };
+
+        if (correcting) {
+            request.mobile = p.mobile;
+
+            // Always sent, empty included: an empty string is how an email that was
+            // wrongly entered gets removed. Omitting it would leave it on file.
+            request.email = p.email;
+
+            // Not on this form, but on the record. An update stores exactly what it
+            // is sent, so this is echoed back rather than blanked.
+            if (editing && editing.householdType) request.householdType = editing.householdType;
+        } else {
+            var contacts = [{ contactType: 'MOBILE', value: p.mobile, isPrimary: true }];
+
+            if (p.email) contacts.push({ contactType: 'EMAIL', value: p.email, isPrimary: false });
+
+            request.contacts = contacts;
+        }
 
         // Only send what was filled in; empty strings would overwrite with blanks.
         if (p.familyName)  request.familyName = p.familyName;
@@ -562,8 +598,12 @@
         if (p.notes)       request.notes = p.notes;
 
         // Omitted when the picker is hidden, which lets the server fall back to the
-        // operator's own campus rather than this screen guessing at one.
-        if (p.campusId)    request.campusId = p.campusId;
+        // operator's own campus rather than this screen guessing at one — and when
+        // correcting a record whose campus this operator has no option for, so the
+        // save leaves it where it is instead of moving it.
+        if (p.campusId && !(correcting && editing && editing.keepCampus)) {
+            request.campusId = p.campusId;
+        }
 
         return request;
     }
@@ -689,11 +729,16 @@
         if (clearEverything) setToday();
 
         duplicateAcknowledged = false;
-        saveBtn.textContent = 'Save visitor';
+        saveBtn.textContent = defaultSaveLabel();
 
         hide(dupNotice);
         hide(formError);
         clearAllFieldErrors();
+    }
+
+    /** The button says which of the two things a save would do. */
+    function defaultSaveLabel() {
+        return editing ? 'Save correction' : 'Save visitor';
     }
 
     // ------------------------------------------------- correcting a record
@@ -773,6 +818,7 @@
         setValue('ageBand', p.ageBand);
         setValue('gender', p.gender);
         setValue('mobile', p.mobile);
+        setValue('email', p.email);
         setValue('addressLine', p.addressLine);
         setValue('locality', p.locality);
         setValue('postalCode', p.postalCode);
@@ -797,8 +843,40 @@
         if (el) el.value = v == null ? '' : v;
     }
 
+    /**
+     * Whether a select can actually hold this value. Assigning one it has no option
+     * for leaves the box showing something else entirely, which then gets saved.
+     */
+    function hasOption(id, value) {
+        var el = document.getElementById(id);
+
+        if (!el || !el.options) return false;
+        if (value == null || value === '') return false;
+
+        for (var i = 0; i < el.options.length; i++) {
+            if (el.options[i].value === value) return true;
+        }
+
+        return false;
+    }
+
     function startEditing(p) {
-        editing = { id: p.id, rowVersion: p.rowVersion, name: p.givenName };
+        editing = {
+            id: p.id,
+            rowVersion: p.rowVersion,
+            name: p.givenName,
+
+            // Carried on the record but not on this form. An update stores exactly
+            // what it is sent, so this is echoed back on save — otherwise correcting
+            // a misheard name silently blanked a field the operator never saw.
+            householdType: p.householdType || '',
+
+            // The campus box only lists campuses this operator may file against. When
+            // the record belongs to another one the value cannot bind, and saving what
+            // the box happens to show would MOVE the person; the save omits it instead
+            // and the server leaves the campus alone.
+            keepCampus: !hasOption('campus', p.campusId)
+        };
 
         document.getElementById('pageTitle').textContent = 'Correct a record';
         document.getElementById('pageSub').textContent =
@@ -821,7 +899,18 @@
         }
 
         document.getElementById('priorityField').hidden = true;
+
+        // "How they found us" and the visit date belong to the case, not the person,
+        // so an update cannot store them. Hidden for the same reason as the follow-up
+        // box: an editable field whose value is thrown away is worse than no field.
+        setVisitFieldsVisible(false);
+
         window.scrollTo(0, 0);
+    }
+
+    function setVisitFieldsVisible(visible) {
+        var fields = document.getElementById('visitFields');
+        if (fields) fields.hidden = !visible;
     }
 
     function stopEditing() {
@@ -845,6 +934,7 @@
         }
 
         document.getElementById('priorityField').hidden = false;
+        setVisitFieldsVisible(true);
     }
 
     function setBusy(busy, message) {

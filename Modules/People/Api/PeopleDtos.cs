@@ -105,6 +105,27 @@ namespace RM_CMS.Modules.People.Api
         [StringLength(2000)] public string? Notes { get; set; }
 
         /// <summary>
+        /// The primary mobile number, as corrected.
+        /// </summary>
+        /// <remarks>
+        /// A transposed digit is the single most common thing wrong with a record, and
+        /// this request had nowhere to carry the fix: the intake screen sent the number
+        /// as a <c>contacts</c> array, which nothing here binds, so a corrected number
+        /// was dropped in silence and the save still reported success.
+        ///
+        /// Omitted or blank leaves the existing number alone. It cannot be removed
+        /// here — a person with no way to reach them is not a correction, and the
+        /// contact endpoints own that.
+        /// </remarks>
+        [StringLength(255)] public string? Mobile { get; set; }
+
+        /// <summary>
+        /// The primary email, as corrected. Omitted (null) leaves it alone; an empty
+        /// string removes it, which is how the intake screen clears one.
+        /// </summary>
+        [StringLength(255)] public string? Email { get; set; }
+
+        /// <summary>
         /// From the record being edited. A mismatch means someone else saved first,
         /// and the update is refused rather than silently overwriting them.
         /// </summary>
@@ -281,6 +302,14 @@ namespace RM_CMS.Modules.People.Api
         /// identified this specific person rather than browsing a list.
         /// </remarks>
         public string? Mobile { get; set; }
+
+        /// <summary>
+        /// Their primary email, in full. Present for the same reason as
+        /// <see cref="Mobile"/>: the intake form collects one, so a correction has to
+        /// be able to see and fix it. Without it the box rendered empty for somebody
+        /// who does have an email, which reads as "no email on file".
+        /// </summary>
+        public string? Email { get; set; }
 
         public int RowVersion { get; set; }
     }

@@ -40,6 +40,15 @@ namespace RM_CMS.Modules.People.Data
         Task<bool> SoftDeleteAsync(long personId, int rowVersion, DateTime nowUtc, long? actingUserId);
 
         Task<long> AddContactAsync(long personId, PersonContact contact, long? actingUserId);
+
+        /// <summary>
+        /// Corrects the value of a contact already on file, keeping its id, its
+        /// primary flag and anything that references it. Used when a number was
+        /// mistyped — replacing the row would read as "they changed their number".
+        /// </summary>
+        Task<bool> UpdateContactValueAsync(
+            long personId, long contactId, string value, string normalizedValue, long? actingUserId);
+
         Task<bool> RemoveContactAsync(long personId, long contactId);
         Task<bool> SetPrimaryContactAsync(long personId, long contactId, string contactType);
 
@@ -458,6 +467,31 @@ namespace RM_CMS.Modules.People.Data
                 transaction.Rollback();
                 throw;
             }
+        }
+
+        public async Task<bool> UpdateContactValueAsync(
+            long personId, long contactId, string value, string normalizedValue, long? actingUserId)
+        {
+            // is_verified is cleared: the old value may have been confirmed, the new
+            // one never was, and leaving the flag set would claim otherwise.
+            const string sql = @"
+                UPDATE person_contact
+                SET value            = @Value,
+                    normalized_value = @NormalizedValue,
+                    is_verified      = 0,
+                    verified_at      = NULL,
+                    updated_by       = @ActingUserId
+                WHERE id = @Id AND person_id = @PersonId;";
+
+            using var connection = _dbFactory.GetConnection();
+            return await connection.ExecuteAsync(sql, new
+            {
+                Id = contactId,
+                PersonId = personId,
+                Value = value,
+                NormalizedValue = normalizedValue,
+                ActingUserId = actingUserId
+            }) == 1;
         }
 
         public async Task<bool> RemoveContactAsync(long personId, long contactId)

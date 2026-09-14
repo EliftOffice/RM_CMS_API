@@ -191,6 +191,7 @@ namespace RM_CMS.Modules.People.Services
                 IsLocal = person.IsLocal,
                 Notes = person.Notes,
                 Mobile = person.PrimaryContact(ContactTypes.Mobile)?.Value,
+                Email = person.PrimaryContact(ContactTypes.Email)?.Value,
                 RowVersion = person.RowVersion
             }, "Person.");
         }
@@ -378,6 +379,30 @@ namespace RM_CMS.Modules.People.Services
             if (request.CampusId is not null && campusKey is null)
                 return Warn<PersonDto>("Unknown campus.");
 
+            // Contact corrections are worked out BEFORE anything is written, so an
+            // unusable number refuses the whole save instead of storing the name
+            // change and dropping the number the operator actually came to fix.
+            var contactPlan = PlanContactCorrections(person, request);
+
+            if (contactPlan.Problem is not null)
+                return Warn<PersonDto>(contactPlan.Problem);
+
+            if (contactPlan.Mobile is not null)
+            {
+                var clash = (await _people.FindByContactAsync(new[] { contactPlan.Mobile.Normalized }))
+                    .FirstOrDefault(p => p.Id != person.Id && CanAccess(p));
+
+                // No "save anyway" here, deliberately. At intake a shared number is a
+                // real case — a family phone — and recording a second person is the
+                // answer. On a correction it means the digits now point at somebody
+                // else's record, and the operator has either mistyped again or is
+                // editing the wrong person.
+                if (clash is not null)
+                    return Warn<PersonDto>(
+                        $"That mobile number already belongs to {clash.FullName}. " +
+                        "Check the number, or correct that record instead.");
+            }
+
             person.GivenName = request.GivenName.Trim();
             person.FamilyName = Clean(request.FamilyName);
             person.CampusId = campusKey;
@@ -407,8 +432,132 @@ namespace RM_CMS.Modules.People.Services
             if (!updated)
                 return Warn<PersonDto>("This record was changed by someone else. Reload and try again.");
 
+            // After the row-version guard, so a lost update refuses the contact
+            // changes too rather than applying them to a record somebody else moved on.
+            await ApplyContactCorrectionsAsync(person, contactPlan, actingUserId);
+
             var fresh = await _people.GetByIdAsync(person.Id);
             return Ok(ToDto(fresh!), "Person updated");
+        }
+
+        /// <summary>One contact value to write, already validated and normalized.</summary>
+        private sealed record ContactWrite(string Value, string Normalized);
+
+        /// <summary>
+        /// What an update should do to a person's mobile and email: correct the value
+        /// in place, add one that was missing, remove one that was cleared, or nothing.
+        /// </summary>
+        private sealed record ContactPlan(
+            ContactWrite? Mobile,
+            ContactWrite? Email,
+            bool RemoveEmail,
+            string? Problem);
+
+        /// <summary>
+        /// Works out the contact changes without making any. Pure, so the caller can
+        /// refuse the whole save on a bad value before touching the record.
+        /// </summary>
+        /// <remarks>
+        /// Omitted (null) means "leave it alone", which is what every caller that does
+        /// not collect the field sends. Only email can be cleared, by sending an empty
+        /// string: a person with no contact at all cannot be followed up, and emptying
+        /// the mobile box is far more likely to be an accident than an instruction.
+        /// </remarks>
+        private static ContactPlan PlanContactCorrections(Person person, UpdatePersonRequest request)
+        {
+            ContactWrite? mobile = null;
+            ContactWrite? email = null;
+            var removeEmail = false;
+
+            if (!string.IsNullOrWhiteSpace(request.Mobile))
+            {
+                var value = request.Mobile.Trim();
+                var normalized = ContactNormalizer.Normalize(ContactTypes.Mobile, value);
+
+                if (string.IsNullOrWhiteSpace(normalized))
+                    return new ContactPlan(null, null, false, $"'{value}' is not a usable mobile number.");
+
+                // Unchanged numbers are not rewritten: the write clears is_verified,
+                // and re-saving the form without touching the number should not
+                // un-verify it.
+                var current = person.PrimaryContact(ContactTypes.Mobile);
+
+                if (current is null || !string.Equals(current.NormalizedValue, normalized, StringComparison.Ordinal))
+                    mobile = new ContactWrite(value, normalized);
+            }
+
+            if (request.Email is not null)
+            {
+                var value = request.Email.Trim();
+                var current = person.PrimaryContact(ContactTypes.Email);
+
+                if (value.Length == 0)
+                {
+                    removeEmail = current is not null;
+                }
+                else if (!ContactNormalizer.LooksLikeEmail(value))
+                {
+                    return new ContactPlan(null, null, false, $"'{value}' is not a valid email address.");
+                }
+                else
+                {
+                    var normalized = ContactNormalizer.Normalize(ContactTypes.Email, value);
+
+                    if (current is null || !string.Equals(current.NormalizedValue, normalized, StringComparison.Ordinal))
+                        email = new ContactWrite(value, normalized);
+                }
+            }
+
+            return new ContactPlan(mobile, email, removeEmail, null);
+        }
+
+        /// <summary>
+        /// Carries out a <see cref="ContactPlan"/>. A value already on file is
+        /// corrected in place so its id, primary flag and verification history stay
+        /// with it; a missing one is inserted and promoted to primary.
+        /// </summary>
+        private async Task ApplyContactCorrectionsAsync(Person person, ContactPlan plan, long? actingUserId)
+        {
+            if (plan.Mobile is not null)
+                await WriteContactAsync(person, ContactTypes.Mobile, plan.Mobile, actingUserId);
+
+            if (plan.Email is not null)
+                await WriteContactAsync(person, ContactTypes.Email, plan.Email, actingUserId);
+
+            if (plan.RemoveEmail)
+            {
+                var current = person.PrimaryContact(ContactTypes.Email);
+
+                if (current is not null)
+                    await _people.RemoveContactAsync(person.Id, current.Id);
+            }
+        }
+
+        private async Task WriteContactAsync(
+            Person person, string contactType, ContactWrite write, long? actingUserId)
+        {
+            var current = person.PrimaryContact(contactType);
+
+            if (current is not null)
+            {
+                await _people.UpdateContactValueAsync(
+                    person.Id, current.Id, write.Value, write.Normalized, actingUserId);
+
+                if (!current.IsPrimary)
+                    await _people.SetPrimaryContactAsync(person.Id, current.Id, contactType);
+
+                return;
+            }
+
+            var contactId = await _people.AddContactAsync(person.Id, new PersonContact
+            {
+                ContactType = contactType,
+                Value = write.Value,
+                NormalizedValue = write.Normalized,
+                IsPrimary = true
+            }, actingUserId);
+
+            await _people.SetPrimaryContactAsync(person.Id, contactId, contactType);
         }
 
         /// <summary>
