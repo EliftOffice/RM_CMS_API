@@ -207,7 +207,24 @@ namespace RM_CMS.Modules.Dashboards.Domain
             return reasons;
         }
 
-        public int RemainingCapacity => Math.Max(0, CapacityMaxPerWeek - CurrentCaseLoad);
+        /// <summary>
+        /// Distinct visitors given to them since the capacity week began. What the
+        /// band's ceiling is measured against — see the note on
+        /// <see cref="RemainingCapacity"/>.
+        /// </summary>
+        public int AssignedThisWeek { get; set; }
+
+        /// <summary>
+        /// How many more NEW VISITORS they may be given this week.
+        /// </summary>
+        /// <remarks>
+        /// Measured against <see cref="AssignedThisWeek"/> and NOT against
+        /// <see cref="CurrentCaseLoad"/>, which falls every time a case closes. Using
+        /// the live load here showed a volunteer's allowance refilling as they
+        /// finished work, so a lead on "Limited (1–2/week)" saw room that the
+        /// assignment engine no longer agreed existed.
+        /// </remarks>
+        public int RemainingCapacity => Math.Max(0, CapacityMaxPerWeek - AssignedThisWeek);
 
         /// <summary>
         /// Spare capacity they can actually USE. An unreachable volunteer has room on

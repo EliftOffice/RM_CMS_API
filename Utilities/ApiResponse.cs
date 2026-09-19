@@ -39,6 +39,17 @@ namespace RM_CMS.Utilities
         public const string DuplicateContact = "duplicate_contact";
 
         /// <summary>
+        /// The mobile number already belongs to somebody, so the new person is being
+        /// recorded into an existing household and the caller has not said how they
+        /// are related to it.
+        ///
+        /// NOT a duplicate. Nothing is wrong and nothing needs overriding — a family
+        /// shares one phone, and the save proceeds as soon as the relationship is
+        /// supplied. The caller should ask the question, not offer "save anyway".
+        /// </summary>
+        public const string RelationshipRequired = "relationship_required";
+
+        /// <summary>
         /// A manual Telegram link was recorded, but Telegram could not be reached to
         /// confirm the chat exists. Still a success — the link is stored the same as
         /// any other manual link — but the caller should show it as provisional and

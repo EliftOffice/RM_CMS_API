@@ -451,6 +451,19 @@ CREATE TABLE capacity_band (
 --    person holds, modelled as a separate row that references them.
 -- #############################################################################
 
+CREATE TABLE relationship_type (
+    code        VARCHAR(30)  NOT NULL,
+    label       VARCHAR(60)  NOT NULL,
+    -- The order a welcome desk needs them in, not alphabetical: spouse, then
+    -- children, then parents, then siblings, with the catch-alls last.
+    sort_order  INT          NOT NULL DEFAULT 0,
+    -- Retiring one hides it from the picker without rewriting anybody already
+    -- recorded against it.
+    is_active   TINYINT(1)   NOT NULL DEFAULT 1,
+    PRIMARY KEY (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
 CREATE TABLE person (
     id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     public_id           CHAR(26)        NOT NULL,
@@ -471,6 +484,26 @@ CREATE TABLE person (
     age_band            VARCHAR(20)     NULL,
     gender              VARCHAR(20)     NULL,
     household_type      VARCHAR(40)     NULL,
+
+    -- FAMILIES SHARE A PHONE. A second person on a number is normal, not an
+    -- error, so `person_contact` has never forbidden it — it is unique on
+    -- (person_id, contact_type, normalized_value), which only stops the same
+    -- number being recorded twice for ONE person.
+    --
+    -- These two columns hold the answer to the question that follows: if this
+    -- number is already John's, who is this person to John?
+    --
+    -- The first person registered on a number is the BASE VISITOR, and everyone
+    -- else on it points at them. Null here means this person IS a base visitor,
+    -- which is also the state of everybody whose number nobody shares.
+    --
+    -- A star, not a chain. The relationship is always relative to the base
+    -- visitor and never to whoever was added most recently, so "who is this
+    -- household?" is one index lookup and cannot drift as people are added.
+    base_person_id      BIGINT UNSIGNED NULL,
+    -- What this person is TO the base visitor: Mary is the WIFE of John. Only
+    -- that direction is stored — keeping both halves means they can disagree.
+    relationship_code   VARCHAR(30)     NULL,
 
     address_line        VARCHAR(200)    NULL,
     -- Free text, as typed. Still written for someone who does NOT live locally:
@@ -524,9 +557,19 @@ CREATE TABLE person (
     KEY ix_person_lifecycle  (lifecycle_status, campus_id),
     KEY ix_person_dnc        (do_not_contact),
     KEY ix_person_area       (area_id),
+    -- Drawing a household: everybody who hangs off this base visitor.
+    KEY ix_person_base       (base_person_id),
 
     CONSTRAINT fk_person_campus FOREIGN KEY (campus_id) REFERENCES campus (id),
     CONSTRAINT fk_person_area   FOREIGN KEY (area_id)   REFERENCES area (id),
+    -- No ON DELETE action, so RESTRICT. Not CASCADE, which would delete a whole
+    -- family because the first of them was removed; and not SET NULL either,
+    -- because MySQL refuses a CHECK over a column a referential action writes to
+    -- and ck_person_base_pair below is worth more. People are SOFT-deleted here,
+    -- so this can practically never fire.
+    CONSTRAINT fk_person_base FOREIGN KEY (base_person_id) REFERENCES person (id),
+    CONSTRAINT fk_person_relationship
+        FOREIGN KEY (relationship_code) REFERENCES relationship_type (code),
     CONSTRAINT ck_person_age_band CHECK (
         age_band IS NULL OR age_band IN ('UNDER_18','18_25','26_35','36_45','46_60','OVER_60')
     ),
@@ -535,6 +578,18 @@ CREATE TABLE person (
     ),
     CONSTRAINT ck_person_dnc CHECK (
         do_not_contact = 0 OR do_not_contact_at IS NOT NULL
+    ),
+    -- The pair is meaningless apart: a relationship to nobody says nothing, and
+    -- a base visitor with no stated relationship is exactly the "somebody shares
+    -- this number but we never asked" state the pair exists to end.
+    --
+    -- "base_person_id <> id" is NOT here and cannot be: MySQL rejects a check
+    -- constraint that refers to an auto-increment column. PeopleService enforces
+    -- it instead, which it gets for free — it resolves the base visitor from the
+    -- contact rows before the new row exists, so there is no id to point at.
+    CONSTRAINT ck_person_base_pair CHECK (
+        (base_person_id IS NULL AND relationship_code IS NULL)
+     OR (base_person_id IS NOT NULL AND relationship_code IS NOT NULL)
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -826,8 +881,15 @@ CREATE TABLE volunteer (
     started_on              DATE            NOT NULL,
     ended_on                DATE            NULL,
 
-    -- Live workload. Never exceeds the band's max_per_week; enforced by the
-    -- assignment service inside a transaction.
+    -- Live workload: how many cases they are holding RIGHT NOW. Maintained in the
+    -- same transaction as the case that changes it.
+    --
+    -- NOT the capacity figure, and it must not be used as one. This goes DOWN
+    -- every time a case closes, so comparing it with max_per_week let somebody on
+    -- 'Limited (1-2/week)' take two on Monday, finish them, and take two more on
+    -- Tuesday -- the band read as a ceiling and behaved as a queue depth. The
+    -- weekly allowance is counted from care_case_assignment, which is append-only
+    -- and cannot be refunded by completing the work.
     current_case_load       SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     lifetime_cases_assigned INT UNSIGNED    NOT NULL DEFAULT 0,
     lifetime_cases_closed   INT UNSIGNED    NOT NULL DEFAULT 0,
@@ -1115,6 +1177,11 @@ CREATE TABLE care_case_assignment (
     PRIMARY KEY (id),
     KEY ix_case_assignment_case      (care_case_id, assigned_at),
     KEY ix_case_assignment_volunteer (volunteer_id, unassigned_at),
+    -- 'How many new visitors has this volunteer been given this week' -- the
+    -- weekly capacity limit, read on every assignment decision for every
+    -- candidate. The index above is (volunteer_id, unassigned_at) and answers
+    -- what they currently hold, which is no help for a date range.
+    KEY ix_case_assignment_volunteer_week (volunteer_id, assigned_at),
 
     CONSTRAINT fk_case_assignment_case      FOREIGN KEY (care_case_id) REFERENCES care_case (id) ON DELETE CASCADE,
     CONSTRAINT fk_case_assignment_volunteer FOREIGN KEY (volunteer_id) REFERENCES volunteer (id),
@@ -1840,6 +1907,21 @@ INSERT INTO capacity_band (code, label, min_per_week, max_per_week, description,
     ('BALANCED',   'Balanced',   2, 3, 'Standard sustainable load',                                    20),
     ('CONSISTENT', 'Consistent', 4, 6, 'Experienced volunteers with proven capacity',                  30);
 
+-- How somebody on a shared phone relates to the base visitor on that number.
+-- A starting list, not a definition: a church that needs 'Grandmother' or
+-- 'Guardian' adds a row and the intake screen offers it without a deployment.
+INSERT INTO relationship_type (code, label, sort_order) VALUES
+    ('WIFE',     'Wife',     10),
+    ('HUSBAND',  'Husband',  20),
+    ('SON',      'Son',      30),
+    ('DAUGHTER', 'Daughter', 40),
+    ('FATHER',   'Father',   50),
+    ('MOTHER',   'Mother',   60),
+    ('BROTHER',  'Brother',  70),
+    ('SISTER',   'Sister',   80),
+    ('RELATIVE', 'Relative', 90),
+    ('OTHER',    'Other',   100);
+
 INSERT INTO contact_method (code, label, sort_order) VALUES
     ('CALL',     'Phone call',    10),
     ('VISIT',    'In-person visit', 20),
@@ -1964,6 +2046,7 @@ INSERT INTO escalation_outcome (code, label, sort_order) VALUES
 
 INSERT INTO app_setting (setting_key, setting_value, value_type, category, description, min_value, max_value) VALUES
     ('assignment.auto_assign_on_intake', 'true', 'BOOLEAN', 'ASSIGNMENT', 'Assign a case at intake rather than waiting for the batch job', NULL, NULL),
+    ('assignment.week_starts_on', '1', 'INTEGER', 'ASSIGNMENT', 'Which day a capacity week begins on (1 = Monday ... 7 = Sunday). A volunteer''s weekly assignment allowance resets on this day.', 1, 7),
     ('assignment.max_retry_attempts',    '3',    'INTEGER', 'ASSIGNMENT', 'Contact attempts before a case is marked unreachable',           1,   10),
     ('assignment.retry_delay_days',      '3',    'INTEGER', 'ASSIGNMENT', 'Days to wait before a retry attempt',                             1,   30),
     ('assignment.response_target_hours', '48',   'INTEGER', 'ASSIGNMENT', 'Target hours for first contact',                                  1,  168),

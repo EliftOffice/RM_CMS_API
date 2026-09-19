@@ -118,7 +118,8 @@ namespace RM_CMS.Modules.Dashboards.Services
 
             // Same Monday-of-the-current-week rule the team lead card uses, so a
             // volunteer's trend never disagrees between the two screens.
-            var weekStart = now.Date.AddDays(-(((int)now.DayOfWeek + 6) % 7));
+            var weekStart = CapacityWeek.StartOfWeek(
+                now, await _settings.GetIntAsync(CapacityWeek.WeekStartsOnKey, CapacityWeek.Monday));
             var volunteers = await _teamLeadReads.GetVolunteerLoadAsync(teamIds, weekStart);
 
             var teamHealth = await _pastor.GetTeamHealthAsync(teamIds, now);

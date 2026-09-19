@@ -40,6 +40,8 @@ order, all in [`migrations/`](migrations/):
 | `003_team_management_access.sql` | Additive, idempotent — adds the `team.manage_by_pastor` / `team.manage_by_team_lead` grant settings (both default `false`). |
 | `004_clear_placeholder_telegram.sql` | Not a schema migration — a data-hygiene script. Run once after `001` against real migrated data: disconnects any `TELEGRAM` contact rows that share a single chat id (a leftover test chat from migration), which otherwise routes every affected person's alerts to one chat and falsely satisfies the volunteer-reachability check. |
 | `005_areas.sql` | Additive, idempotent — adds the `area` table and `person.area_id`, the `area.manage_by_data_entry` grant setting (default `false`), and backfills one area per distinct `person.locality` per campus so the picker is not empty on day one. |
+| `013_weekly_assignment_limit.sql` | Additive, idempotent — makes a capacity band a weekly INTAKE limit. Adds an index on `care_case_assignment (volunteer_id, assigned_at)` and the `assignment.week_starts_on` setting (default Monday). No new counter: the weekly figure is counted from the append-only assignment ledger, so completing a follow-up cannot refund an allowance already spent. |
+| `012_shared_phone_relationships.sql` | Additive, idempotent — adds the `relationship_type` lookup and `person.base_person_id` / `person.relationship_code`, so a family sharing one phone can all be recorded, each against the first person registered on that number. Deliberately backfills nothing: people who already share a number are left alone rather than being given an invented family link. |
 
 See [`../testing/manual/README.md`](../testing/manual/README.md) for the exact reset-to-baseline commands.
 

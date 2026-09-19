@@ -175,6 +175,7 @@ namespace RM_CMS.Modules.Volunteers.Services
                 TeamName = v.TeamName,
                 CurrentCaseLoad = v.CurrentCaseLoad,
                 CapacityMaxPerWeek = v.CapacityMaxPerWeek,
+                AssignedThisWeek = v.AssignedThisWeek,
                 RemainingCapacity = v.RemainingCapacity,
                 IsCrisisEligible = v.IsCrisisEligible,
                 LastAssignedAt = v.LastAssignedAt
@@ -741,6 +742,7 @@ namespace RM_CMS.Modules.Volunteers.Services
             CapacityBandLabel = v.CapacityBandLabel,
             CapacityMaxPerWeek = v.CapacityMaxPerWeek,
             CurrentCaseLoad = v.CurrentCaseLoad,
+            AssignedThisWeek = v.AssignedThisWeek,
             RemainingCapacity = v.RemainingCapacity,
             LifetimeCasesAssigned = v.LifetimeCasesAssigned,
             LifetimeCasesClosed = v.LifetimeCasesClosed,
@@ -769,6 +771,7 @@ namespace RM_CMS.Modules.Volunteers.Services
             Status = v.Status,
             CapacityBandCode = v.CapacityBandCode,
             CurrentCaseLoad = v.CurrentCaseLoad,
+            AssignedThisWeek = v.AssignedThisWeek,
             CapacityMaxPerWeek = v.CapacityMaxPerWeek,
             BurnoutRisk = v.BurnoutRisk,
             IsCrisisEligible = v.IsCrisisEligible,

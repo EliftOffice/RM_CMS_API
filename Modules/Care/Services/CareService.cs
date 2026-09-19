@@ -50,20 +50,33 @@ namespace RM_CMS.Modules.Care.Services
     {
         private const string CaseNotFound = "Case not found.";
 
+        /// <summary>
+        /// The administrator's switch for assigning at intake rather than leaving it
+        /// to the batch job. Read on every intake, never cached — an administrator who
+        /// turns it off expects the next visitor recorded to follow the new rule.
+        /// </summary>
+        internal const string AutoAssignOnIntakeKey = "assignment.auto_assign_on_intake";
+
         private readonly ICareCaseRepository _cases;
         private readonly ICareInteractionRepository _interactions;
         private readonly IEscalationRepository _escalations;
         private readonly ICareLookupRepository _lookups;
         private readonly IProgressionEngine _engine;
         private readonly IVolunteerRepository _volunteers;
+
+        /// <summary>The administrator's tunable rules. See <see cref="AutoAssignOnIntakeKey"/>.</summary>
+        private readonly RM_CMS.Modules.Settings.Data.ISettingRepository _settings;
+
         private readonly ICurrentIdentity _current;
         private readonly IUserAccountRepository _accounts;
 
         /// <summary>
         /// Tells a volunteer a follow-up has been placed with them. Queued, never sent
-        /// from here: a Telegram outage must not roll back the assignment.
+        /// from here: a Telegram outage must not roll back the assignment. Shared with
+        /// the jobs, so every route to an assignment sends the same alert.
         /// </summary>
-        private readonly INotificationQueue _notifications;
+        private readonly IAssignmentNotifier _assignmentNotifier;
+
         private readonly TimeProvider _clock;
         private readonly ILogger<CareService> _logger;
 
@@ -74,9 +87,10 @@ namespace RM_CMS.Modules.Care.Services
             ICareLookupRepository lookups,
             IProgressionEngine engine,
             IVolunteerRepository volunteers,
+            RM_CMS.Modules.Settings.Data.ISettingRepository settings,
             ICurrentIdentity current,
             IUserAccountRepository accounts,
-            INotificationQueue notifications,
+            IAssignmentNotifier assignmentNotifier,
             TimeProvider clock,
             ILogger<CareService> logger)
         {
@@ -86,9 +100,10 @@ namespace RM_CMS.Modules.Care.Services
             _lookups = lookups;
             _engine = engine;
             _volunteers = volunteers;
+            _settings = settings;
             _current = current;
             _accounts = accounts;
-            _notifications = notifications;
+            _assignmentNotifier = assignmentNotifier;
             _clock = clock;
             _logger = logger;
         }
@@ -277,24 +292,73 @@ namespace RM_CMS.Modules.Care.Services
 
             var message = $"Case {created.ReferenceCode} opened.";
 
+            // Whether to assign here is NOT the caller's decision alone.
+            //
+            // autoAssign arrives from a screen, and a screen can be stale, wrong or
+            // simply older than the rule it is meant to obey. The administrator's
+            // assignment.auto_assign_on_intake setting and the visitor's own
+            // circumstances decide it, and they are checked HERE — the intake form
+            // hides the box for the same reasons, but hiding a control is a courtesy
+            // to the operator, never the enforcement.
             if (request.AutoAssign)
             {
-                var assigned = await AutoAssignAsync(created, actingUserId);
+                var refusal = await AutoAssignRefusalAsync(created);
 
-                if (assigned is not null)
+                if (refusal is not null)
                 {
-                    created = assigned;
-                    message += $" Assigned to {created.AssignedVolunteerName}.";
+                    // Say WHY nobody was assigned. "Opened" on its own reads as a
+                    // failure to an operator who expected a volunteer's name, and they
+                    // would reasonably chase it.
+                    message += " " + refusal;
                 }
                 else
                 {
-                    message += " No volunteer has spare capacity, so it is queued for assignment.";
+                    var assigned = await AutoAssignAsync(created, actingUserId);
+
+                    if (assigned is not null)
+                    {
+                        created = assigned;
+                        message += $" Assigned to {created.AssignedVolunteerName}.";
+                    }
+                    else
+                    {
+                        message += " No volunteer has spare capacity, so it is queued for assignment.";
+                    }
                 }
             }
 
             _logger.LogInformation("Case {Case} opened for person {Person}", created.PublicId, request.PersonId);
 
             return Ok(await BuildDetailAsync(created), message);
+        }
+
+        /// <summary>
+        /// Why this case must not be assigned automatically, or null when it may be.
+        ///
+        /// Two separate rules, both of which the intake screen also honours:
+        ///   • the administrator has turned assignment at intake off, so the batch
+        ///     job is meant to do the placing
+        ///   • the visitor lives out of town, so there is no area to match a
+        ///     volunteer against and nobody should be sent to call on them
+        ///
+        /// Neither is an error — the case is opened either way and waits to be
+        /// placed. Only the wording the operator sees differs.
+        /// </summary>
+        private async Task<string?> AutoAssignRefusalAsync(CareCase careCase)
+        {
+            if (!careCase.CanBeAutoAssigned)
+            {
+                return $"{careCase.PersonName} is recorded as living out of town, so the case is " +
+                       "not assigned to a volunteer. A team lead can place it by hand if needed.";
+            }
+
+            if (!await _settings.GetBoolAsync(AutoAssignOnIntakeKey, true))
+            {
+                return "Assignment at intake is turned off, so the case is queued for the " +
+                       "assignment job.";
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -318,6 +382,12 @@ namespace RM_CMS.Modules.Care.Services
 
             if (refreshed is not null)
                 await CreateFirstFollowUpAsync(refreshed, pick.Id, actingUserId);
+
+            // The volunteer is told here for the same reason a manual assignment tells
+            // them: being given a case and finding out about it are not the same
+            // event. Assigning at intake used to be the ONE route that stayed silent,
+            // so the visitor recorded at the desk was the one nobody was told about.
+            await _assignmentNotifier.NotifyCaseAssignedAsync(careCase.Id, pick.PersonId);
 
             return await _cases.GetByIdAsync(careCase.Id);
         }
@@ -402,8 +472,13 @@ namespace RM_CMS.Modules.Care.Services
             if (!AssignmentReason.IsKnown(request.Reason))
                 return Warn<CaseDto>($"Unknown assignment reason '{request.Reason}'.");
 
-            // Over-capacity assignment is allowed but flagged: a team lead sometimes
-            // has to place a case anyway, and hiding it would be worse than saying so.
+            // Over the WEEKLY intake limit. Still allowed by hand — a team lead
+            // sometimes has to place a case anyway, and hiding it would be worse than
+            // saying so — but it is deliberately not something the automatic paths do.
+            //
+            // The figure is how many NEW VISITORS they have been given since the week
+            // began, not how many cases they are holding. Somebody who took their two
+            // on Monday and closed them both is still full until the week turns.
             var overCapacity = !volunteer.HasSpareCapacity;
 
             var actingUserId = await ActingUserIdAsync();
@@ -431,7 +506,7 @@ namespace RM_CMS.Modules.Care.Services
             var refreshed = await _cases.GetByIdAsync(careCase.Id);
             await CreateFirstFollowUpAsync(refreshed!, volunteer.Id, actingUserId);
 
-            await NotifyAssignedAsync(careCase.Id, volunteer.PersonId);
+            await _assignmentNotifier.NotifyCaseAssignedAsync(careCase.Id, volunteer.PersonId);
 
             _logger.LogInformation(
                 "Case {Case} assigned to volunteer {Volunteer} ({Reason})",
@@ -441,7 +516,8 @@ namespace RM_CMS.Modules.Care.Services
 
             var message = $"Assigned to {volunteer.FullName}."
                 + (overCapacity
-                    ? $" Note they are already at {volunteer.CurrentCaseLoad} of {volunteer.CapacityMaxPerWeek} cases."
+                    ? $" Note this is past their weekly limit — they have already been given " +
+                      $"{volunteer.AssignedThisWeek} of {volunteer.CapacityMaxPerWeek} visitors this week."
                     : "");
 
             return Ok(await BuildDetailAsync(final!), message);
@@ -1022,47 +1098,6 @@ namespace RM_CMS.Modules.Care.Services
         // ==================================================================
 
         private bool CanAccess(CareCase c) => _current.CanAccessCampus(c.CampusPublicId);
-
-        /// <summary>
-        /// Tells the volunteer a follow-up is now theirs.
-        /// </summary>
-        /// <remarks>
-        /// Queued, not sent — the sender drains the queue later, so a Telegram outage
-        /// cannot undo an assignment that has already happened.
-        ///
-        /// Every failure here is swallowed on purpose. The case IS assigned by the time
-        /// this runs, and throwing now would return an error for work that succeeded,
-        /// leaving the operator to assign it a second time. A volunteer who is not
-        /// reachable on Telegram still sees the case on their own screen; the wording
-        /// they get is editable on the Telegram messages screen.
-        /// </remarks>
-        private async Task NotifyAssignedAsync(long careCaseId, long volunteerPersonId)
-        {
-            try
-            {
-                var recipient = await _notifications.FindByPersonAsync(volunteerPersonId);
-
-                if (recipient is null)
-                {
-                    // No sign-in, so nothing they could act on. Worth a line: a team
-                    // full of volunteers without accounts is a setup problem, and this
-                    // is where it first shows.
-                    _logger.LogInformation(
-                        "Case {CaseId} assigned to a person with no active account; no alert queued.", careCaseId);
-                    return;
-                }
-
-                await _notifications.QueueAsync(
-                    new[] { recipient }, NotificationType.CaseAssigned,
-                    RelatedEntityType.CareCase, careCaseId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "Could not queue the assignment alert for case {CaseId}. The assignment itself stands.",
-                    careCaseId);
-            }
-        }
 
         private async Task<long?> ActingUserIdAsync()
         {

@@ -257,13 +257,7 @@ $(document).ready(function () {
     // "Did you contact them?" preselects the matching outcome rather than being a
     // separate answer — the outcome is what the server actually records.
     $(document).on('change', '#cs_yes, #cs_no', function () {
-        var wantContact = this.id === 'cs_yes';
-
-        var match = $('input[name="outcome"]').filter(function () {
-            return truthy($(this).data('contactmade')) === wantContact;
-        }).first();
-
-        match.prop('checked', true).trigger('change');
+        applyContactAnswer('', this.id === 'cs_yes');
     });
 
     // ── Open the follow-up form ───────────────────────────────────────────────
@@ -319,7 +313,11 @@ $(document).ready(function () {
 
         $('#' + fid(prefix, 'outcomeOptions')).html(reference.outcomes.map(function (o) {
             var id = radioName + '_' + o.code;
-            return '<div class="radio-row">' +
+
+            // The flag goes on the ROW as well as the input. Hiding is a row-level
+            // job — an input on its own leaves its label behind — and reading it from
+            // the row saves walking back up to it on every filter pass.
+            return '<div class="radio-row" data-contactmade="' + (o.contactMade ? '1' : '0') + '">' +
                      '<input type="radio" name="' + radioName + '" id="' + id + '"' +
                        ' value="' + esc(o.code) + '"' +
                        ' data-contactmade="' + (o.contactMade ? '1' : '0') + '"' +
@@ -352,6 +350,71 @@ $(document).ready(function () {
 
         $('input[name="' + radioName + '"]').on('change', function () { syncForm(prefix); });
         $(reasonSelect).on('change', function () { syncProtocolNote(prefix); });
+    }
+
+    /**
+     * Narrows "What happened?" to the outcomes that can follow the answer given to
+     * "Did you contact them?".
+     *
+     * Said no, and the only honest outcomes are the ones where nobody was reached —
+     * no answer, wrong number, unreachable, left a message. Said yes, and those are
+     * the ones that cannot apply. Showing all seven either way is how a volunteer
+     * files "Spoke with them" on a call that rang out, and every rule downstream —
+     * the retry ladder, the unreachable count, the escalation triggers — then keys
+     * off an outcome that did not happen.
+     *
+     * Which side an outcome falls on is the server's <c>contactMade</c> flag, never a
+     * list of codes written here. Outcomes are configurable data; a hardcoded list
+     * would hide a newly added one from BOTH answers, leaving it unselectable.
+     *
+     * @param {boolean|null} contacted  true, false, or null for "not yet answered",
+     *                                  which shows everything.
+     */
+    function syncOutcomeChoices(prefix, contacted) {
+        var radioName = prefix ? 'n_outcome' : 'outcome';
+        var $rows = $('#' + fid(prefix, 'outcomeOptions') + ' .radio-row');
+
+        if (contacted === null) {
+            $rows.show();
+            return;
+        }
+
+        $rows.each(function () {
+            var row = $(this);
+            var matches = truthy(row.data('contactmade')) === contacted;
+
+            row.toggle(matches);
+
+            // An outcome that is no longer on offer must not stay selected. Changing
+            // the answer from yes to no would otherwise submit "Spoke with them" from
+            // a hidden radio the volunteer can no longer see, let alone correct.
+            if (!matches) row.find('input[name="' + radioName + '"]').prop('checked', false);
+        });
+    }
+
+    /**
+     * Applies the yes/no answer: narrow the outcomes, then pre-select the first one
+     * still standing. The volunteer can refine it — the outcome is what is recorded.
+     */
+    function applyContactAnswer(prefix, contacted) {
+        var radioName = prefix ? 'n_outcome' : 'outcome';
+
+        syncOutcomeChoices(prefix, contacted);
+
+        // Eligibility is read from the same flag the filter uses, NOT from what is
+        // on screen. `:visible` is false for everything inside a hidden page, so
+        // asking the layout would silently pre-select nothing on a form that has not
+        // been shown yet — and the two answers must behave identically whether the
+        // volunteer is on the initial follow-up or a nurture step.
+        var $eligible = $('input[name="' + radioName + '"]').filter(function () {
+            return truthy($(this).data('contactmade')) === contacted;
+        });
+
+        if ($eligible.filter(':checked').length === 0) {
+            $eligible.first().prop('checked', true);
+        }
+
+        syncForm(prefix);
     }
 
     /**
@@ -412,6 +475,11 @@ $(document).ready(function () {
 
         // Both grouped questions start unanswered, so nothing is recorded by default.
         $(prefix ? '#nc_yes, #nc_no' : '#cs_yes, #cs_no').prop('checked', false);
+
+        // Unanswered means every outcome is on offer. Leaving the previous contact's
+        // filter in place would open the next follow-up already narrowed to half the
+        // list, with nothing on screen saying why.
+        syncOutcomeChoices(prefix, null);
 
         syncForm(prefix);
     }
@@ -586,23 +654,11 @@ $(document).ready(function () {
     // saying no simply preselects the not-reached outcome, which the volunteer can
     // refine. The outcome itself is what the server records.
     document.getElementById('nc_no').addEventListener('change', function () {
-        if (!this.checked) return;
-
-        var notReached = $('input[name="n_outcome"]').filter(function () {
-            return !truthy($(this).data('contactmade'));
-        }).first();
-
-        notReached.prop('checked', true).trigger('change');
+        if (this.checked) applyContactAnswer('n', false);
     });
 
     document.getElementById('nc_yes').addEventListener('change', function () {
-        if (!this.checked) return;
-
-        var reached = $('input[name="n_outcome"]').filter(function () {
-            return truthy($(this).data('contactmade'));
-        }).first();
-
-        reached.prop('checked', true).trigger('change');
+        if (this.checked) applyContactAnswer('n', true);
     });
 
     document.getElementById('submitNurtureStepBtn').addEventListener('click', function () {

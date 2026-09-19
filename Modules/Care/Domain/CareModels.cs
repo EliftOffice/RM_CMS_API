@@ -21,6 +21,13 @@ namespace RM_CMS.Modules.Care.Domain
         public string? PersonPhone { get; set; }
         public bool PersonDoNotContact { get; set; }
 
+        /// <summary>
+        /// Whether this person lives in the area the campus serves. Out-of-town
+        /// visitors are never assigned to a volunteer — see
+        /// <see cref="CanBeAutoAssigned"/>.
+        /// </summary>
+        public bool PersonIsLocal { get; set; }
+
         // ---- placement ----
         public long CampusId { get; set; }
         public string? CampusPublicId { get; set; }
@@ -74,6 +81,18 @@ namespace RM_CMS.Modules.Care.Domain
         public bool IsPaused => string.Equals(Status, CaseStatus.Escalated, StringComparison.Ordinal);
 
         public bool NeedsAssignment => AssignedVolunteerId is null && IsOpen;
+
+        /// <summary>
+        /// Whether this case may be handed to a volunteer WITHOUT somebody deciding
+        /// to do it — at intake or by the assignment job.
+        ///
+        /// Volunteer follow-up is in-person work matched on the area the visitor
+        /// lives in, so an out-of-town visitor has nothing to match against; and
+        /// someone who asked not to be contacted must not be routed at all. A team
+        /// lead can still assign either by hand, which is a deliberate act with a
+        /// name against it.
+        /// </summary>
+        public bool CanBeAutoAssigned => PersonIsLocal && !PersonDoNotContact;
     }
 
     /// <summary>

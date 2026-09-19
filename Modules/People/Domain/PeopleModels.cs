@@ -30,6 +30,28 @@ namespace RM_CMS.Modules.People.Domain
         public string? Gender { get; set; }
         public string? HouseholdType { get; set; }
 
+        /// <summary>
+        /// The first person registered on this person's phone number — the base
+        /// visitor. Null when this person IS one, which is also the state of anybody
+        /// whose number nobody shares.
+        /// </summary>
+        /// <remarks>
+        /// A family shares a phone, so a second person on a number is normal. Everyone
+        /// on it hangs off the FIRST one registered, never off whoever was added most
+        /// recently: the household is then one index lookup, and it cannot drift as
+        /// people are added or removed from the middle.
+        /// </remarks>
+        public long? BasePersonId { get; set; }
+        public string? BasePersonPublicId { get; set; }
+        public string? BasePersonName { get; set; }
+
+        /// <summary>
+        /// What this person is TO the base visitor — Mary is the WIFE of John. Only
+        /// that direction is stored; keeping both halves means they can disagree.
+        /// </summary>
+        public string? RelationshipCode { get; set; }
+        public string? RelationshipLabel { get; set; }
+
         public string? AddressLine { get; set; }
 
         /// <summary>

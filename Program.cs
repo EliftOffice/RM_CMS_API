@@ -718,6 +718,8 @@ namespace RM_CMS
                                        RM_CMS.Modules.Notifications.Data.NotificationRepository>();
             builder.Services.AddScoped<RM_CMS.Modules.Notifications.Services.INotificationQueue,
                                        RM_CMS.Modules.Notifications.Services.NotificationQueue>();
+            builder.Services.AddScoped<RM_CMS.Modules.Notifications.Services.IAssignmentNotifier,
+                                       RM_CMS.Modules.Notifications.Services.AssignmentNotifier>();
             builder.Services.AddScoped<RM_CMS.Modules.Notifications.Services.INotificationComposer,
                                        RM_CMS.Modules.Notifications.Services.NotificationComposer>();
             builder.Services.AddScoped<RM_CMS.Modules.Notifications.Services.INotificationSender,
@@ -757,6 +759,8 @@ namespace RM_CMS
             // ---- Settings module (new architecture) ----
             // Replaces the legacy SystemConfig slice. Owns the bounds checking the
             // schema documents but cannot enforce on a VARCHAR value column.
+            builder.Services.AddScoped<RM_CMS.Modules.People.Data.IRelationshipTypeRepository,
+                                       RM_CMS.Modules.People.Data.RelationshipTypeRepository>();
             builder.Services.AddScoped<RM_CMS.Modules.Settings.Data.ISettingRepository,
                                        RM_CMS.Modules.Settings.Data.SettingRepository>();
             builder.Services.AddScoped<RM_CMS.Modules.Settings.Services.ISettingService,

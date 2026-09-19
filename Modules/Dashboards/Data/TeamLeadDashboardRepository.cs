@@ -347,6 +347,19 @@ namespace RM_CMS.Modules.Dashboards.Data
                     cb.label              AS CapacityBandLabel,
                     v.current_case_load   AS CurrentCaseLoad,
                     cb.max_per_week       AS CapacityMaxPerWeek,
+
+                    -- New visitors taken since the week began, which is what the band
+                    -- limits. From the append-only assignment ledger, so it matches
+                    -- what FindEligibleAsync will allow; current_case_load beside it
+                    -- is live burden and falls as cases close.
+                    --
+                    -- The two are shown together on purpose: 'holding 4, took 2 of 2
+                    -- this week' is the whole picture a lead needs, and either number
+                    -- alone is misleading.
+                    (SELECT COUNT(DISTINCT ca.care_case_id)
+                       FROM care_case_assignment ca
+                      WHERE ca.volunteer_id = v.id
+                        AND ca.assigned_at >= @Week1End)  AS AssignedThisWeek,
                     (SELECT COUNT(*) FROM escalation e
                       WHERE e.raised_by_volunteer_id = v.id
                         AND e.status NOT IN ('RESOLVED','CLOSED','REFERRED_OUT')) AS OpenEscalations,
@@ -412,13 +425,13 @@ namespace RM_CMS.Modules.Dashboards.Data
                 -- Busiest first: the lead is looking for who to take work off, and the
                 -- people with spare capacity are the easy half of that question.
                 --
-                -- CAST TO SIGNED IS LOAD-BEARING. Both columns are UNSIGNED, so when a
+                -- CAST TO SIGNED IS LOAD-BEARING. Both values are UNSIGNED, so when a
                 -- volunteer is OVER capacity the subtraction underflows and MySQL
                 -- raises 'BIGINT UNSIGNED value is out of range' — the whole dashboard
                 -- 500s. Over capacity is not a hypothetical: a team can exceed its
                 -- ceiling through manual assignment or a band being lowered, and the
                 -- lead looking at that team is exactly who needs this page to load.
-                ORDER BY (CAST(cb.max_per_week AS SIGNED) - CAST(v.current_case_load AS SIGNED)),
+                ORDER BY (CAST(cb.max_per_week AS SIGNED) - CAST(AssignedThisWeek AS SIGNED)),
                          p.full_name;";
 
             using var connection = _dbFactory.GetConnection();

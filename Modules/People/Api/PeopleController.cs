@@ -23,8 +23,13 @@ namespace RM_CMS.Modules.People.Api
     public sealed class PeopleController : ControllerBase
     {
         private readonly IPeopleService _people;
+        private readonly Data.IRelationshipTypeRepository _relationships;
 
-        public PeopleController(IPeopleService people) => _people = people;
+        public PeopleController(IPeopleService people, Data.IRelationshipTypeRepository relationships)
+        {
+            _people = people;
+            _relationships = relationships;
+        }
 
         /// <summary>Paged register, filtered by search text, lifecycle status or campus.</summary>
         [HttpGet]
@@ -250,16 +255,38 @@ namespace RM_CMS.Modules.People.Api
             return HttpResponseHelper.CreateHttpResponse(await _people.SetPrimaryContactAsync(id, contactId));
         }
 
+        /// <summary>
+        /// Who already holds this mobile number, and so whether the next person
+        /// recorded on it has to say how they are related to them.
+        /// </summary>
+        /// <remarks>
+        /// Open to intake, because intake is what asks it. It discloses only the name
+        /// of somebody the caller could already find through the duplicate lookup on
+        /// the same screen, and only at a campus they may act for.
+        /// </remarks>
+        [HttpGet("base-visitor")]
+        [Authorize(Policy = PolicyNames.CanRecordVisitors)]
+        [ProducesResponseType(typeof(ApiResponse<BaseVisitorDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> BaseVisitor([FromQuery] string mobile) =>
+            Ok(await _people.GetBaseVisitorAsync(mobile));
+
         /// <summary>Reference data for the intake form.</summary>
         [HttpGet("/api/people-reference")]
         [Authorize(Policy = PolicyNames.CanRecordVisitors)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
-        public IActionResult Reference() =>
+        public async Task<IActionResult> Reference() =>
             Ok(new ApiResponse<object>(ResponseType.Success, "Reference data", new
             {
                 lifecycleStatuses = Domain.PersonLifecycle.All,
                 contactTypes = Domain.ContactTypes.All,
-                ageBands = Domain.AgeBands.All
+                ageBands = Domain.AgeBands.All,
+
+                // The Wife / Son / Brother picker. Served from the table rather than a
+                // constant so a church that adds "Grandmother" sees it without a
+                // deployment — and so a code the screen offers is one the foreign key
+                // will accept.
+                relationshipTypes = (await _relationships.ListActiveAsync())
+                    .Select(r => new { code = r.Code, label = r.Label })
             }));
     }
 }

@@ -70,6 +70,14 @@ namespace RM_CMS.Modules.Jobs.Services
         private readonly IVolunteerRepository _volunteers;
         private readonly IJobRunRepository _runs;
         private readonly INotificationQueue _notifications;
+
+        /// <summary>
+        /// Tells a volunteer a case is theirs. Shared with <c>CareService</c> so an
+        /// assignment made by this job is indistinguishable, to the volunteer, from
+        /// one a team lead made by hand.
+        /// </summary>
+        private readonly IAssignmentNotifier _assignmentNotifier;
+
         private readonly INotificationSender _sender;
         private readonly RM_CMS.Modules.Huddle.Data.IHuddleRepository _huddle;
         private readonly RM_CMS.Modules.Settings.Data.ISettingRepository _settings;
@@ -86,6 +94,7 @@ namespace RM_CMS.Modules.Jobs.Services
             IVolunteerRepository volunteers,
             IJobRunRepository runs,
             INotificationQueue notifications,
+            IAssignmentNotifier assignmentNotifier,
             INotificationSender sender,
             RM_CMS.Modules.Huddle.Data.IHuddleRepository huddle,
             RM_CMS.Modules.Settings.Data.ISettingRepository settings,
@@ -101,6 +110,7 @@ namespace RM_CMS.Modules.Jobs.Services
             _volunteers = volunteers;
             _runs = runs;
             _notifications = notifications;
+            _assignmentNotifier = assignmentNotifier;
             _sender = sender;
             _huddle = huddle;
             _settings = settings;
@@ -137,6 +147,17 @@ namespace RM_CMS.Modules.Jobs.Services
                         continue;
                     }
 
+                    // FindUnassignedAsync already excludes these, so reaching here
+                    // means a second query has been added that does not. The rule —
+                    // nobody is sent to call on a visitor from out of town, and nobody
+                    // is routed to someone who asked not to be contacted — is worth
+                    // stating where the assignment actually happens.
+                    if (!careCase.CanBeAutoAssigned)
+                    {
+                        report.RecordSkipped();
+                        continue;
+                    }
+
                     try
                     {
                         var eligible = await _volunteers.FindEligibleAsync(careCase.CampusId, false, 1);
@@ -163,6 +184,13 @@ namespace RM_CMS.Modules.Jobs.Services
                             // ledger and the load counters — the work item is this
                             // job's to create.
                             await CreateFirstFollowUpAsync(careCase.Id, pick.Id, now, actingUserId);
+
+                            // And TELL them. A case placed by this job used to appear
+                            // on a volunteer's list with no word to them at all, so the
+                            // visitor's first contact waited until the volunteer next
+                            // happened to open the site. The alert carries the visitor's
+                            // details and the link they follow to log the attempt.
+                            await _assignmentNotifier.NotifyCaseAssignedAsync(careCase.Id, pick.PersonId);
 
                             report.RecordProcessed();
                         }
@@ -318,8 +346,15 @@ namespace RM_CMS.Modules.Jobs.Services
 
             if (pick.Id != current)
             {
-                await _cases.AssignAsync(careCase.Id, careCase.RowVersion, pick.Id, pick.TeamId,
+                var moved = await _cases.AssignAsync(careCase.Id, careCase.RowVersion, pick.Id, pick.TeamId,
                     AssignmentReason.Capacity, now, actingUserId);
+
+                // Only on an actual change of hands. This runs on every sweep, so
+                // notifying unconditionally would message the same volunteer about the
+                // same case every time the nurture job ran — and a volunteer who
+                // learns to ignore these will ignore the one that matters.
+                if (moved)
+                    await _assignmentNotifier.NotifyCaseAssignedAsync(careCase.Id, pick.PersonId);
             }
 
             return pick.Id;

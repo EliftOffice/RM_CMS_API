@@ -40,11 +40,30 @@ namespace RM_CMS.Modules.Volunteers.Domain
         public int CapacityMaxPerWeek { get; set; }
 
         /// <summary>
-        /// Live workload. Maintained in the same transaction as the case that changes
-        /// it — the MVP kept this counter AND derived the same figure from another
-        /// table, and the two drifted.
+        /// Live workload: how many cases they are holding RIGHT NOW. Maintained in the
+        /// same transaction as the case that changes it — the MVP kept this counter AND
+        /// derived the same figure from another table, and the two drifted.
         /// </summary>
+        /// <remarks>
+        /// NOT the capacity figure. This goes down every time a case closes, so
+        /// measuring a weekly allowance against it let a volunteer on "Limited
+        /// (1–2/week)" take two on Monday, finish them, and take two more on Tuesday.
+        /// It describes current burden, which is what a team lead wants to see; the
+        /// ceiling is <see cref="AssignedThisWeek"/>.
+        /// </remarks>
         public int CurrentCaseLoad { get; set; }
+
+        /// <summary>
+        /// Distinct visitors handed to this volunteer since the capacity week began.
+        /// This is what <see cref="CapacityMaxPerWeek"/> limits.
+        /// </summary>
+        /// <remarks>
+        /// Derived from the assignment ledger, which is append-only. Completing a
+        /// follow-up writes nothing to it, so finishing the work cannot buy back an
+        /// allowance already spent — which is the whole point. It resets only when the
+        /// week does.
+        /// </remarks>
+        public int AssignedThisWeek { get; set; }
 
         public int LifetimeCasesAssigned { get; set; }
         public int LifetimeCasesClosed { get; set; }
@@ -121,8 +140,12 @@ namespace RM_CMS.Modules.Volunteers.Domain
             return reasons;
         }
 
-        /// <summary>Spare capacity before the band's weekly ceiling is reached.</summary>
-        public int RemainingCapacity => Math.Max(0, CapacityMaxPerWeek - CurrentCaseLoad);
+        /// <summary>
+        /// How many more NEW VISITORS this volunteer may be given before the week is
+        /// out. Zero means no more until the week rolls over, however many cases they
+        /// close in the meantime.
+        /// </summary>
+        public int RemainingCapacity => Math.Max(0, CapacityMaxPerWeek - AssignedThisWeek);
 
         public bool HasSpareCapacity => RemainingCapacity > 0;
 

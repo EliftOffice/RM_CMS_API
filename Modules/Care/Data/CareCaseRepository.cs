@@ -108,6 +108,7 @@ namespace RM_CMS.Modules.Care.Data
                   WHERE pc.person_id = p.id AND pc.contact_type = 'MOBILE'
                   ORDER BY pc.is_primary DESC, pc.id LIMIT 1) AS PersonPhone,
                 p.do_not_contact         AS PersonDoNotContact,
+                p.is_local               AS PersonIsLocal,
 
                 cc.campus_id             AS CampusId,
                 cam.public_id            AS CampusPublicId,
@@ -230,6 +231,14 @@ namespace RM_CMS.Modules.Care.Data
             WHERE cc.assigned_volunteer_id IS NULL
               AND cc.status <> 'CLOSED'
               AND p.do_not_contact = 0
+
+              -- Somebody visiting from out of town is never routed to a volunteer.
+              -- Volunteers follow up in person and are matched on the AREA the
+              -- visitor lives in, which an out-of-town record does not have — so an
+              -- automatic assignment here would hand a volunteer a visit they cannot
+              -- make. The case still exists and still shows as unassigned, so a team
+              -- lead can place it deliberately if there is a reason to.
+              AND p.is_local = 1
               AND (@CampusId IS NULL OR cc.campus_id = @CampusId)
             ORDER BY cc.priority = 'URGENT' DESC, cc.priority = 'HIGH' DESC, cc.opened_at ASC
             LIMIT @Limit;";

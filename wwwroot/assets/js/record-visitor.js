@@ -47,6 +47,17 @@
     // somebody new. Everything that behaves differently in the two modes reads this.
     var editing = null;
 
+    // Who already holds the mobile number typed in, from /api/people/base-visitor:
+    // { baseVisitorId, baseVisitorName, householdNames }. Null when nobody does, which
+    // makes the person being recorded the base visitor for that number.
+    var baseVisitor = null;
+
+    // The administrator's assignment.auto_assign_on_intake rule, from /api/intake-rules.
+    // Optimistic until the answer arrives: the server enforces it either way, so the
+    // worst an unlucky race does is show a box that turns out to be moot, and assuming
+    // the opposite would hide the box for everybody when the request is slow.
+    var autoAssignOnIntake = true;
+
     document.addEventListener('DOMContentLoaded', function () {
         AdminShell
             .boot({
@@ -70,6 +81,7 @@
         sessionList = document.getElementById('sessionList');
 
         loadReference();
+        loadIntakeRules();
         loadCampuses();
         setToday();
         wireFollowUpToggle();
@@ -124,6 +136,18 @@
         });
 
         document.getElementById('mobile').addEventListener('blur', checkForDuplicate);
+
+        // The prompt names the visitor, and the number is often typed before the
+        // name. Without this the question stays "what is this visitor's relationship
+        // with John?" after the operator has already written "Mary" above it.
+        document.getElementById('givenName').addEventListener('input', function () {
+            if (baseVisitor) showRelationship(baseVisitor);
+        });
+
+        // Answering it is what clears the complaint about not having answered.
+        document.getElementById('relationshipCode').addEventListener('change', function () {
+            clearFieldError(this);
+        });
     }
 
     // ---------------------------------------------------------------- reference
@@ -136,7 +160,8 @@
         fetch(API_BASE_URL + '/people-reference')
             .then(function (res) { return res.json(); })
             .then(function (body) {
-                var bands = (body && body.data && body.data.ageBands) || [];
+                var data = (body && body.data) || {};
+                var bands = data.ageBands || [];
                 var select = document.getElementById('ageBand');
 
                 bands.forEach(function (code) {
@@ -145,10 +170,50 @@
                     option.textContent = labelForBand(code);
                     select.appendChild(option);
                 });
+
+                // Wife, Son, Brother... from relationship_type, for the same reason
+                // the age bands come from the server: the column is foreign-keyed to
+                // that table, so a code this screen invented would be refused on save.
+                var relationships = document.getElementById('relationshipCode');
+
+                (data.relationshipTypes || []).forEach(function (r) {
+                    var option = document.createElement('option');
+                    option.value = r.code;
+                    option.textContent = r.label;
+                    relationships.appendChild(option);
+                });
             })
             .catch(function () {
                 showToast('Could not load the age-group list.', 'warning');
             });
+    }
+
+    /**
+     * The administrator rules this screen has to obey.
+     *
+     * Only one so far: whether a case opened here is assigned to a volunteer there
+     * and then, or left for the assignment job. Fetching it is what stops the form
+     * offering a choice the server will not honour — the complaint being that the
+     * box said "assigns it to an available volunteer" and did exactly that, with the
+     * setting turned off.
+     *
+     * A failure is not fatal. The box stays as it was and the server still applies
+     * the rule; the operator just sees the outcome in the save message rather than
+     * before they save.
+     */
+    function loadIntakeRules() {
+        fetch(API_BASE_URL + '/intake-rules')
+            .then(function (res) { return res.json(); })
+            .then(function (body) {
+                var rules = (body && body.data) || {};
+
+                if (typeof rules.autoAssignOnIntake === 'boolean') {
+                    autoAssignOnIntake = rules.autoAssignOnIntake;
+                }
+
+                syncFollowUp();
+            })
+            .catch(function () { /* keep the default; the server decides anyway */ });
     }
 
     function labelForBand(code) {
@@ -261,6 +326,9 @@
             }
 
             clearFieldError(document.getElementById('areaName'));
+
+            // Where they live decides whether a volunteer can be given them at all.
+            syncFollowUp();
         }
 
         toggle.addEventListener('change', sync);
@@ -268,13 +336,73 @@
     }
 
     function wireFollowUpToggle() {
+        document.getElementById('startFollowUp')
+            .addEventListener('change', syncFollowUp);
+
+        syncFollowUp();
+    }
+
+    /**
+     * Whether an immediate assignment is on the table at all.
+     *
+     * Two things can take it off, and neither is this screen's opinion:
+     *
+     *   • the administrator has set "Auto assign on intake" to No, which means the
+     *     assignment job places cases rather than the intake desk
+     *   • the visitor does not live locally, so there is no area to match a
+     *     volunteer against — volunteers go and see people
+     *
+     * Either way the case is still OPENED. It waits unassigned, on the same queue a
+     * team lead already works from. What changes is only that nobody is handed the
+     * visitor here and now.
+     */
+    function autoAssignAllowed() {
+        return autoAssignOnIntake && document.getElementById('isLocal').checked;
+    }
+
+    /**
+     * Shows or hides the follow-up box to match. Hidden means "not a choice you have",
+     * so the box is not merely disabled — a disabled tick that stays ticked reads as
+     * a promise being kept.
+     *
+     * The note in its place says which rule applied. Without it an operator who is
+     * used to seeing the box would assume the screen was broken.
+     */
+    function syncFollowUp() {
         var toggle = document.getElementById('startFollowUp');
+        var field = document.getElementById('startFollowUpField');
+        var note = document.getElementById('followUpNote');
         var priorityField = document.getElementById('priorityField');
 
-        function sync() { priorityField.hidden = !toggle.checked; }
+        // Correcting a record starts no follow-up at all; startEditing owns that and
+        // must not be argued with here.
+        if (editing) {
+            note.hidden = true;
+            return;
+        }
 
-        toggle.addEventListener('change', sync);
-        sync();
+        var allowed = autoAssignAllowed();
+
+        field.hidden = !allowed;
+
+        if (!allowed) {
+            // Still ticked. The case is what puts the visitor on the follow-up queue,
+            // and dropping it would mean an out-of-town visitor — or every visitor,
+            // with the setting off — was recorded and then quietly forgotten.
+            toggle.checked = true;
+
+            note.textContent = document.getElementById('isLocal').checked
+                ? 'A case will be opened and queued. Assigning at intake is turned off in ' +
+                  'settings, so the assignment job places it.'
+                : 'A case will be opened and queued. Visitors from out of town are not ' +
+                  'assigned to a volunteer automatically — a team lead places them.';
+
+            note.hidden = false;
+        } else {
+            note.hidden = true;
+        }
+
+        priorityField.hidden = !toggle.checked;
     }
 
     // ---------------------------------------------------------------- duplicates
@@ -292,35 +420,76 @@
         // half the directory and the warning would be noise.
         if (!MobileInput.isValid(mobile)) return;
 
-        fetch(API_BASE_URL + '/people/lookup?q=' + encodeURIComponent(mobile))
+        // Correcting a record asks nothing. The number belongs to the person on
+        // screen, and a correction never creates anybody to be related to them.
+        if (editing) { hideRelationship(); return; }
+
+        fetch(API_BASE_URL + '/people/base-visitor?mobile=' + encodeURIComponent(mobile))
             .then(function (res) { return res.json(); })
             .then(function (body) {
-                var matches = (body && body.data) || [];
+                var info = (body && body.data) || {};
 
-                // The record being corrected is not a duplicate of itself. Without
-                // this, opening a record and tabbing past the untouched number
-                // announced "this number is already on file" and named the very
-                // person on screen.
-                if (editing) {
-                    matches = matches.filter(function (m) { return m.id !== editing.id; });
-                }
+                // Late answers are dropped. The operator may have corrected the
+                // number while this was in flight, and showing "John already holds
+                // this number" beside a different number is worse than showing
+                // nothing - the save re-checks against whatever is finally typed.
+                if (document.getElementById('mobile').value.trim() !== mobile) return;
 
-                if (!matches.length) return;
-
-                var names = matches.map(function (m) {
-                    return '<li>' + AdminShell.escapeHtml(m.fullName) +
-                           ' <span class="hint">' + AdminShell.escapeHtml(m.maskedContact || '') +
-                           '</span></li>';
-                }).join('');
-
-                dupNotice.innerHTML =
-                    '<strong>This number is already on file.</strong>' +
-                    '<ul class="dup-list">' + names + '</ul>' +
-                    'Check it is not the same person before saving.';
-
-                show(dupNotice);
+                if (info.relationshipRequired) showRelationship(info);
+                else hideRelationship();
             })
             .catch(function () { /* the save-time check is the one that counts */ });
+    }
+
+    /**
+     * Asks who this visitor is to the family already on the number.
+     *
+     * This REPLACES the old "this number is already on file / save anyway" refusal.
+     * A family shares a phone, so the number is not the problem and there is nothing
+     * to override - the only thing missing is which of them this person is.
+     *
+     * The base visitor named here is the FIRST person registered on the number and
+     * never the most recent, so the household keeps one centre however many people
+     * are added to it. The server decides that, not this screen; what is shown here
+     * is only what it answered a moment ago.
+     */
+    function showRelationship(info) {
+        baseVisitor = info;
+
+        var field = document.getElementById('relationshipField');
+        var notice = document.getElementById('householdNotice');
+        var label = document.getElementById('relationshipLabel');
+
+        var household = (info.householdNames || []).map(function (n) {
+            return '<li>' + AdminShell.escapeHtml(n) + '</li>';
+        }).join('');
+
+        notice.innerHTML =
+            '<strong>' + AdminShell.escapeHtml(info.baseVisitorName) +
+            ' already uses this number.</strong>' +
+            (household ? '<ul class="dup-list">' + household + '</ul>' : '<br>') +
+            'That is fine - a family often shares one phone. Say how this visitor ' +
+            'is related and they will be saved alongside them.';
+
+        // Named, not "the existing visitor". The operator is about to ask the person
+        // in front of them, and the question they can actually say out loud is
+        // "what is Mary's relationship with John?".
+        var who = value('givenName') || 'this visitor';
+
+        label.innerHTML =
+            'What is ' + AdminShell.escapeHtml(who) + '\u2019s relationship with ' +
+            AdminShell.escapeHtml(info.baseVisitorName) + '? ' +
+            '<span class="required-mark" aria-hidden="true">*</span>';
+
+        field.hidden = false;
+    }
+
+    function hideRelationship() {
+        baseVisitor = null;
+
+        document.getElementById('relationshipField').hidden = true;
+        document.getElementById('relationshipCode').value = '';
+        clearFieldError(document.getElementById('relationshipCode'));
     }
 
     // ---------------------------------------------------------------- submit
@@ -392,7 +561,12 @@
                     // cannot file against came back offering "save anyway as a
                     // separate person" — an answer to a question nobody asked, and no
                     // sign of what was actually wrong.
-                    if (body.code === 'duplicate_contact') {
+                    if (body.code === 'relationship_required') {
+                        // The number was claimed between the blur check and the save,
+                        // or that check never ran. Not an error and not a duplicate:
+                        // ask the question and let them save again.
+                        askRelationshipAfterRefusal(payload.mobile, body.message);
+                    } else if (body.code === 'duplicate_contact') {
                         offerDuplicateOverride(body.message);
                     } else {
                         showError(body.message || 'This visitor could not be saved.');
@@ -436,7 +610,12 @@
     function openCase(person, payload) {
         var request = {
             personId: person.id,
-            autoAssign: true,
+
+            // What the screen believes. The server checks the same two rules itself
+            // and will refuse regardless — this only keeps the request honest about
+            // what the operator was actually shown.
+            autoAssign: payload.autoAssign,
+
             priority: payload.priority || 'NORMAL'
         };
 
@@ -462,7 +641,13 @@
                     return;
                 }
 
-                finish(person, true);
+                // A case with no volunteer on it is a real, expected outcome now —
+                // assignment at intake may be off, or the visitor may be from out of
+                // town. Say which of the two happened rather than reporting a
+                // follow-up that nobody has picked up.
+                var assignedTo = (body.data && body.data.volunteerName) || '';
+
+                finish(person, true, null, assignedTo);
             })
             .catch(function () {
                 finish(person, false, 'Saved, but follow-up could not be started.');
@@ -495,7 +680,12 @@
         return body.message || body.detail || fallback;
     }
 
-    function finish(person, followUpStarted, warning) {
+    /**
+     * @param {boolean} followUpStarted  a case was opened
+     * @param {string=} warning          the case could NOT be opened
+     * @param {string=} assignedTo       the volunteer it went to, blank when queued
+     */
+    function finish(person, followUpStarted, warning, assignedTo) {
         setBusy(false);
 
         var name = (person && person.fullName) || 'Visitor';
@@ -504,12 +694,18 @@
             showToast(warning, 'warning');
             showError(name + ' was saved, but follow-up did not start. ' +
                       'Tell a team lead so it is picked up manually.');
+        } else if (!followUpStarted) {
+            showToast(name + ' recorded.', 'success');
+        } else if (assignedTo) {
+            showToast(name + ' recorded and assigned to ' + assignedTo + '.', 'success');
         } else {
-            showToast(name + ' recorded' + (followUpStarted ? ' and follow-up started.' : '.'),
-                      'success');
+            // Not a warning: the case exists and is on the queue a team lead works
+            // from. It just has nobody's name on it yet, and saying so here is the
+            // difference between "handled" and "waiting".
+            showToast(name + ' recorded. The case is queued for assignment.', 'success');
         }
 
-        addToSession(person, followUpStarted);
+        addToSession(person, followUpStarted, assignedTo);
         resetForm(false);
         document.getElementById('givenName').focus();
     }
@@ -542,7 +738,13 @@
             priority:         value('priority'),
             campusId:         value('campus'),
             isLocal:          isLocal,
-            startFollowUp:    document.getElementById('startFollowUp').checked
+            startFollowUp:    document.getElementById('startFollowUp').checked,
+            autoAssign:       autoAssignAllowed(),
+
+            // Only meaningful when somebody already holds the number. Sent as null
+            // otherwise: the server refuses a relationship on a number nobody holds,
+            // because there would be no one to be related to.
+            relationshipCode: baseVisitor ? value('relationshipCode') : ''
         };
     }
 
@@ -579,6 +781,11 @@
 
             request.contacts = contacts;
         }
+
+        // Who they are to the family already on this number. Never sent on a
+        // correction: an update changes an existing person and cannot move them into
+        // somebody's household.
+        if (!correcting && p.relationshipCode) request.relationshipCode = p.relationshipCode;
 
         // Only send what was filled in; empty strings would overwrite with blanks.
         if (p.familyName)  request.familyName = p.familyName;
@@ -617,6 +824,16 @@
             return { field: 'mobile', message: 'Enter a mobile number.' };
         }
 
+        // Asked only when somebody already holds the number, and then it is the whole
+        // point of the prompt. The server refuses the save without it too, so this
+        // only saves a round trip.
+        if (baseVisitor && !p.relationshipCode) {
+            return {
+                field: 'relationshipCode',
+                message: 'Say how this visitor is related to ' + baseVisitor.baseVisitorName + '.'
+            };
+        }
+
         if (!MobileInput.isValid(p.mobile)) {
             return {
                 field: 'mobile',
@@ -647,6 +864,27 @@
      * ("resubmit with allowDuplicate"). An operator gets the fact, not the API
      * instruction — the names already came back, masked, from the pre-check.
      */
+    /**
+     * The save came back asking for a relationship, which means the blur check did
+     * not run or the number was claimed in between. Fetch who holds it and open the
+     * same prompt, so the operator answers one question rather than being told off.
+     */
+    function askRelationshipAfterRefusal(mobile, message) {
+        showError(message || 'Say how this visitor is related to the person who already uses this number.');
+
+        fetch(API_BASE_URL + '/people/base-visitor?mobile=' + encodeURIComponent(mobile))
+            .then(function (res) { return res.json(); })
+            .then(function (body) {
+                var info = (body && body.data) || {};
+
+                if (!info.relationshipRequired) return;
+
+                showRelationship(info);
+                markField('relationshipCode');
+            })
+            .catch(function () { /* the message already says what is needed */ });
+    }
+
     function offerDuplicateOverride(message) {
         var names = extractNames(message);
 
@@ -676,11 +914,12 @@
         return match ? match[1] : '';
     }
 
-    function addToSession(person, followUpStarted) {
+    function addToSession(person, followUpStarted, assignedTo) {
         recorded.unshift({
             name: (person && person.fullName) || '—',
             reference: (person && person.referenceCode) || '',
             followUp: followUpStarted,
+            assignedTo: assignedTo || '',
             at: new Date()
         });
 
@@ -701,7 +940,11 @@
                      '<div class="session-meta">' +
                        (item.reference ? AdminShell.escapeHtml(item.reference) + ' · ' : '') +
                        time + ' · ' +
-                       (item.followUp ? 'follow-up started' : 'no follow-up') +
+                       (!item.followUp
+                            ? 'no follow-up'
+                            : item.assignedTo
+                                ? 'assigned to ' + AdminShell.escapeHtml(item.assignedTo)
+                                : 'queued for assignment') +
                      '</div>' +
                    '</div>';
         }).join('');
@@ -722,6 +965,14 @@
 
         document.getElementById('localBlock').hidden = false;
         document.getElementById('awayBlock').hidden = true;
+
+        // form.reset() puts the boxes back to their markup defaults, which is a state
+        // the rules may not permit. Re-apply them before anything is on screen.
+        syncFollowUp();
+
+        // The next visitor is a different question. Leaving the prompt up would ask
+        // for their relationship to somebody whose number has not been typed yet.
+        hideRelationship();
 
         // The operator is usually entering a batch from the same service, so the
         // visit date carries over rather than being retyped every time.
@@ -831,6 +1082,8 @@
         document.getElementById('localBlock').hidden = !isLocal;
         document.getElementById('awayBlock').hidden = isLocal;
 
+        syncFollowUp();
+
         // The picker holds an id as well as the text, and setting only the text would
         // send a blank id and re-create the area by name on save.
         if (areaPicker && isLocal && (p.areaId || p.areaName)) {
@@ -898,6 +1151,13 @@
             if (wrap) wrap.hidden = true;
         }
 
+        // The note explains why no volunteer is assigned at intake, which is not the
+        // question here — a correction does not open a case in the first place.
+        document.getElementById('followUpNote').hidden = true;
+
+        // Nor is a correction ever somebody new joining a household.
+        hideRelationship();
+
         document.getElementById('priorityField').hidden = true;
 
         // "How they found us" and the visit date belong to the case, not the person,
@@ -927,14 +1187,14 @@
         document.getElementById('cancelEditBtn').hidden = true;
 
         var followUp = document.getElementById('startFollowUp');
-        if (followUp) {
-            followUp.checked = true;
-            var wrap = followUp.closest('.field') || followUp.parentElement;
-            if (wrap) wrap.hidden = false;
-        }
+        if (followUp) followUp.checked = true;
 
         document.getElementById('priorityField').hidden = false;
         setVisitFieldsVisible(true);
+
+        // Not simply "show it again": whether the box belongs on screen is the rules'
+        // decision, and editing is null by now so syncFollowUp will make it.
+        syncFollowUp();
     }
 
     function setBusy(busy, message) {

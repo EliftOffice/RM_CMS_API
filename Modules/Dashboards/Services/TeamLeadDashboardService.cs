@@ -92,7 +92,8 @@ namespace RM_CMS.Modules.Dashboards.Services
             // The Monday of the current week. Week 1 of the trend is the last
             // COMPLETE week before it — a part-finished week would show the whole
             // team falling every Monday morning.
-            var weekStart = now.Date.AddDays(-(((int)now.DayOfWeek + 6) % 7));
+            var weekStart = CapacityWeek.StartOfWeek(
+                now, await _lookups.GetIntSettingAsync(CapacityWeek.WeekStartsOnKey, CapacityWeek.Monday));
 
             var volunteers = await _dashboard.GetVolunteerLoadAsync(teamIds, weekStart);
 

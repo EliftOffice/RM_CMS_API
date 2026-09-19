@@ -238,6 +238,31 @@
                             </p>
                         </div>
 
+                        <!-- A FAMILY SHARES A PHONE. When the number typed above
+                             already belongs to somebody, this appears instead of a
+                             refusal: the number is kept, and the one question that
+                             actually needs answering is asked.
+
+                             It sits immediately under the number that caused it, not
+                             at the top of the form with the other notices — the
+                             operator is looking here, and the answer is about these
+                             two people. Filled in by record-visitor.js from
+                             GET /api/people/base-visitor. -->
+                        <div class="field" id="relationshipField" hidden>
+                            <div class="notice notice-warn" id="householdNotice"></div>
+
+                            <label class="label" for="relationshipCode" id="relationshipLabel">
+                                Relationship <span class="required-mark" aria-hidden="true">*</span>
+                            </label>
+                            <select class="input" id="relationshipCode" name="relationshipCode">
+                                <option value="">Choose...</option>
+                            </select>
+                            <p class="hint">
+                                Recorded against the first person registered on this
+                                number, so the family stays together on one record.
+                            </p>
+                        </div>
+
                         <div class="field">
                             <label class="label" for="email">Email</label>
                             <input class="input" id="email" name="email" type="email"
@@ -357,7 +382,17 @@
 
                         <p class="section-title">Follow-up</p>
 
-                        <div class="field">
+                        <!-- The box is only shown when ticking it would actually do
+                             something. It promises an immediate assignment, and there
+                             are two situations where that promise cannot be kept: the
+                             administrator has turned assignment at intake off, and the
+                             visitor lives out of town so no volunteer can be matched to
+                             them. Offering the choice anyway is how an operator comes to
+                             believe a volunteer has the visitor when nobody does.
+
+                             In both cases the case is still opened — it waits to be
+                             placed — and followUpNote says which situation applies. -->
+                        <div class="field" id="startFollowUpField">
                             <label class="check">
                                 <input type="checkbox" id="startFollowUp" checked>
                                 <span class="check-text">
@@ -367,6 +402,8 @@
                                 </span>
                             </label>
                         </div>
+
+                        <p class="hint" id="followUpNote" hidden></p>
 
                         <div class="field" id="priorityField">
                             <label class="label" for="priority">Priority</label>

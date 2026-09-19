@@ -128,6 +128,18 @@ namespace RM_CMS.Modules.Volunteers.Api
         public string? CapacityBandLabel { get; set; }
         public int CapacityMaxPerWeek { get; set; }
         public int CurrentCaseLoad { get; set; }
+
+        /// <summary>
+        /// New visitors given to them since the capacity week began. This is what
+        /// <see cref="CapacityMaxPerWeek"/> limits and what
+        /// <see cref="RemainingCapacity"/> is measured from.
+        /// </summary>
+        /// <remarks>
+        /// Distinct from <see cref="CurrentCaseLoad"/>, which is how many cases they
+        /// are holding now and falls as they close them. Showing only the live load
+        /// made a full volunteer look free.
+        /// </remarks>
+        public int AssignedThisWeek { get; set; }
         public int RemainingCapacity { get; set; }
 
         public int LifetimeCasesAssigned { get; set; }
@@ -165,7 +177,18 @@ namespace RM_CMS.Modules.Volunteers.Api
         public string? TeamName { get; set; }
         public string Status { get; set; } = string.Empty;
         public string CapacityBandCode { get; set; } = string.Empty;
+
+        /// <summary>Cases they are holding right now. Falls as they close them.</summary>
         public int CurrentCaseLoad { get; set; }
+
+        /// <summary>
+        /// New visitors given to them since the week began — the figure
+        /// <see cref="CapacityMaxPerWeek"/> actually limits. A list showing only the
+        /// live load beside the maximum invites the reader to subtract one from the
+        /// other and get the wrong answer.
+        /// </summary>
+        public int AssignedThisWeek { get; set; }
+
         public int CapacityMaxPerWeek { get; set; }
         public string? BurnoutRisk { get; set; }
         public bool IsCrisisEligible { get; set; }
@@ -256,6 +279,7 @@ namespace RM_CMS.Modules.Volunteers.Api
         public string? TeamName { get; set; }
         public int CurrentCaseLoad { get; set; }
         public int CapacityMaxPerWeek { get; set; }
+        public int AssignedThisWeek { get; set; }
         public int RemainingCapacity { get; set; }
         public bool IsCrisisEligible { get; set; }
         public DateTime? LastAssignedAt { get; set; }

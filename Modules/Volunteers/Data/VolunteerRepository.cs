@@ -2,6 +2,7 @@ using System.Data;
 using Dapper;
 using RM_CMS.Data;
 using RM_CMS.Modules.Volunteers.Domain;
+using RM_CMS.Utilities;
 
 namespace RM_CMS.Modules.Volunteers.Data
 {
@@ -65,7 +66,36 @@ namespace RM_CMS.Modules.Volunteers.Data
     {
         private readonly IDbConnectionFactory _dbFactory;
 
-        public VolunteerRepository(IDbConnectionFactory dbFactory) => _dbFactory = dbFactory;
+        /// <summary>Holds <c>assignment.week_starts_on</c>. See <see cref="CapacityWeek"/>.</summary>
+        private readonly RM_CMS.Modules.Settings.Data.ISettingRepository _settings;
+
+        private readonly TimeProvider _clock;
+
+        public VolunteerRepository(
+            IDbConnectionFactory dbFactory,
+            RM_CMS.Modules.Settings.Data.ISettingRepository settings,
+            TimeProvider clock)
+        {
+            _dbFactory = dbFactory;
+            _settings = settings;
+            _clock = clock;
+        }
+
+        /// <summary>
+        /// Midnight on the day the current capacity week began. Every query here that
+        /// counts a weekly allowance is measured from it.
+        /// </summary>
+        /// <remarks>
+        /// Read fresh rather than cached: an administrator who moves the week start
+        /// expects the next assignment to obey it, and this is one indexed lookup
+        /// against a table that is already hot.
+        /// </remarks>
+        private async Task<DateTime> WeekStartAsync()
+        {
+            var startsOn = await _settings.GetIntAsync(CapacityWeek.WeekStartsOnKey, CapacityWeek.Monday);
+
+            return CapacityWeek.StartOfWeek(_clock.GetUtcNow().UtcDateTime, startsOn);
+        }
 
         /// <summary>
         /// Joins the person (identity and contact), the campus, the team and the
@@ -120,6 +150,24 @@ namespace RM_CMS.Modules.Volunteers.Data
                 cb.max_per_week            AS CapacityMaxPerWeek,
 
                 v.current_case_load        AS CurrentCaseLoad,
+
+                -- HOW MANY NEW VISITORS THIS WEEK. The figure the band's max_per_week
+                -- is actually about.
+                --
+                -- Counted from the assignment ledger, which is append-only: closing a
+                -- case writes nothing here, so finishing the work cannot buy back an
+                -- allowance that was already spent. current_case_load above CANNOT be
+                -- used for this — it is decremented on every close, which is what made
+                -- 'Limited (1-2/week)' behave as a queue depth rather than a ceiling.
+                --
+                -- DISTINCT because a case that moves away and comes back within the
+                -- same week writes two rows for one volunteer, and that is one visitor
+                -- they were given, not two.
+                (SELECT COUNT(DISTINCT ca.care_case_id)
+                   FROM care_case_assignment ca
+                  WHERE ca.volunteer_id = v.id
+                    AND ca.assigned_at >= @WeekStart)  AS AssignedThisWeek,
+
                 v.lifetime_cases_assigned  AS LifetimeCasesAssigned,
                 v.lifetime_cases_closed    AS LifetimeCasesClosed,
                 v.last_assigned_at         AS LastAssignedAt,
@@ -154,7 +202,8 @@ namespace RM_CMS.Modules.Volunteers.Data
             const string sql = SelectVolunteer + @" WHERE v.public_id = @PublicId AND p.deleted_at IS NULL LIMIT 1;";
 
             using var connection = _dbFactory.GetConnection();
-            return await connection.QueryFirstOrDefaultAsync<Volunteer>(sql, new { PublicId = publicId });
+            return await connection.QueryFirstOrDefaultAsync<Volunteer>(
+                sql, new { PublicId = publicId, WeekStart = await WeekStartAsync() });
         }
 
         public async Task<Volunteer?> GetByIdAsync(long id)
@@ -162,7 +211,8 @@ namespace RM_CMS.Modules.Volunteers.Data
             const string sql = SelectVolunteer + @" WHERE v.id = @Id LIMIT 1;";
 
             using var connection = _dbFactory.GetConnection();
-            return await connection.QueryFirstOrDefaultAsync<Volunteer>(sql, new { Id = id });
+            return await connection.QueryFirstOrDefaultAsync<Volunteer>(
+                sql, new { Id = id, WeekStart = await WeekStartAsync() });
         }
 
         public async Task<Volunteer?> GetByPersonIdAsync(long personId)
@@ -170,7 +220,8 @@ namespace RM_CMS.Modules.Volunteers.Data
             const string sql = SelectVolunteer + @" WHERE v.person_id = @PersonId LIMIT 1;";
 
             using var connection = _dbFactory.GetConnection();
-            return await connection.QueryFirstOrDefaultAsync<Volunteer>(sql, new { PersonId = personId });
+            return await connection.QueryFirstOrDefaultAsync<Volunteer>(
+                sql, new { PersonId = personId, WeekStart = await WeekStartAsync() });
         }
 
         public async Task<IReadOnlyList<Volunteer>> SearchAsync(VolunteerQuery query)
@@ -180,7 +231,7 @@ namespace RM_CMS.Modules.Volunteers.Data
             LIMIT @Take OFFSET @Skip;";
 
             using var connection = _dbFactory.GetConnection();
-            return (await connection.QueryAsync<Volunteer>(sql, Parameters(query))).ToList();
+            return (await connection.QueryAsync<Volunteer>(sql, Parameters(query, await WeekStartAsync()))).ToList();
         }
 
         public async Task<int> CountAsync(VolunteerQuery query)
@@ -194,7 +245,7 @@ namespace RM_CMS.Modules.Volunteers.Data
                 LEFT JOIN team t      ON t.id = v.team_id" + WhereClause() + ";";
 
             using var connection = _dbFactory.GetConnection();
-            return await connection.ExecuteScalarAsync<int>(sql, Parameters(query));
+            return await connection.ExecuteScalarAsync<int>(sql, Parameters(query, await WeekStartAsync()));
         }
 
         private static string WhereClause() => @"
@@ -205,27 +256,43 @@ namespace RM_CMS.Modules.Volunteers.Data
               AND (@Status   IS NULL OR v.status    = @Status)
               AND (@CampusId IS NULL OR v.campus_id = @CampusId)
               AND (@TeamId   IS NULL OR v.team_id   = @TeamId)
+              -- Same rule as FindEligibleAsync, for the same reason: a 'has capacity'
+              -- filter that disagreed with who can actually be assigned would list
+              -- volunteers the assignment then refuses.
               AND (@HasCapacity IS NULL
-                   OR (@HasCapacity = 1 AND v.current_case_load < cb.max_per_week)
-                   OR (@HasCapacity = 0 AND v.current_case_load >= cb.max_per_week))";
+                   OR (@HasCapacity = 1 AND (SELECT COUNT(DISTINCT ca.care_case_id)
+                                               FROM care_case_assignment ca
+                                              WHERE ca.volunteer_id = v.id
+                                                AND ca.assigned_at >= @WeekStart) < cb.max_per_week)
+                   OR (@HasCapacity = 0 AND (SELECT COUNT(DISTINCT ca.care_case_id)
+                                               FROM care_case_assignment ca
+                                              WHERE ca.volunteer_id = v.id
+                                                AND ca.assigned_at >= @WeekStart) >= cb.max_per_week))";
 
-        private static object Parameters(VolunteerQuery query) => new
+        private static object Parameters(VolunteerQuery query, DateTime weekStart) => new
         {
             Search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(),
             query.Status,
             query.CampusId,
             query.TeamId,
             query.HasCapacity,
+            WeekStart = weekStart,
             query.Skip,
             query.Take
         };
 
         public async Task<IReadOnlyList<Volunteer>> FindEligibleAsync(long campusId, bool crisisCapable, int limit)
         {
-            // Least loaded first, then longest since last assigned. The MVP used
-            // RAND() as the tie-break, which made assignment non-reproducible and
-            // impossible to explain to a volunteer asking why they got a case.
-            // Ordering by last_assigned_at spreads work fairly AND deterministically.
+            // Fewest NEW VISITORS THIS WEEK first, then longest since last assigned.
+            // The MVP used RAND() as the tie-break, which made assignment
+            // non-reproducible and impossible to explain to a volunteer asking why
+            // they got a case. Ordering by last_assigned_at spreads work fairly AND
+            // deterministically.
+            //
+            // Ordering on the weekly count rather than current_case_load matters as
+            // much as the ceiling does: someone who has taken nobody this week but
+            // still holds three long-running cases should be offered the next visitor
+            // ahead of someone who took two on Monday and closed them both.
             //
             // REACHABILITY IS PART OF ELIGIBILITY. A volunteer with no active login
             // cannot see the case, and one with no verified Telegram cannot be told
@@ -244,12 +311,15 @@ namespace RM_CMS.Modules.Volunteers.Data
                              AND tg.contact_type = 'TELEGRAM'
                              AND tg.is_verified = 1
                              AND tg.opted_out_at IS NULL)
-              AND v.current_case_load < cb.max_per_week
+              AND (SELECT COUNT(DISTINCT ca.care_case_id)
+                     FROM care_case_assignment ca
+                    WHERE ca.volunteer_id = v.id
+                      AND ca.assigned_at >= @WeekStart) < cb.max_per_week
               AND (@CrisisCapable = 0 OR (
                        v.crisis_trained_on         IS NOT NULL
                    AND v.background_checked_on     IS NOT NULL
                    AND v.confidentiality_signed_on IS NOT NULL))
-            ORDER BY v.current_case_load ASC,
+            ORDER BY AssignedThisWeek ASC,
                      v.last_assigned_at ASC,
                      v.id ASC
             LIMIT @Limit;";
@@ -259,6 +329,7 @@ namespace RM_CMS.Modules.Volunteers.Data
             {
                 CampusId = campusId,
                 CrisisCapable = crisisCapable,
+                WeekStart = await WeekStartAsync(),
                 Limit = limit
             })).ToList();
         }

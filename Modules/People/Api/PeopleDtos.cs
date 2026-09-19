@@ -65,10 +65,29 @@ namespace RM_CMS.Modules.People.Api
 
         /// <summary>
         /// Set true to record the person even when an existing one matches a contact
-        /// number. The default refuses and returns the match, so intake does not
-        /// silently create duplicates.
+        /// detail OTHER than a mobile number. The default refuses and returns the
+        /// match, so intake does not silently create duplicates.
         /// </summary>
+        /// <remarks>
+        /// A shared MOBILE no longer goes through this flag at all — see
+        /// <see cref="RelationshipCode"/>. Families share a phone, so a second person
+        /// on a number is expected rather than something to override.
+        /// </remarks>
         public bool AllowDuplicate { get; set; }
+
+        /// <summary>
+        /// How this person is related to the BASE VISITOR on their mobile number —
+        /// the first person registered against it. A code from
+        /// <c>relationship_type</c>: WIFE, SON, MOTHER and so on.
+        /// </summary>
+        /// <remarks>
+        /// Required exactly when somebody already holds the number, and refused when
+        /// nobody does — there would be nobody to be related to. Which of the two
+        /// applies is decided by the server from the contact rows; the intake screen
+        /// asks <c>GET /api/people/base-visitor</c> first so it can put the question
+        /// to the operator before they save, but the answer is never taken on trust.
+        /// </remarks>
+        [StringLength(30)] public string? RelationshipCode { get; set; }
     }
 
     public sealed class UpdatePersonRequest
@@ -170,6 +189,28 @@ namespace RM_CMS.Modules.People.Api
     // -------------------------------------------------------------------------
 
     /// <summary>Full detail. Public ids only — no internal keys.</summary>
+    /// <summary>
+    /// Who already holds a mobile number, for the intake screen's relationship prompt.
+    /// </summary>
+    public sealed class BaseVisitorDto
+    {
+        /// <summary>
+        /// False when nobody holds the number — the person being recorded will be the
+        /// base visitor, and no relationship is asked for or accepted.
+        /// </summary>
+        public bool RelationshipRequired { get; set; }
+
+        /// <summary>The first person registered on the number. Null when there is none.</summary>
+        public string? BaseVisitorId { get; set; }
+        public string? BaseVisitorName { get; set; }
+
+        /// <summary>
+        /// Everyone already recorded against that base visitor, with how they are
+        /// related, so the operator sees the household rather than one name.
+        /// </summary>
+        public List<string> HouseholdNames { get; set; } = new();
+    }
+
     public sealed class PersonDto
     {
         public string Id { get; set; } = string.Empty;
@@ -185,6 +226,20 @@ namespace RM_CMS.Modules.People.Api
         public string? AgeBand { get; set; }
         public string? Gender { get; set; }
         public string? HouseholdType { get; set; }
+
+        /// <summary>
+        /// The base visitor on their mobile number — the first person registered
+        /// against it. Null when this person IS one, which is also the case for
+        /// anybody whose number nobody shares.
+        /// </summary>
+        public string? BaseVisitorId { get; set; }
+        public string? BaseVisitorName { get; set; }
+
+        /// <summary>What they are TO the base visitor: WIFE, SON, MOTHER...</summary>
+        public string? RelationshipCode { get; set; }
+
+        /// <summary>The same, in the words the picker showed: "Wife", "Son".</summary>
+        public string? RelationshipLabel { get; set; }
 
         public string? AddressLine { get; set; }
         public string? Locality { get; set; }

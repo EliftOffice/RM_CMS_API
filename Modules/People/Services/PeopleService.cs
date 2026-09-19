@@ -17,8 +17,12 @@ namespace RM_CMS.Modules.People.Services
         Task<ApiResponse<PersonDto>> GetAsync(string publicId);
 
         /// <summary>
-        /// Records a visitor. Refuses on a contact-number match unless the caller
-        /// explicitly opts in, and returns the matches so intake can offer them.
+        /// Records a visitor.
+        ///
+        /// A mobile number somebody already holds is NOT a refusal — families share a
+        /// phone. It requires a relationship to the base visitor on that number, and
+        /// says so with <see cref="ResponseCodes.RelationshipRequired"/>. Any other
+        /// contact detail still refuses on a match unless the caller opts in.
         /// </summary>
         Task<ApiResponse<PersonDto>> CreateAsync(CreatePersonRequest request);
 
@@ -33,6 +37,18 @@ namespace RM_CMS.Modules.People.Services
         Task<ApiResponse<PersonDto>> SetAreaAsync(string publicId, string? areaId, string? areaName);
 
         Task<ApiResponse<IReadOnlyList<PersonMatchDto>>> LookupAsync(string term);
+
+        /// <summary>
+        /// Who already holds this mobile number, and therefore whether the next person
+        /// recorded on it needs a relationship.
+        ///
+        /// The intake screen asks BEFORE the operator saves, so the question — "what
+        /// is Mary's relationship with John?" — is put while they are still looking at
+        /// the form rather than after a rejected save. It is a courtesy, not the
+        /// enforcement: <see cref="CreateAsync"/> resolves the base visitor again from
+        /// the contact rows and never trusts what a screen sends.
+        /// </summary>
+        Task<ApiResponse<BaseVisitorDto>> GetBaseVisitorAsync(string mobile);
 
         /// <summary>
         /// One person, reduced to the fields the intake form collects, so a data-entry
@@ -60,6 +76,10 @@ namespace RM_CMS.Modules.People.Services
         private const string NotFound = "Person not found.";
 
         private readonly IPersonRepository _people;
+
+        /// <summary>The Wife / Son / Brother vocabulary. See <see cref="IRelationshipTypeRepository"/>.</summary>
+        private readonly IRelationshipTypeRepository _relationships;
+
         private readonly IAreaService _areas;
         private readonly ICurrentIdentity _current;
         private readonly IUserAccountRepository _accounts;
@@ -68,6 +88,7 @@ namespace RM_CMS.Modules.People.Services
 
         public PeopleService(
             IPersonRepository people,
+            IRelationshipTypeRepository relationships,
             IAreaService areas,
             ICurrentIdentity current,
             IUserAccountRepository accounts,
@@ -75,6 +96,7 @@ namespace RM_CMS.Modules.People.Services
             ILogger<PeopleService> logger)
         {
             _people = people;
+            _relationships = relationships;
             _areas = areas;
             _current = current;
             _accounts = accounts;
@@ -157,6 +179,40 @@ namespace RM_CMS.Modules.People.Services
                 .ToList();
 
             return Ok<IReadOnlyList<PersonMatchDto>>(matches, matches.Count > 0 ? "Possible matches" : "No matches");
+        }
+
+        public async Task<ApiResponse<BaseVisitorDto>> GetBaseVisitorAsync(string mobile)
+        {
+            var result = new BaseVisitorDto();
+
+            if (string.IsNullOrWhiteSpace(mobile))
+                return Ok(result, "No number given.");
+
+            var normalized = ContactNormalizer.Normalize(ContactTypes.Mobile, mobile);
+            var baseVisitor = await _people.FindBaseByContactAsync(normalized);
+
+            // Off-limits is answered as "nobody", exactly as CreateAsync treats it.
+            // Naming somebody at another campus would disclose that they exist, and
+            // the two must agree or the screen asks a question the save then refuses.
+            if (baseVisitor is null || !CanAccess(baseVisitor))
+                return Ok(result, "Nobody holds this number yet.");
+
+            result.RelationshipRequired = true;
+            result.BaseVisitorId = baseVisitor.PublicId;
+            result.BaseVisitorName = baseVisitor.FullName;
+
+            // Everyone already on the number, so the operator can see the household
+            // they are adding to rather than just the one name.
+            var household = await _people.FindByBasePersonAsync(baseVisitor.Id);
+
+            result.HouseholdNames = household
+                .Where(CanAccess)
+                .Select(p => p.RelationshipLabel is null
+                    ? p.FullName
+                    : $"{p.FullName} ({p.RelationshipLabel.ToLowerInvariant()})")
+                .ToList();
+
+            return Ok(result, $"{baseVisitor.FullName} already holds this number.");
         }
 
         /// <summary>
@@ -277,8 +333,70 @@ namespace RM_CMS.Modules.People.Services
                 if (!string.IsNullOrWhiteSpace(request.AgeBand) && !AgeBands.IsKnown(request.AgeBand))
                     return Warn<PersonDto>($"Unknown age band '{request.AgeBand}'.");
 
-                // ---- duplicate detection ----
-                if (!request.AllowDuplicate)
+                // ---- shared phone: find the base visitor ----
+                //
+                // A FAMILY SHARES A PHONE, so a number already on file is not an error
+                // to be argued past. It is a question: this number is already John's,
+                // so who is this person to John?
+                //
+                // The base visitor is resolved from the CONTACT ROWS, never from what
+                // the caller sent. A screen can name the wrong base — it read the
+                // number a moment ago, and somebody may have been recorded on it
+                // since — and the whole point of the rule is that the base does not
+                // move once it is set.
+                var mobile = contacts.FirstOrDefault(c => c.ContactType == ContactTypes.Mobile);
+
+                Person? baseVisitor = null;
+
+                if (mobile is not null)
+                {
+                    var candidate = await _people.FindBaseByContactAsync(mobile.NormalizedValue);
+
+                    // A base visitor at a campus this operator cannot reach is one they
+                    // must not be told about, so they are treated as absent and this
+                    // person becomes a base visitor on their own. Recording them is
+                    // better than refusing, and the alternative leaks that the number
+                    // is known.
+                    if (candidate is not null && CanAccess(candidate)) baseVisitor = candidate;
+                }
+
+                string? relationshipCode = null;
+
+                if (baseVisitor is not null)
+                {
+                    relationshipCode = Clean(request.RelationshipCode)?.ToUpperInvariant();
+
+                    if (relationshipCode is null)
+                    {
+                        // Not a rejection of the person — a request for the one fact
+                        // that is missing. The code lets the screen open the
+                        // relationship prompt rather than showing this as an error.
+                        return new ApiResponse<PersonDto>(
+                            ResponseType.Warning,
+                            $"{mobile!.Value} is already recorded for {baseVisitor.FullName}. " +
+                            $"Say how {request.GivenName.Trim()} is related to them and save again.",
+                            null!,
+                            ResponseCodes.RelationshipRequired);
+                    }
+
+                    if (!await _relationships.IsSelectableAsync(relationshipCode))
+                        return Warn<PersonDto>($"Unknown relationship '{request.RelationshipCode}'.");
+                }
+                else if (relationshipCode is null && !string.IsNullOrWhiteSpace(request.RelationshipCode))
+                {
+                    // Nobody to be related TO. Silently dropping it would file the
+                    // first person on a number as somebody's wife with no husband.
+                    return Warn<PersonDto>(
+                        "A relationship can only be recorded against somebody who already " +
+                        "holds this mobile number. Nobody does, so this person is the first.");
+                }
+
+                // ---- other contact details still collide the old way ----
+                //
+                // Sharing a MOBILE is a family. Sharing an email or a landline is not
+                // the case this rule is about, so those keep the existing "records
+                // exist, save anyway if you meant to" behaviour.
+                if (!request.AllowDuplicate && baseVisitor is null)
                 {
                     var existing = await _people.FindByContactAsync(contacts.Select(c => c.NormalizedValue));
                     var visible = existing.Where(CanAccess).ToList();
@@ -327,6 +445,13 @@ namespace RM_CMS.Modules.People.Services
                     AgeBand = Clean(request.AgeBand),
                     Gender = Clean(request.Gender),
                     HouseholdType = Clean(request.HouseholdType),
+
+                    // Both, or neither. The database enforces the pair as well — a
+                    // relationship to nobody, or a base visitor nobody stated a
+                    // relationship to, is the state this whole flow exists to end.
+                    BasePersonId = baseVisitor?.Id,
+                    RelationshipCode = baseVisitor is null ? null : relationshipCode,
+
                     AddressLine = Clean(request.AddressLine),
                     Locality = Clean(request.Locality),
                     AreaId = area.AreaId,
@@ -342,9 +467,15 @@ namespace RM_CMS.Modules.People.Services
 
                 var created = await _people.GetByIdAsync(id);
 
-                return created is null
-                    ? Fail<PersonDto>("The person was created but could not be read back.")
-                    : Ok(ToDto(created), "Person recorded");
+                if (created is null)
+                    return Fail<PersonDto>("The person was created but could not be read back.");
+
+                var message = baseVisitor is null
+                    ? "Person recorded"
+                    : $"Person recorded as {created.RelationshipLabel?.ToLowerInvariant() ?? "a relative"} " +
+                      $"of {baseVisitor.FullName}.";
+
+                return Ok(ToDto(created), message);
             }
             catch (Exception ex)
             {
@@ -850,6 +981,10 @@ namespace RM_CMS.Modules.People.Services
             AgeBand = p.AgeBand,
             Gender = p.Gender,
             HouseholdType = p.HouseholdType,
+            BaseVisitorId = p.BasePersonPublicId,
+            BaseVisitorName = p.BasePersonName,
+            RelationshipCode = p.RelationshipCode,
+            RelationshipLabel = p.RelationshipLabel,
             AddressLine = p.AddressLine,
             Locality = p.Locality,
             AreaId = p.AreaPublicId,

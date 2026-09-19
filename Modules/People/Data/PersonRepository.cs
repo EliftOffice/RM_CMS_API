@@ -29,6 +29,25 @@ namespace RM_CMS.Modules.People.Data
         /// </summary>
         Task<IReadOnlyList<Person>> FindByContactAsync(IEnumerable<string> normalizedValues);
 
+        /// <summary>
+        /// The base visitor for a phone number: the FIRST person registered against
+        /// it. Null when nobody holds it yet, which is what makes the caller the base
+        /// visitor themselves.
+        /// </summary>
+        /// <remarks>
+        /// Derived from the contact rows, not from <c>base_person_id</c>, and that is
+        /// deliberate — it means the rule works on data recorded before the column
+        /// existed, with no backfill inventing family links that nobody stated.
+        ///
+        /// It still FOLLOWS <c>base_person_id</c> when the earliest holder has one,
+        /// so a number that gained an earlier-registered member cannot end up with two
+        /// competing bases.
+        /// </remarks>
+        Task<Person?> FindBaseByContactAsync(string normalizedValue);
+
+        /// <summary>Everyone recorded against this base visitor, oldest first.</summary>
+        Task<IReadOnlyList<Person>> FindByBasePersonAsync(long basePersonId);
+
         /// <summary>Free-text match on name, for the person picker.</summary>
         Task<IReadOnlyList<Person>> FindByNameAsync(string term, int limit);
 
@@ -91,6 +110,11 @@ namespace RM_CMS.Modules.People.Data
                 p.age_band            AS AgeBand,
                 p.gender              AS Gender,
                 p.household_type      AS HouseholdType,
+                p.base_person_id      AS BasePersonId,
+                bp.public_id          AS BasePersonPublicId,
+                bp.full_name          AS BasePersonName,
+                p.relationship_code   AS RelationshipCode,
+                rt.label              AS RelationshipLabel,
                 p.address_line        AS AddressLine,
                 p.locality            AS Locality,
                 p.area_id             AS AreaId,
@@ -110,7 +134,9 @@ namespace RM_CMS.Modules.People.Data
                 p.row_version         AS RowVersion
             FROM person p
             LEFT JOIN campus c ON c.id = p.campus_id
-            LEFT JOIN area   ar ON ar.id = p.area_id";
+            LEFT JOIN area   ar ON ar.id = p.area_id
+            LEFT JOIN person bp ON bp.id = p.base_person_id
+            LEFT JOIN relationship_type rt ON rt.code = p.relationship_code";
 
         private const string SelectContacts = @"
             SELECT  id               AS Id,
@@ -254,6 +280,46 @@ namespace RM_CMS.Modules.People.Data
             return people;
         }
 
+        public async Task<Person?> FindBaseByContactAsync(string normalizedValue)
+        {
+            if (string.IsNullOrWhiteSpace(normalizedValue)) return null;
+
+            // Oldest first, and only MOBILE. An email shared by a couple says nothing
+            // about who was registered first on the PHONE, which is the number the
+            // welcome desk types and the thing this rule is about.
+            const string sql = SelectPerson + @"
+            WHERE p.deleted_at IS NULL
+              AND EXISTS (SELECT 1 FROM person_contact pc
+                           WHERE pc.person_id = p.id
+                             AND pc.contact_type = 'MOBILE'
+                             AND pc.normalized_value = @Value)
+            ORDER BY p.id ASC
+            LIMIT 1;";
+
+            using var connection = _dbFactory.GetConnection();
+            var earliest = await connection.QueryFirstOrDefaultAsync<Person>(sql, new { Value = normalizedValue });
+
+            if (earliest is null) return null;
+
+            // The earliest holder is normally the base. If they already point at
+            // somebody — a record merged or corrected onto this number after the fact
+            // — follow it once, so the household keeps ONE base rather than gaining a
+            // second one whose members disagree about who they belong to.
+            if (earliest.BasePersonId is null) return earliest;
+
+            return await GetByIdAsync(earliest.BasePersonId.Value) ?? earliest;
+        }
+
+        public async Task<IReadOnlyList<Person>> FindByBasePersonAsync(long basePersonId)
+        {
+            const string sql = SelectPerson + @"
+            WHERE p.deleted_at IS NULL AND p.base_person_id = @BasePersonId
+            ORDER BY p.id ASC;";
+
+            using var connection = _dbFactory.GetConnection();
+            return (await connection.QueryAsync<Person>(sql, new { BasePersonId = basePersonId })).ToList();
+        }
+
         public async Task<IReadOnlyList<Person>> FindByNameAsync(string term, int limit)
         {
             const string sql = SelectPerson + @"
@@ -281,11 +347,13 @@ namespace RM_CMS.Modules.People.Data
                 INSERT INTO person
                     (public_id, reference_code, campus_id, given_name, family_name,
                      date_of_birth, age_band, gender, household_type,
+                     base_person_id, relationship_code,
                      address_line, locality, area_id, postal_code, is_local,
                      lifecycle_status, notes, created_by, updated_by)
                 VALUES
                     (@PublicId, @ReferenceCode, @CampusId, @GivenName, @FamilyName,
                      @DateOfBirth, @AgeBand, @Gender, @HouseholdType,
+                     @BasePersonId, @RelationshipCode,
                      @AddressLine, @Locality, @AreaId, @PostalCode, @IsLocal,
                      @LifecycleStatus, @Notes, @ActingUserId, @ActingUserId);
                 SELECT LAST_INSERT_ID();";
@@ -311,6 +379,8 @@ namespace RM_CMS.Modules.People.Data
                     person.AgeBand,
                     person.Gender,
                     person.HouseholdType,
+                    person.BasePersonId,
+                    person.RelationshipCode,
                     person.AddressLine,
                     person.Locality,
                     person.AreaId,
