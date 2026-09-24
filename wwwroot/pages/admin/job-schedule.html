@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Schedule — RM_CMS Admin</title>
+
+    <link rel="icon" href="/assets/img/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
+    <link rel="stylesheet" href="/assets/css/admin.css">
+
+    <script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
+    <script src="/assets/js/api-config.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/toast.js"></script>
+    <script src="/assets/js/admin-shell.js"></script>
+
+    <style>
+        .sched-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 4px 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .sched-row:last-child { border-bottom: none; }
+
+        .sched-title { font-weight: 600; font-size: 14px; }
+        .sched-desc  { color: var(--ink-muted); font-size: 12.5px; margin-top: 2px; }
+
+        /* The controls sit below the description rather than beside it: on a phone a
+           two-column grid squeezed the time field to a few characters wide. */
+        .sched-controls {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: flex-end;
+            margin-top: 12px;
+        }
+
+        .sched-controls .field { margin-bottom: 0; }
+        .sched-controls .select { min-width: 130px; }
+        .sched-controls .input  { width: 120px; }
+
+        .sched-when {
+            grid-column: 1 / -1;
+            margin-top: 10px;
+            font-size: 12.5px;
+            color: var(--ink-muted);
+        }
+
+        .sched-when strong { color: var(--ink, #111827); font-weight: 600; }
+
+        /* Greyed rather than hidden when a job is switched off. The timing stays
+           readable, so turning it back on is not a guess about what it used to do. */
+        .sched-row.is-off .sched-controls,
+        .sched-row.is-off .sched-when { opacity: .55; }
+
+        .switch-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+    </style>
+</head>
+
+<body>
+
+<div id="adminShell"></div>
+
+<main class="page" id="pageBody" hidden>
+
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Schedule</h1>
+            <p class="page-sub">
+                When each piece of routine work runs on its own. Times are local to the
+                zone shown on each row. A job switched off here never runs by itself —
+                you can still run it by hand from Settings.
+            </p>
+        </div>
+    </div>
+
+    <div id="queueWarning" class="notice notice-warn" role="status" hidden></div>
+
+    <section class="card">
+        <div class="card-head">
+            <h2 class="card-title">Routine work</h2>
+        </div>
+        <div class="card-body">
+            <div id="scheduleError" class="notice notice-warn" role="alert" hidden></div>
+            <div id="scheduleBody"><p class="empty">Loading…</p></div>
+        </div>
+    </section>
+</main>
+
+<script src="/assets/js/job-schedule.js"></script>
+
+</body>
+</html>

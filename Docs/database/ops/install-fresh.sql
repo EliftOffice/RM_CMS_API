@@ -1666,6 +1666,88 @@ CREATE TABLE job_run (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
+-- -----------------------------------------------------------------------------
+-- job_schedule — when each sweep runs on its own
+--
+-- One row per job. The RULE is cadence + day_of_week + time_of_day + timezone,
+-- written the way an administrator thinks ("Monday at six"). next_due_at is only
+-- the cached next occurrence of that rule in UTC, and the application owns it.
+--
+-- WHY THE CACHE IS A COLUMN RATHER THAN A QUERY: the scheduler ticks every minute
+-- and claims a due row with a conditional UPDATE on next_due_at. That
+-- compare-and-swap is what lets exactly one application instance run a given
+-- sweep — the objection that kept an in-process scheduler out of this codebase
+-- until now. A rule evaluated per tick could not be claimed atomically.
+--
+-- WHY next_due_at STARTS NULL: the application computes it on startup, so the
+-- "when does Monday 06:00 Asia/Kolkata fall in UTC" conversion exists once, in
+-- C# where the timezone database is, rather than in a SQL expression that would
+-- drift from it. A NULL also means a fresh install does not fire every enabled
+-- job the moment it boots.
+-- -----------------------------------------------------------------------------
+CREATE TABLE job_schedule (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    job_name        VARCHAR(80)     NOT NULL,
+    is_enabled      TINYINT(1)      NOT NULL DEFAULT 0,
+
+    -- DAILY ignores day_of_week. WEEKLY requires it.
+    cadence         VARCHAR(10)     NOT NULL DEFAULT 'WEEKLY',
+
+    -- ISO numbering, 1 = Monday ... 7 = Sunday, matching assignment.week_starts_on.
+    day_of_week     TINYINT         NULL,
+
+    -- Local wall clock in `timezone`. To the minute: the tick is once a minute, so
+    -- offering seconds would promise a precision that does not exist.
+    time_of_day     TIME            NOT NULL DEFAULT '06:00:00',
+    timezone        VARCHAR(64)     NOT NULL DEFAULT 'Asia/Kolkata',
+
+    next_due_at     DATETIME(3)     NULL,
+    last_run_at     DATETIME(3)     NULL,
+    last_status     VARCHAR(20)     NULL,
+
+    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+                                    ON UPDATE CURRENT_TIMESTAMP(3),
+    updated_by      BIGINT UNSIGNED NULL,
+    row_version     INT UNSIGNED    NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY ux_job_schedule_name (job_name),
+    KEY ix_job_schedule_due (is_enabled, next_due_at),
+
+    CONSTRAINT ck_job_schedule_cadence CHECK (cadence IN ('DAILY','WEEKLY')),
+
+    -- The two halves must agree, or a WEEKLY row with no day is silently
+    -- unschedulable and nobody finds out until the sweep never happens.
+    -- day_of_week IS NOT NULL is not redundant beside BETWEEN. A CHECK is satisfied
+    -- unless it evaluates to FALSE, and NULL BETWEEN 1 AND 7 is NULL, not FALSE — so
+    -- without it a WEEKLY row with no day was accepted, which is precisely the row
+    -- this constraint exists to reject. Verified by inserting one.
+    CONSTRAINT ck_job_schedule_day CHECK (
+        (cadence = 'DAILY'  AND day_of_week IS NULL) OR
+        (cadence = 'WEEKLY' AND day_of_week IS NOT NULL AND day_of_week BETWEEN 1 AND 7)
+    ),
+
+    CONSTRAINT ck_job_schedule_status CHECK (
+        last_status IS NULL OR last_status IN ('RUNNING','SUCCEEDED','FAILED','PARTIAL')
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Only assign-unassigned is on out of the box. The rest queue or send Telegram
+-- messages to real people, and a fresh install must not start messaging a
+-- congregation on its own — they appear on the Schedule screen ready to be
+-- switched on once somebody has chosen the timing.
+INSERT INTO job_schedule
+    (job_name, is_enabled, cadence, day_of_week, time_of_day, timezone)
+VALUES
+    ('assign-unassigned',  1, 'WEEKLY', 1, '06:00:00', 'Asia/Kolkata'),
+    ('advance-nurture',    0, 'DAILY',  NULL, '06:15:00', 'Asia/Kolkata'),
+    ('mark-overdue',       0, 'DAILY',  NULL, '06:30:00', 'Asia/Kolkata'),
+    ('chase-escalations',  0, 'DAILY',  NULL, '07:00:00', 'Asia/Kolkata'),
+    ('huddle-reminder',    0, 'DAILY',  NULL, '07:30:00', 'Asia/Kolkata'),
+    ('send-notifications', 0, 'DAILY',  NULL, '08:00:00', 'Asia/Kolkata');
+
+
 
 -- -----------------------------------------------------------------------------
 -- login_challenge — a sign-in waiting to be confirmed on Telegram

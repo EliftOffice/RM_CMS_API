@@ -803,13 +803,25 @@ namespace RM_CMS
                                        RM_CMS.Modules.Events.Services.EventService>();
 
             // ---- Jobs module (new architecture) ----
-            // Replaces the legacy CornJobs slice. Triggered by an external cron over
-            // the JobRunner policy — there is no in-process scheduler, so a second
-            // instance does not double every sweep.
+            // Replaces the legacy CornJobs slice. Still triggerable over the JobRunner
+            // policy by hand or by an external cron, and now also on a schedule of its
+            // own — job_schedule says when, JobSchedulerHostedService runs it, and a
+            // compare-and-swap on next_due_at is what stops a second instance
+            // doubling every sweep.
             builder.Services.AddScoped<RM_CMS.Modules.Jobs.Data.IJobRunRepository,
                                        RM_CMS.Modules.Jobs.Data.JobRunRepository>();
+            builder.Services.AddScoped<RM_CMS.Modules.Jobs.Data.IJobScheduleRepository,
+                                       RM_CMS.Modules.Jobs.Data.JobScheduleRepository>();
             builder.Services.AddScoped<RM_CMS.Modules.Jobs.Services.IJobService,
                                        RM_CMS.Modules.Jobs.Services.JobService>();
+            builder.Services.AddScoped<RM_CMS.Modules.Jobs.Services.IJobScheduleService,
+                                       RM_CMS.Modules.Jobs.Services.JobScheduleService>();
+
+            // The only long-running thing in this application. It resolves the scoped
+            // services above per tick rather than capturing them, which a singleton
+            // hosted service must do or it holds one database connection for the life
+            // of the process.
+            builder.Services.AddHostedService<RM_CMS.Modules.Jobs.Services.JobSchedulerHostedService>();
 
             // ---- Dashboards module (new architecture) ----
             // Read-only role landing pages. Purpose-built aggregate queries rather than

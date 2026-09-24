@@ -8,17 +8,24 @@ using RM_CMS.Utilities;
 namespace RM_CMS.Modules.Jobs.Api
 {
     /// <summary>
-    /// Triggers for the scheduled sweeps.
+    /// Triggers for the scheduled sweeps, and the schedule they run on.
     ///
-    /// There is no in-process scheduler: an external cron calls these endpoints. That
-    /// keeps the jobs runnable on demand — a team lead reporting "nobody was told about
-    /// my escalation" can have the sweep run and inspected immediately — and means a
-    /// second application instance does not silently double every job.
+    /// These endpoints stay callable on demand whatever the schedule says — a team
+    /// lead reporting "nobody was told about my escalation" can have the sweep run
+    /// and inspected immediately, and an external cron can still drive them.
+    ///
+    /// This comment used to read "There is no in-process scheduler". There is one
+    /// now: see <see cref="Services.JobSchedulerHostedService"/>. Its objection — that
+    /// a second application instance would silently double every job — is answered in
+    /// the database, by a compare-and-swap on <c>job_schedule.next_due_at</c> that
+    /// only one instance can win.
     ///
     /// The <c>JobRunner</c> policy accepts either an Admin token or the scheduler's
     /// <c>X-Service-Key</c>. Note it does NOT require an authenticated user: the
     /// machine caller has no identity, and audit columns are left null rather than
-    /// attributed to somebody who was not there.
+    /// attributed to somebody who was not there. The two SCHEDULE actions narrow that
+    /// to Admin on top, because a machine key exists to run work, not to decide when
+    /// the church's messages go out.
     /// </summary>
     [ApiController]
     [Route("api/jobs")]
@@ -27,8 +34,13 @@ namespace RM_CMS.Modules.Jobs.Api
     public sealed class JobsController : ControllerBase
     {
         private readonly IJobService _jobs;
+        private readonly IJobScheduleService _schedule;
 
-        public JobsController(IJobService jobs) => _jobs = jobs;
+        public JobsController(IJobService jobs, IJobScheduleService schedule)
+        {
+            _jobs = jobs;
+            _schedule = schedule;
+        }
 
         /// <summary>Assigns open cases with no volunteer to the least-loaded eligible one.</summary>
         [HttpPost("assign-unassigned")]
@@ -93,5 +105,26 @@ namespace RM_CMS.Modules.Jobs.Api
             [FromQuery] string? jobName = null,
             [FromQuery] int limit = 25) =>
             Ok(await _jobs.GetHistoryAsync(jobName, limit));
+
+        /// <summary>
+        /// Every job, when it is set to run, and when it last did.
+        /// </summary>
+        /// <remarks>
+        /// Admin on top of the controller's JobRunner policy, so the service key that
+        /// triggers work cannot read or rewrite the timetable.
+        /// </remarks>
+        [HttpGet("schedules")]
+        [Authorize(Policy = PolicyNames.AdminOnly)]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<JobScheduleDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Schedules() =>
+            Ok(await _schedule.ListAsync());
+
+        /// <summary>Changes when one job runs.</summary>
+        [HttpPut("schedules/{jobName}")]
+        [Authorize(Policy = PolicyNames.AdminOnly)]
+        [ProducesResponseType(typeof(ApiResponse<JobScheduleDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UpdateSchedule(
+            string jobName, [FromBody] JobScheduleUpdateRequest request) =>
+            Ok(await _schedule.UpdateAsync(jobName, request));
     }
 }

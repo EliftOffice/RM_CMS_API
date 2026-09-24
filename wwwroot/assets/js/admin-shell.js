@@ -72,6 +72,14 @@
         },
         { label: 'Accounts', href: '/pages/admin/accounts.html', roles: ['ADMIN'] },
         { label: 'Settings', href: '/pages/admin/settings.html', roles: ['ADMIN'] },
+        {
+            // When the routine sweeps run on their own. Its own entry rather than a
+            // panel inside Settings: Settings is business rules an administrator
+            // tunes, this is a timetable they check after an outage.
+            label: 'Schedule',
+            href: '/pages/admin/job-schedule.html',
+            roles: ['ADMIN']
+        },
         { label: 'Telegram', href: '/pages/admin/telegram.html', roles: ['ADMIN'] },
         {
             // The wording of every Telegram message. Separate from the Telegram setup
