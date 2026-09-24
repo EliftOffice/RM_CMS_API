@@ -105,6 +105,7 @@ $(function () {
               '<select class="select" data-field="cadence">' +
                 option('WEEKLY', 'Weekly', row.cadence) +
                 option('DAILY', 'Every day', row.cadence) +
+                option('EVERY', 'Every few minutes', row.cadence) +
               '</select>' +
             '</div>' +
 
@@ -117,9 +118,15 @@ $(function () {
               '</select>' +
             '</div>' +
 
-            '<div class="field">' +
+            '<div class="field" data-time-field>' +
               '<label class="label">Time</label>' +
               '<input class="input" type="time" data-field="time" value="' + esc(row.timeOfDay) + '">' +
+            '</div>' +
+
+            '<div class="field" data-interval-field>' +
+              '<label class="label">Minutes apart</label>' +
+              '<input class="input" type="number" min="1" max="1440" data-field="interval" value="' +
+                esc(row.intervalMinutes || 5) + '">' +
             '</div>' +
 
             '<div class="field">' +
@@ -156,11 +163,19 @@ $(function () {
         var row = rows[i];
 
         var enabled = $row.find('[data-field="enabled"]').is(':checked');
-        var weekly = $row.find('[data-field="cadence"]').val() === 'WEEKLY';
+        var cadence = $row.find('[data-field="cadence"]').val();
+        var weekly = cadence === 'WEEKLY';
+        var interval = cadence === 'EVERY';
 
         $row.toggleClass('is-off', !enabled);
         $row.find('[data-field="enabled"]').next('span').text(enabled ? 'On' : 'Off');
+
+        // Each cadence reads exactly one of these three, and the server clears the
+        // others. Showing a field the rule does not read invites somebody to set it
+        // and then wonder why nothing changed.
         $row.find('[data-day-field]').prop('hidden', !weekly);
+        $row.find('[data-time-field]').prop('hidden', interval);
+        $row.find('[data-interval-field]').prop('hidden', !interval);
 
         $row.find('[data-save]').prop('disabled', !isDirty(i));
 
@@ -183,11 +198,19 @@ $(function () {
     }
 
     function describe($row) {
-        var weekly = $row.find('[data-field="cadence"]').val() === 'WEEKLY';
+        var cadence = $row.find('[data-field="cadence"]').val();
         var time = $row.find('[data-field="time"]').val() || '';
         var zone = $row.find('[data-field="zone"]').val() || '';
 
-        if (!weekly) return 'Every day at ' + esc(time) + ' ' + esc(zone);
+        if (cadence === 'EVERY') {
+            var mins = parseInt($row.find('[data-field="interval"]').val(), 10);
+
+            // No zone in this sentence on purpose: an interval is the same length of
+            // time everywhere, so naming one would imply a clock it does not use.
+            return 'Every ' + (mins === 1 ? 'minute' : esc(String(mins)) + ' minutes');
+        }
+
+        if (cadence !== 'WEEKLY') return 'Every day at ' + esc(time) + ' ' + esc(zone);
 
         var day = DAYS.filter(function (d) {
             return String(d.value) === String($row.find('[data-field="day"]').val());
@@ -217,13 +240,16 @@ $(function () {
 
     function current(i) {
         var $row = $('[data-row="' + i + '"]');
-        var weekly = $row.find('[data-field="cadence"]').val() === 'WEEKLY';
+        var cadence = $row.find('[data-field="cadence"]').val();
+        var weekly = cadence === 'WEEKLY';
+        var interval = cadence === 'EVERY';
 
         return {
             isEnabled: $row.find('[data-field="enabled"]').is(':checked'),
-            cadence: $row.find('[data-field="cadence"]').val(),
+            cadence: cadence,
             dayOfWeek: weekly ? parseInt($row.find('[data-field="day"]').val(), 10) : null,
             timeOfDay: $row.find('[data-field="time"]').val(),
+            intervalMinutes: interval ? parseInt($row.find('[data-field="interval"]').val(), 10) : null,
             timezone: $row.find('[data-field="zone"]').val(),
             rowVersion: rows[i].rowVersion
         };
@@ -238,9 +264,10 @@ $(function () {
         // button lit on a row nobody touched.
         return now.isEnabled !== was.isEnabled ||
                now.cadence !== was.cadence ||
-               now.timeOfDay !== was.timeOfDay ||
                now.timezone !== was.timezone ||
-               (now.cadence === 'WEEKLY' && now.dayOfWeek !== was.dayOfWeek);
+               (now.cadence !== 'EVERY' && now.timeOfDay !== was.timeOfDay) ||
+               (now.cadence === 'WEEKLY' && now.dayOfWeek !== was.dayOfWeek) ||
+               (now.cadence === 'EVERY' && now.intervalMinutes !== was.intervalMinutes);
     }
 
     $('#scheduleBody').on('change input', '[data-field]', function () {

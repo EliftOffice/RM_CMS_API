@@ -70,11 +70,25 @@ namespace RM_CMS.Modules.Jobs.Services
                 return Warn<JobScheduleDto>("Choose either a daily or a weekly schedule.");
 
             var weekly = string.Equals(request.Cadence, JobCadence.Weekly, StringComparison.Ordinal);
+            var interval = string.Equals(request.Cadence, JobCadence.Every, StringComparison.Ordinal);
 
             if (weekly && request.DayOfWeek is not (>= 1 and <= 7))
                 return Warn<JobScheduleDto>("A weekly schedule needs a day of the week.");
 
-            if (!TryParseTimeOfDay(request.TimeOfDay, out var timeOfDay))
+            if (interval &&
+                request.IntervalMinutes is not (>= JobCadence.MinIntervalMinutes
+                                             and <= JobCadence.MaxIntervalMinutes))
+            {
+                return Warn<JobScheduleDto>(
+                    $"Enter how many minutes apart, between {JobCadence.MinIntervalMinutes} " +
+                    $"and {JobCadence.MaxIntervalMinutes}.");
+            }
+
+            // A clock time is meaningless for EVERY, so an absent one is not an error
+            // there — the existing value is carried forward untouched and ignored.
+            var timeOfDay = schedule.TimeOfDay;
+
+            if (!interval && !TryParseTimeOfDay(request.TimeOfDay, out timeOfDay))
                 return Warn<JobScheduleDto>("Enter the time as HH:mm, for example 06:00.");
 
             var timezone = string.IsNullOrWhiteSpace(request.Timezone)
@@ -88,8 +102,11 @@ namespace RM_CMS.Modules.Jobs.Services
             schedule.Cadence = request.Cadence;
 
             // Cleared rather than kept, so a job switched from weekly to daily cannot
-            // leave a stale day behind that the check constraint would reject.
+            // leave a stale day behind that the check constraint would reject. The
+            // same applies to the interval: ck_job_schedule_shape insists that each
+            // cadence carries only the column it actually reads.
             schedule.DayOfWeek = weekly ? request.DayOfWeek : null;
+            schedule.IntervalMinutes = interval ? request.IntervalMinutes : null;
 
             schedule.TimeOfDay = timeOfDay;
             schedule.Timezone = timezone;
@@ -152,6 +169,7 @@ namespace RM_CMS.Modules.Jobs.Services
                 Cadence = row.Cadence,
                 DayOfWeek = row.DayOfWeek,
                 TimeOfDay = $"{row.TimeOfDay.Hours:D2}:{row.TimeOfDay.Minutes:D2}",
+                IntervalMinutes = row.IntervalMinutes,
                 Timezone = row.Timezone,
                 NextDueAt = row.NextDueAt,
                 LastRunAt = row.LastRunAt,

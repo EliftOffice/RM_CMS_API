@@ -1699,6 +1699,11 @@ CREATE TABLE job_schedule (
     -- Local wall clock in `timezone`. To the minute: the tick is once a minute, so
     -- offering seconds would promise a precision that does not exist.
     time_of_day     TIME            NOT NULL DEFAULT '06:00:00',
+
+    -- Only for the EVERY cadence, where the rule is a pulse rather than a clock
+    -- time. NULL for DAILY and WEEKLY.
+    interval_minutes SMALLINT UNSIGNED NULL,
+
     timezone        VARCHAR(64)     NOT NULL DEFAULT 'Asia/Kolkata',
 
     next_due_at     DATETIME(3)     NULL,
@@ -1715,17 +1720,25 @@ CREATE TABLE job_schedule (
     UNIQUE KEY ux_job_schedule_name (job_name),
     KEY ix_job_schedule_due (is_enabled, next_due_at),
 
-    CONSTRAINT ck_job_schedule_cadence CHECK (cadence IN ('DAILY','WEEKLY')),
+    CONSTRAINT ck_job_schedule_cadence CHECK (cadence IN ('DAILY','WEEKLY','EVERY')),
 
-    -- The two halves must agree, or a WEEKLY row with no day is silently
-    -- unschedulable and nobody finds out until the sweep never happens.
-    -- day_of_week IS NOT NULL is not redundant beside BETWEEN. A CHECK is satisfied
-    -- unless it evaluates to FALSE, and NULL BETWEEN 1 AND 7 is NULL, not FALSE — so
-    -- without it a WEEKLY row with no day was accepted, which is precisely the row
-    -- this constraint exists to reject. Verified by inserting one.
-    CONSTRAINT ck_job_schedule_day CHECK (
-        (cadence = 'DAILY'  AND day_of_week IS NULL) OR
-        (cadence = 'WEEKLY' AND day_of_week IS NOT NULL AND day_of_week BETWEEN 1 AND 7)
+    -- Each cadence must carry exactly the column it reads, or a row switched from
+    -- weekly to an interval keeps a stale day and nothing says so.
+    --
+    -- NOTE THE `IS NOT NULL` BESIDE EVERY `BETWEEN`. A CHECK is satisfied unless it
+    -- evaluates to FALSE, and `NULL BETWEEN 1 AND 7` is NULL, not FALSE. The first
+    -- draft omitted exactly that and accepted the malformed row it existed to
+    -- reject. Verified by inserting one.
+    CONSTRAINT ck_job_schedule_shape CHECK (
+        (cadence = 'DAILY'
+            AND day_of_week IS NULL
+            AND interval_minutes IS NULL) OR
+        (cadence = 'WEEKLY'
+            AND day_of_week IS NOT NULL AND day_of_week BETWEEN 1 AND 7
+            AND interval_minutes IS NULL) OR
+        (cadence = 'EVERY'
+            AND day_of_week IS NULL
+            AND interval_minutes IS NOT NULL AND interval_minutes BETWEEN 1 AND 1440)
     ),
 
     CONSTRAINT ck_job_schedule_status CHECK (
@@ -1733,19 +1746,28 @@ CREATE TABLE job_schedule (
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Only assign-unassigned is on out of the box. The rest queue or send Telegram
--- messages to real people, and a fresh install must not start messaging a
--- congregation on its own — they appear on the Schedule screen ready to be
--- switched on once somebody has chosen the timing.
+-- Two jobs are on out of the box.
+--
+-- assign-unassigned, because it moves work to volunteers and messages nobody
+-- directly. And send-notifications, because it is what DELIVERS: every alert the
+-- other jobs raise sits in notification_delivery until this drains it, including
+-- telling a volunteer that a case is now theirs. Left off, the whole chain
+-- composes messages that reach nobody while every screen reports them sent.
+--
+-- Five minutes, not a morning slot: "this follow-up is yours" is worthless
+-- tomorrow. At 288 runs a day an empty queue costs one indexed SELECT each time.
+--
+-- The remaining four queue or send Telegram messages on a schedule somebody has
+-- to choose deliberately, so they appear on the Schedule screen switched off.
 INSERT INTO job_schedule
-    (job_name, is_enabled, cadence, day_of_week, time_of_day, timezone)
+    (job_name, is_enabled, cadence, day_of_week, time_of_day, interval_minutes, timezone)
 VALUES
-    ('assign-unassigned',  1, 'WEEKLY', 1, '06:00:00', 'Asia/Kolkata'),
-    ('advance-nurture',    0, 'DAILY',  NULL, '06:15:00', 'Asia/Kolkata'),
-    ('mark-overdue',       0, 'DAILY',  NULL, '06:30:00', 'Asia/Kolkata'),
-    ('chase-escalations',  0, 'DAILY',  NULL, '07:00:00', 'Asia/Kolkata'),
-    ('huddle-reminder',    0, 'DAILY',  NULL, '07:30:00', 'Asia/Kolkata'),
-    ('send-notifications', 0, 'DAILY',  NULL, '08:00:00', 'Asia/Kolkata');
+    ('assign-unassigned',  1, 'WEEKLY', 1, '06:00:00', NULL, 'Asia/Kolkata'),
+    ('advance-nurture',    0, 'DAILY',  NULL, '06:15:00', NULL, 'Asia/Kolkata'),
+    ('mark-overdue',       0, 'DAILY',  NULL, '06:30:00', NULL, 'Asia/Kolkata'),
+    ('chase-escalations',  0, 'DAILY',  NULL, '07:00:00', NULL, 'Asia/Kolkata'),
+    ('huddle-reminder',    0, 'DAILY',  NULL, '07:30:00', NULL, 'Asia/Kolkata'),
+    ('send-notifications', 1, 'EVERY',  NULL, '08:00:00', 5,    'Asia/Kolkata');
 
 
 

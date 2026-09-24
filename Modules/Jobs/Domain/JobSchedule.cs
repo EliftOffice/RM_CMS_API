@@ -20,11 +20,17 @@ namespace RM_CMS.Modules.Jobs.Domain
 
         public string Cadence { get; set; } = JobCadence.Weekly;
 
-        /// <summary>ISO day, 1 = Monday ... 7 = Sunday. Null when <see cref="Cadence"/> is DAILY.</summary>
+        /// <summary>ISO day, 1 = Monday ... 7 = Sunday. Null unless <see cref="Cadence"/> is WEEKLY.</summary>
         public int? DayOfWeek { get; set; }
 
-        /// <summary>Local wall-clock time in <see cref="Timezone"/>.</summary>
+        /// <summary>Local wall-clock time in <see cref="Timezone"/>. Ignored by EVERY.</summary>
         public TimeSpan TimeOfDay { get; set; } = new(6, 0, 0);
+
+        /// <summary>
+        /// How many minutes apart, for the EVERY cadence. Null for DAILY and WEEKLY,
+        /// where <see cref="TimeOfDay"/> is the rule instead.
+        /// </summary>
+        public int? IntervalMinutes { get; set; }
 
         /// <summary>IANA id, e.g. Asia/Kolkata.</summary>
         public string Timezone { get; set; } = JobCadence.DefaultTimezone;
@@ -50,6 +56,21 @@ namespace RM_CMS.Modules.Jobs.Domain
         public const string Weekly = "WEEKLY";
 
         /// <summary>
+        /// Every n minutes, ignoring the clock time.
+        /// </summary>
+        /// <remarks>
+        /// Exists for one job. Draining the notification queue is not an appointment,
+        /// it is a pulse: a volunteer assigned a case at ten in the morning must not
+        /// hear about it at six the next day, which is the best a DAILY schedule could
+        /// manage. Every other job here is genuinely an appointment.
+        /// </remarks>
+        public const string Every = "EVERY";
+
+        /// <summary>The shortest and longest interval EVERY accepts, matching ck_job_schedule_shape.</summary>
+        public const int MinIntervalMinutes = 1;
+        public const int MaxIntervalMinutes = 1440;
+
+        /// <summary>
         /// Matches the default <c>campus.timezone</c>. Every instant this
         /// application stores is UTC, so the local rule needs a zone of its own
         /// rather than inheriting whatever the container happens to be set to.
@@ -58,7 +79,8 @@ namespace RM_CMS.Modules.Jobs.Domain
 
         public static bool IsKnown(string? v) =>
             string.Equals(v, Daily, StringComparison.Ordinal) ||
-            string.Equals(v, Weekly, StringComparison.Ordinal);
+            string.Equals(v, Weekly, StringComparison.Ordinal) ||
+            string.Equals(v, Every, StringComparison.Ordinal);
     }
 
     /// <summary>What the schedule screen shows for one job.</summary>
@@ -76,6 +98,9 @@ namespace RM_CMS.Modules.Jobs.Domain
 
         /// <summary>HH:mm. Not HH:mm:ss — the tick is once a minute.</summary>
         public string TimeOfDay { get; set; } = "06:00";
+
+        /// <summary>Minutes between runs, for the EVERY cadence. Null otherwise.</summary>
+        public int? IntervalMinutes { get; set; }
 
         public string Timezone { get; set; } = JobCadence.DefaultTimezone;
 
@@ -100,6 +125,7 @@ namespace RM_CMS.Modules.Jobs.Domain
         public string Cadence { get; set; } = JobCadence.Weekly;
         public int? DayOfWeek { get; set; }
         public string TimeOfDay { get; set; } = "06:00";
+        public int? IntervalMinutes { get; set; }
         public string? Timezone { get; set; }
         public int RowVersion { get; set; }
     }
@@ -146,7 +172,8 @@ namespace RM_CMS.Modules.Jobs.Domain
 
             [JobNames.SendNotifications] = new(
                 "Send notifications",
-                "Delivers everything the other jobs queued. Schedule it last.",
+                "Delivers everything the other jobs queued, to Telegram. Every alert in " +
+                "the system waits on this one, including telling a volunteer a case is theirs.",
                 QueuesNotifications: false)
         };
 

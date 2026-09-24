@@ -25,10 +25,31 @@ namespace RM_CMS.Modules.Jobs.Services
         /// with "now" at the moment it claims a run; if the comparison were
         /// inclusive, a job whose time had just arrived would be handed back the same
         /// instant it just ran and would loop until the minute passed.
+        ///
+        /// EVERY counts from the moment it is asked rather than from a fixed grid, so
+        /// a five-minute drain that takes twenty seconds runs at 00:00, 00:05:20,
+        /// 00:10:40 and so on. The drift is deliberate: pinning to a grid would make
+        /// a run that overran collide with the next one, and this scheduler would
+        /// rather be a few seconds late than overlap itself.
         /// </remarks>
         public static DateTime? NextOccurrence(JobSchedule schedule, DateTime afterUtc)
         {
             if (!schedule.IsEnabled) return null;
+
+            // EVERY is answered before the timezone is even resolved. An interval is
+            // the same length of time in every zone, so converting to local and back
+            // would be work that cannot change the answer — and would drag a DST gap
+            // into a rule that has no wall-clock time in it at all.
+            if (string.Equals(schedule.Cadence, JobCadence.Every, StringComparison.Ordinal))
+            {
+                var minutes = schedule.IntervalMinutes ?? 0;
+
+                if (minutes < JobCadence.MinIntervalMinutes ||
+                    minutes > JobCadence.MaxIntervalMinutes) return null;
+
+                return afterUtc.AddMinutes(minutes);
+            }
+
             if (!TryResolveZone(schedule.Timezone, out var zone)) return null;
 
             // Out of range means the row is unschedulable rather than due now. Saying
