@@ -516,10 +516,21 @@ $(document).ready(function () {
 
             if (!reason) return 'Please choose why this needs a team lead.';
 
-            // The server requires at least 10 characters, so say so here rather than
-            // letting the volunteer find out after pressing submit.
-            if (!description || description.trim().length < 10)
-                return 'Please describe the concern so the team lead can act on it.';
+            // Blank is refused. A LENGTH is not.
+            //
+            // This used to demand ten characters, with a comment claiming the server
+            // required them. The server requires no such thing — EscalationDescription
+            // is StringLength(4000), a maximum, and CareService writes a generated
+            // description when none arrives at all. The floor was invented here.
+            //
+            // It blocked the words that matter most. "suicidal" is eight characters,
+            // "hospital" is eight, "collapsed" is nine, "no food" is seven. A
+            // volunteer standing in front of a crisis typed the truest word they had
+            // and the screen told them to describe the concern — which reads as "you
+            // left it blank" — and refused to log the follow-up at all. The one
+            // outcome that must never be hard to report was the hardest.
+            if (!description || !description.trim())
+                return 'Please say what happened, so the team lead knows what they are acting on.';
 
             body.escalationReasonCode = reason;
             body.escalationDescription = description.trim();
