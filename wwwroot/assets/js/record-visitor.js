@@ -85,6 +85,7 @@
         loadCampuses();
         setToday();
         wireFollowUpToggle();
+        wireOpenCaseButton();
         wireResidence();
 
         form.addEventListener('submit', onSubmit);
@@ -339,6 +340,9 @@
         document.getElementById('startFollowUp')
             .addEventListener('change', syncFollowUp);
 
+        document.getElementById('assignNow')
+            .addEventListener('change', syncFollowUp);
+
         syncFollowUp();
     }
 
@@ -361,6 +365,21 @@
     }
 
     /**
+     * Whether to actually assign this visitor here and now.
+     *
+     * Two things have to be true: an immediate assignment must be POSSIBLE, and the
+     * operator must not have chosen to leave it for the job. Keeping them apart is
+     * the whole point of the change — the old single box made "do not assign now"
+     * and "do not follow up at all" the same click, and only the second one happened.
+     *
+     * The server checks the possible half again regardless. This only keeps the
+     * request honest about what the operator was shown.
+     */
+    function assignNowChosen() {
+        return autoAssignAllowed() && document.getElementById('assignNow').checked;
+    }
+
+    /**
      * Shows or hides the follow-up box to match. Hidden means "not a choice you have",
      * so the box is not merely disabled — a disabled tick that stays ticked reads as
      * a promise being kept.
@@ -370,7 +389,8 @@
      */
     function syncFollowUp() {
         var toggle = document.getElementById('startFollowUp');
-        var field = document.getElementById('startFollowUpField');
+        var assign = document.getElementById('assignNow');
+        var assignField = document.getElementById('assignNowField');
         var note = document.getElementById('followUpNote');
         var priorityField = document.getElementById('priorityField');
 
@@ -381,15 +401,29 @@
             return;
         }
 
-        var allowed = autoAssignAllowed();
+        // No case means there is nothing to assign and no priority to set. The
+        // "open a case" box itself always stays on screen: it is the one question
+        // whose answer is always the operator's.
+        var opening = toggle.checked;
+        var possible = autoAssignAllowed();
 
-        field.hidden = !allowed;
+        assignField.hidden = !opening || !possible;
+        priorityField.hidden = !opening;
 
-        if (!allowed) {
-            // Still ticked. The case is what puts the visitor on the follow-up queue,
-            // and dropping it would mean an out-of-town visitor — or every visitor,
-            // with the setting off — was recorded and then quietly forgotten.
-            toggle.checked = true;
+        if (!opening) {
+            // Said out loud, because this is the click that used to look like
+            // "assign later" and actually meant "never".
+            note.textContent = 'No case will be opened, so nobody will follow up with ' +
+                               'this visitor — not now and not later.';
+            note.hidden = false;
+            return;
+        }
+
+        if (!possible) {
+            // Forced back on, so the request matches the note. An immediate assignment
+            // is off the table, and a stale untick would otherwise travel with a
+            // request whose answer was already decided.
+            assign.checked = true;
 
             note.textContent = document.getElementById('isLocal').checked
                 ? 'A case will be opened and queued. Assigning at intake is turned off in ' +
@@ -398,11 +432,17 @@
                   'assigned to a volunteer automatically — a team lead places them.';
 
             note.hidden = false;
-        } else {
-            note.hidden = true;
+            return;
         }
 
-        priorityField.hidden = !toggle.checked;
+        if (!assign.checked) {
+            note.textContent = 'A case will be opened and left unassigned. The assignment ' +
+                               'job places it with the least-loaded volunteer on its next run.';
+            note.hidden = false;
+            return;
+        }
+
+        note.hidden = true;
     }
 
     // ---------------------------------------------------------------- duplicates
@@ -739,7 +779,7 @@
             campusId:         value('campus'),
             isLocal:          isLocal,
             startFollowUp:    document.getElementById('startFollowUp').checked,
-            autoAssign:       autoAssignAllowed(),
+            autoAssign:       assignNowChosen(),
 
             // Only meaningful when somebody already holds the number. Sent as null
             // otherwise: the server refuses a relationship on a number nobody holds,
@@ -1091,6 +1131,73 @@
         }
     }
 
+    /**
+     * Offers to put an already-recorded visitor onto the follow-up queue.
+     *
+     * Always offered while editing, because this screen cannot tell from
+     * /people/{id}/intake whether a case exists — that endpoint returns intake fields
+     * only, deliberately. The SERVER knows, and refuses with "already has an open
+     * case", which is a better answer than a button this screen guessed at.
+     */
+    function showOpenCaseOffer() {
+        var block = document.getElementById('openCaseBlock');
+        if (!block) return;
+
+        document.getElementById('openCaseText').textContent =
+            'If this visitor was recorded without a follow-up case, nobody is going to ' +
+            'contact them and the assignment job cannot see them. Opening a case here ' +
+            'puts them on the queue.';
+
+        document.getElementById('openCaseBtn').disabled = false;
+        block.hidden = false;
+    }
+
+    function wireOpenCaseButton() {
+        var btn = document.getElementById('openCaseBtn');
+        if (!btn) return;
+
+        btn.addEventListener('click', function () {
+            if (!editing) return;
+
+            btn.disabled = true;
+            btn.textContent = 'Opening…';
+
+            // autoAssign follows the same rule intake uses. This is a repair, and a
+            // repair should land the visitor exactly where they would have been.
+            fetch(API_BASE_URL + '/cases', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    personId: editing.id,
+                    autoAssign: autoAssignOnIntake,
+                    priority: 'NORMAL'
+                })
+            })
+                .then(function (res) { return res.json().catch(function () { return null; }); })
+                .then(function (body) {
+                    btn.textContent = 'Open a follow-up case';
+
+                    // responseType 0 == Success. A warning here is a real answer —
+                    // "already has an open case" is the common one, and means there
+                    // was nothing to repair.
+                    if (!body || body.responseType !== 0) {
+                        btn.disabled = false;
+                        showToast((body && body.message) || 'The case could not be opened.',
+                                  'warning');
+                        return;
+                    }
+
+                    showToast(body.message || 'Case opened.', 'success');
+                    document.getElementById('openCaseBlock').hidden = true;
+                })
+                .catch(function () {
+                    btn.disabled = false;
+                    btn.textContent = 'Open a follow-up case';
+                    showToast('Could not reach the server.', 'error');
+                });
+        });
+    }
+
     function setValue(id, v) {
         var el = document.getElementById(id);
         if (el) el.value = v == null ? '' : v;
@@ -1151,6 +1258,11 @@
             if (wrap) wrap.hidden = true;
         }
 
+        var assignField = document.getElementById('assignNowField');
+        if (assignField) assignField.hidden = true;
+
+        showOpenCaseOffer();
+
         // The note explains why no volunteer is assigned at intake, which is not the
         // question here — a correction does not open a case in the first place.
         document.getElementById('followUpNote').hidden = true;
@@ -1188,6 +1300,14 @@
 
         var followUp = document.getElementById('startFollowUp');
         if (followUp) followUp.checked = true;
+
+        var followUpField = document.getElementById('startFollowUpField');
+        if (followUpField) followUpField.hidden = false;
+
+        document.getElementById('openCaseBlock').hidden = true;
+
+        var assignNow = document.getElementById('assignNow');
+        if (assignNow) assignNow.checked = true;
 
         document.getElementById('priorityField').hidden = false;
         setVisitFieldsVisible(true);

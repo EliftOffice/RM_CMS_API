@@ -24,6 +24,20 @@ namespace RM_CMS.Modules.Care.Data
         /// <summary>Open cases with no volunteer — the queue the assignment job drains.</summary>
         Task<IReadOnlyList<CareCase>> FindUnassignedAsync(long? campusId, int limit);
 
+        /// <summary>
+        /// What is sitting just OUTSIDE the assignment queue, and why.
+        /// </summary>
+        /// <remarks>
+        /// Exists because "Nothing waiting for assignment." is the same report whether
+        /// the church is fully up to date or whether every visitor recorded this week
+        /// never got a case opened. Those are opposite situations and they read
+        /// identically, which is how a fortnight of intake can sit invisible.
+        ///
+        /// Counts only, never names: this feeds a job note, and a job report is not a
+        /// place to leak who visited.
+        /// </remarks>
+        Task<AssignmentQueueDiagnostics> DiagnoseAssignmentQueueAsync(DateTime since);
+
         /// <summary>Cases whose next nurture step has fallen due and are not paused.</summary>
         Task<IReadOnlyList<CareCase>> FindDueForNextStepAsync(DateTime onOrBefore, int limit);
 
@@ -87,6 +101,33 @@ namespace RM_CMS.Modules.Care.Data
         public bool? Unassigned { get; init; }
         public int Skip { get; init; }
         public int Take { get; init; } = 25;
+    }
+
+    /// <summary>
+    /// Why the assignment queue is empty when it should not be. See
+    /// <see cref="ICareCaseRepository.DiagnoseAssignmentQueueAsync"/>.
+    /// </summary>
+    public sealed class AssignmentQueueDiagnostics
+    {
+        /// <summary>
+        /// People recorded recently for whom no case was ever opened.
+        /// </summary>
+        /// <remarks>
+        /// The intake screen can record somebody without opening a case — that is
+        /// what "Open a follow-up case" unticked means. It is a real choice, but a
+        /// batch of them is almost always the operator having misread the box, and
+        /// nothing else in the system would ever mention it.
+        /// </remarks>
+        public int PeopleWithNoCase { get; set; }
+
+        /// <summary>Unassigned cases held back because the person lives out of town.</summary>
+        public int UnassignedOutOfTown { get; set; }
+
+        /// <summary>Unassigned cases held back by a do-not-contact request.</summary>
+        public int UnassignedDoNotContact { get; set; }
+
+        public bool AnythingToReport =>
+            PeopleWithNoCase > 0 || UnassignedOutOfTown > 0 || UnassignedDoNotContact > 0;
     }
 
     public sealed class CareCaseRepository : ICareCaseRepository
@@ -245,6 +286,54 @@ namespace RM_CMS.Modules.Care.Data
 
             using var connection = _dbFactory.GetConnection();
             return (await connection.QueryAsync<CareCase>(sql, new { CampusId = campusId, Limit = limit })).ToList();
+        }
+
+        public async Task<AssignmentQueueDiagnostics> DiagnoseAssignmentQueueAsync(DateTime since)
+        {
+            // One round trip for three counts. Each mirrors exactly one clause of
+            // FindUnassignedAsync, so a filter changed there and not here would show
+            // up as a diagnostic that no longer explains the thing it sits beside.
+            //
+            // person.created_at defaults to CURRENT_TIMESTAMP(3), which is the MySQL
+            // server's LOCAL time while @Since is UTC — the trap documented on
+            // login_challenge and church_event. It does not matter over a thirty-day
+            // window, and is named here so nobody tightens this to "today" and gets a
+            // silently empty answer for five and a half hours.
+            const string sql = @"
+                SELECT
+                    -- A person with no case is only worth reporting if they are a
+                    -- VISITOR. Staff have person rows too, and an administrator or a
+                    -- volunteer legitimately never has a case — counting them would
+                    -- put a permanent non-zero number in the report and train
+                    -- everybody to ignore it. Same definition campus.PersonCount uses.
+                    (SELECT COUNT(*)
+                       FROM person p
+                      WHERE p.created_at >= @Since
+                        AND p.do_not_contact = 0
+                        AND NOT EXISTS (SELECT 1 FROM care_case cc WHERE cc.person_id = p.id)
+                        AND NOT EXISTS (SELECT 1 FROM user_account ua WHERE ua.person_id = p.id)
+                        AND NOT EXISTS (SELECT 1 FROM volunteer v WHERE v.person_id = p.id)
+                    ) AS PeopleWithNoCase,
+
+                    (SELECT COUNT(*)
+                       FROM care_case cc JOIN person p ON p.id = cc.person_id
+                      WHERE cc.assigned_volunteer_id IS NULL
+                        AND cc.status <> 'CLOSED'
+                        AND p.do_not_contact = 0
+                        AND p.is_local = 0
+                    ) AS UnassignedOutOfTown,
+
+                    (SELECT COUNT(*)
+                       FROM care_case cc JOIN person p ON p.id = cc.person_id
+                      WHERE cc.assigned_volunteer_id IS NULL
+                        AND cc.status <> 'CLOSED'
+                        AND p.do_not_contact = 1
+                    ) AS UnassignedDoNotContact;";
+
+            using var connection = _dbFactory.GetConnection();
+
+            return await connection.QueryFirstAsync<AssignmentQueueDiagnostics>(sql, new { Since = since })
+                   ?? new AssignmentQueueDiagnostics();
         }
 
         public async Task<IReadOnlyList<CareCase>> FindDueForNextStepAsync(DateTime onOrBefore, int limit)

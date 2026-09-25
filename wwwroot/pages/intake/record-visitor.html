@@ -180,6 +180,20 @@
                     -->
                     <div id="editNotice" class="notice notice-warn" role="status" hidden></div>
 
+                    <!-- Recovering a visitor who was recorded with no case.
+                         Correcting a record must never start pastoral work as a SIDE
+                         EFFECT — that rule stands, and is why the follow-up boxes stay
+                         hidden while editing. But a visitor saved with "Open a
+                         follow-up case" unticked had no route back onto the queue at
+                         all: no screen could open a case for somebody who already
+                         exists, and re-entering them hits the duplicate guard.
+                         An explicit button is not a side effect. -->
+                    <div id="openCaseBlock" class="notice" role="status" hidden>
+                        <div id="openCaseText"></div>
+                        <button type="button" class="btn btn-sm" id="openCaseBtn"
+                                style="margin-top:8px;">Open a follow-up case</button>
+                    </div>
+
                     <div id="dupNotice" class="notice notice-warn" role="alert" hidden></div>
                     <div id="formError" class="notice" role="alert" hidden></div>
 
@@ -382,23 +396,44 @@
 
                         <p class="section-title">Follow-up</p>
 
-                        <!-- The box is only shown when ticking it would actually do
-                             something. It promises an immediate assignment, and there
-                             are two situations where that promise cannot be kept: the
-                             administrator has turned assignment at intake off, and the
-                             visitor lives out of town so no volunteer can be matched to
-                             them. Offering the choice anyway is how an operator comes to
-                             believe a volunteer has the visitor when nobody does.
+                        <!-- TWO questions, deliberately two boxes.
+                             These were one box reading "Start follow-up straight
+                             away — Opens a case and assigns it to an available
+                             volunteer". Unticking it did not defer the assignment as
+                             that wording implies: it skipped opening the case
+                             altogether, so the visitor was saved, nothing reached the
+                             assignment queue, and the job that should have placed them
+                             reported nothing waiting. There was no way at all to say
+                             "open the case but let the job assign it".
 
-                             In both cases the case is still opened — it waits to be
-                             placed — and followUpNote says which situation applies. -->
+                             So the case and the assignment are now asked separately.
+                             The first is almost always yes. The second is a real
+                             choice, and the box for it appears only when an immediate
+                             assignment is actually possible — the administrator may
+                             have turned assignment at intake off, and an out-of-town
+                             visitor has no area to match a volunteer against. Offering
+                             a choice that cannot be honoured is how an operator comes
+                             to believe a volunteer has the visitor when nobody does;
+                             followUpNote says which rule applied instead. -->
                         <div class="field" id="startFollowUpField">
                             <label class="check">
                                 <input type="checkbox" id="startFollowUp" checked>
                                 <span class="check-text">
-                                    <strong>Start follow-up straight away</strong>
-                                    Opens a case and assigns it to an available volunteer.
-                                    Leave this on unless the visitor asked not to be contacted.
+                                    <strong>Open a follow-up case</strong>
+                                    Puts this visitor on the follow-up queue. Uncheck only if
+                                    they asked not to be contacted — nobody will follow up at
+                                    all, now or later.
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="field" id="assignNowField">
+                            <label class="check">
+                                <input type="checkbox" id="assignNow" checked>
+                                <span class="check-text">
+                                    <strong>Assign to a volunteer now</strong>
+                                    Uncheck to leave the case for the assignment job, which
+                                    places it with the least-loaded volunteer on its next run.
                                 </span>
                             </label>
                         </div>

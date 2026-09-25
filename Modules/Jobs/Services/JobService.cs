@@ -130,7 +130,16 @@ namespace RM_CMS.Modules.Jobs.Services
 
                 if (pending.Count == 0)
                 {
+                    // "Nothing waiting" reads as "all up to date", and it is the same
+                    // sentence whether that is true or whether a fortnight of visitors
+                    // never had a case opened at all. Saying what is sitting just
+                    // outside the queue is the difference between a reassuring report
+                    // and an accurate one.
                     report.AddNote("Nothing waiting for assignment.");
+
+                    foreach (var note in await DescribeEmptyQueueAsync(now))
+                        report.AddNote(note);
+
                     return;
                 }
 
@@ -208,6 +217,64 @@ namespace RM_CMS.Modules.Jobs.Services
                     }
                 }
             });
+
+        /// <summary>
+        /// How far back the empty-queue diagnostic looks for people with no case.
+        /// </summary>
+        /// <remarks>
+        /// Long enough to cover "we entered everyone last month and nothing happened",
+        /// short enough that a church with years of history does not have every
+        /// visitor who ever declined follow-up counted as a problem.
+        /// </remarks>
+        private static readonly TimeSpan NoCaseLookback = TimeSpan.FromDays(30);
+
+        /// <summary>
+        /// Why an empty queue may not mean what it looks like.
+        /// </summary>
+        /// <remarks>
+        /// Never throws and never fails the run. This is commentary on a report, and
+        /// a diagnostic that could break the job it explains would be worse than no
+        /// diagnostic at all.
+        /// </remarks>
+        private async Task<IReadOnlyList<string>> DescribeEmptyQueueAsync(DateTime now)
+        {
+            var notes = new List<string>();
+
+            try
+            {
+                var found = await _cases.DiagnoseAssignmentQueueAsync(now - NoCaseLookback);
+
+                if (!found.AnythingToReport) return notes;
+
+                if (found.PeopleWithNoCase > 0)
+                {
+                    notes.Add(
+                        $"{found.PeopleWithNoCase} visitor(s) recorded in the last 30 days have no " +
+                        "case at all, so this job cannot see them. That is what unticking " +
+                        "\"Open a follow-up case\" on the intake screen does.");
+                }
+
+                if (found.UnassignedOutOfTown > 0)
+                {
+                    notes.Add(
+                        $"{found.UnassignedOutOfTown} unassigned case(s) are for visitors from out of " +
+                        "town. Those are never placed automatically — a team lead assigns them.");
+                }
+
+                if (found.UnassignedDoNotContact > 0)
+                {
+                    notes.Add(
+                        $"{found.UnassignedDoNotContact} unassigned case(s) are for people who asked " +
+                        "not to be contacted.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not diagnose the empty assignment queue.");
+            }
+
+            return notes;
+        }
 
         /// <summary>
         /// The work item that makes an assignment real.
