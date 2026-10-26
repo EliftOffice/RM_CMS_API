@@ -360,15 +360,37 @@
             errors and an inline message for others. The `required` attributes stay
             for assistive technology.
         -->
-        <form id="loginForm" novalidate>
+        <!--
+            NOTHING HERE IS AUTOFILLED, DELIBERATELY.
+
+            The number field signs the person in by itself once ten digits appear,
+            and a browser filling in a saved number fires the same input event as a
+            person typing one. So simply opening this page signed you into whichever
+            account the browser had remembered: no button, no chance to read the
+            number, and no way to type a different one before it had gone through.
+            On a shared office machine, opening the browser was enough to be inside
+            somebody's account.
+
+            Every attribute a browser matches on has been taken off the two fields
+            below — the autocomplete tokens, the field names, and the tel input type
+            that marks a phone number. They are only hints, so a browser may still
+            guess; what it can no longer do is be TOLD to fill them.
+
+            The cost is accepted: a saved number no longer appears for anybody, and
+            password managers no longer offer to fill this form. Everyone types their
+            number. That is the trade this page wants.
+        -->
+        <form id="loginForm" novalidate autocomplete="off">
 
             <div class="vl-field">
                 <label class="vl-label" for="mobile">Mobile number</label>
-                <input type="tel"
+                <input type="text"
                        id="mobile"
-                       name="username"
+                       name="rm-signin-mobile"
                        class="vl-input"
-                       autocomplete="username"
+                       autocomplete="off"
+                       autocorrect="off"
+                       spellcheck="false"
                        inputmode="numeric"
                        pattern="[0-9]{10}"
                        maxlength="10"
@@ -396,9 +418,9 @@
                 <div class="vl-password-wrap">
                     <input type="password"
                            id="password"
-                           name="password"
+                           name="rm-signin-secret"
                            class="vl-input"
-                           autocomplete="current-password"
+                           autocomplete="off"
                            maxlength="128">
                     <button type="button"
                             id="revealPassword"
